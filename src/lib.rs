@@ -1,3 +1,5 @@
+pub use typst;
+
 pub mod prelude {
     pub use crate::compiler::{world::TypstWorld, TypstCompiler, TypstCompilerPlugin};
 }

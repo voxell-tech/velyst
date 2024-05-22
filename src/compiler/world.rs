@@ -4,11 +4,11 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use bevy::utils::HashMap;
+use bevy::{prelude::*, utils::HashMap};
 use chrono::{DateTime, Datelike, Local};
 use comemo::Prehashed;
 use typst::{
-    diag::{FileError, FileResult, StrResult},
+    diag::{FileError, FileResult},
     foundations::{Bytes, Datetime},
     syntax::{FileId, Source},
     text::{Font, FontBook},
@@ -18,6 +18,7 @@ use typst::{
 use super::fonts::{FontSearcher, FontSlot};
 use super::package;
 
+#[derive(Resource)]
 pub struct TypstWorld {
     /// The root relative to which absolute paths are resolved.
     root: PathBuf,
@@ -38,11 +39,11 @@ pub struct TypstWorld {
 
 impl TypstWorld {
     /// Create a new [`TypstWorld`].
-    pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> StrResult<Self> {
+    pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> Self {
         let mut searcher = FontSearcher::default();
         searcher.search(font_paths);
 
-        Ok(Self {
+        Self {
             root,
             main: Source::detached(""),
             library: Prehashed::new(Library::default()),
@@ -50,7 +51,7 @@ impl TypstWorld {
             fonts: searcher.fonts,
             slots: Mutex::new(HashMap::new()),
             now: OnceLock::new(),
-        })
+        }
     }
 
     pub fn get_main_source(&self) -> &Source {

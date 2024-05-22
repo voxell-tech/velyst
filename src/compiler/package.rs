@@ -1,11 +1,7 @@
 use std::fs;
-use std::io::{self, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
-use codespan_reporting::term::{
-    self,
-    termcolor::{self, ColorChoice, WriteColor},
-};
+use bevy::prelude::*;
 use ecow::eco_format;
 use typst::{
     diag::{PackageError, PackageResult},
@@ -55,7 +51,8 @@ fn download_package(spec: &PackageSpec, package_dir: &Path) -> PackageResult<()>
         spec.name, spec.version
     );
 
-    print_downloading(spec).unwrap();
+    // Print that a package downloading is happening.
+    info!("[Typst]: Downloading package: {spec}");
 
     let data = match download_with_progress(&url) {
         Ok(data) => data,
@@ -70,25 +67,4 @@ fn download_package(spec: &PackageSpec, package_dir: &Path) -> PackageResult<()>
             fs::remove_dir_all(package_dir).ok();
             PackageError::MalformedArchive(Some(eco_format!("{err}")))
         })
-}
-
-/// Print that a package downloading is happening.
-fn print_downloading(spec: &PackageSpec) -> io::Result<()> {
-    let mut w = color_stream();
-    let styles = term::Styles::default();
-
-    w.set_color(&styles.header_help)?;
-    write!(w, "downloading")?;
-
-    w.reset()?;
-    writeln!(w, " {spec}")
-}
-
-/// Get stderr with color support if desirable.
-fn color_stream() -> termcolor::StandardStream {
-    termcolor::StandardStream::stderr(if std::io::stderr().is_terminal() {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    })
 }

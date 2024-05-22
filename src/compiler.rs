@@ -24,31 +24,23 @@ impl TypstCompilerPlugin {
 
 impl Plugin for TypstCompilerPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(TypstCompiler::new(&self.font_paths));
-    }
-}
-
-/// A resource compiler for compiling Typst content.
-#[derive(Resource)]
-pub struct TypstCompiler {
-    world: TypstWorld,
-    tracer: Tracer,
-}
-
-impl TypstCompiler {
-    pub fn new(font_paths: &[PathBuf]) -> Self {
         let mut assets = PathBuf::from(".");
         assets.push("assets");
-        Self {
-            world: TypstWorld::new(assets, font_paths).unwrap(),
-            tracer: Tracer::new(),
-        }
+        app.insert_resource(TypstWorld::new(assets, &self.font_paths));
     }
+}
 
-    /// Compile a raw Typst string into a document.
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct TypstCompiler<'w, 's> {
+    world: ResMut<'w, TypstWorld>,
+    tracer: Local<'s, Tracer>,
+}
+
+impl<'w, 's> TypstCompiler<'w, 's> {
     pub fn compile(&mut self, text: &str) -> SourceResult<Document> {
-        let source = self.world.get_main_source_mut();
+        let world = &mut *self.world;
+        let source = world.get_main_source_mut();
         source.replace(text);
-        typst::compile(&self.world, &mut self.tracer)
+        typst::compile(world, &mut self.tracer)
     }
 }
