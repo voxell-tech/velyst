@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 bevy = "0.13"
-bevy_vello = "0.3"
+bevy_vello = { version = "0.4", features = ["svg"] }
 # typst dependencies
 typst = "0.11"
 typst-svg = "0.11"
@@ -24,6 +24,8 @@ env_proxy = "0.4"
 [features]
 default = ["embed-fonts"]
 embed-fonts = ["dep:typst-assets"]
+svg = []
+vello = []
 
 [lints.clippy]
 redundant_type_annotations = "warn"

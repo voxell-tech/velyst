@@ -1033,9 +1033,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_vello"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a53736c88f1691b29053670fcd5981c99f66906d6e3015fa879ece8a841053a5"
+checksum = "7f6327cae8a64ba76ad0e8c4c186b311181ae4a681306b8ae790157c4db7a69c"
 dependencies = [
  "bevy",
  "once_cell",

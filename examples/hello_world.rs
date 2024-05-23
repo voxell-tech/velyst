@@ -1,21 +1,27 @@
 use bevy::prelude::*;
 use bevy_typst::prelude::*;
+use bevy_vello::{VelloAssetBundle, VelloPlugin};
 
 fn main() {
     App::new()
         // Bevy plugins
         .add_plugins(DefaultPlugins)
         // Custom plugins
-        .add_plugins(TypstPlugin::default())
+        .add_plugins((TypstPlugin::default(), VelloPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, (print_document, print_svg))
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn(Camera2dBundle::default());
     commands.spawn((
         asset_server.load::<TypstAsset>("hello_world.typ"),
         asset_server.load::<SvgAsset>("hello_world.typ"),
+        VelloAssetBundle {
+            vector: asset_server.load("hello_world.typ"),
+            ..default()
+        },
     ));
 }
 
