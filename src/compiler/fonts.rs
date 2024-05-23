@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use fontdb::{Database, Source};
+use bevy_vello::vello_svg::usvg::fontdb::{Database, Source};
 use typst::text::{Font, FontBook, FontInfo};
 
 /// Searches for fonts.
@@ -14,7 +14,7 @@ pub struct FontSearcher {
     pub fonts: Vec<FontSlot>,
 }
 
-/// Holds details about the location of a font and lazily the font itself.
+/// Holds details about the location of a font and lazily load the font itself.
 #[derive(Debug, Clone)]
 pub struct FontSlot {
     /// The path at which the font can be found on the system.

@@ -965,7 +965,7 @@ dependencies = [
  "ecow",
  "env_proxy",
  "flate2",
- "fontdb",
+ "serde",
  "tar",
  "typst",
  "typst-assets",

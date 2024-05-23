@@ -8,8 +8,10 @@ use bevy::{prelude::*, utils::HashMap};
 use chrono::{DateTime, Datelike, Local};
 use comemo::Prehashed;
 use typst::{
-    diag::{FileError, FileResult},
+    diag::{FileError, FileResult, SourceResult},
+    eval::Tracer,
     foundations::{Bytes, Datetime},
+    model::Document,
     syntax::{FileId, Source},
     text::{Font, FontBook},
     Library, World,
@@ -18,12 +20,10 @@ use typst::{
 use super::fonts::{FontSearcher, FontSlot};
 use super::package;
 
-#[derive(Resource)]
-pub struct TypstWorld {
+/// Metadata for [`TypstWorldRef`].
+pub struct TypstWorldMeta {
     /// The root relative to which absolute paths are resolved.
     root: PathBuf,
-    /// The input path.
-    main: Source,
     /// Typst's standard library.
     library: Prehashed<Library>,
     /// Metadata about discovered fonts.
@@ -37,15 +37,13 @@ pub struct TypstWorld {
     now: OnceLock<DateTime<Local>>,
 }
 
-impl TypstWorld {
-    /// Create a new [`TypstWorld`].
+impl TypstWorldMeta {
     pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> Self {
         let mut searcher = FontSearcher::default();
         searcher.search(font_paths);
 
         Self {
             root,
-            main: Source::detached(""),
             library: Prehashed::new(Library::default()),
             book: Prehashed::new(searcher.book),
             fonts: searcher.fonts,
@@ -54,31 +52,56 @@ impl TypstWorld {
         }
     }
 
-    pub fn get_main_source(&self) -> &Source {
-        &self.main
+    pub fn build(&self, main: Source) -> TypstWorldRef<'_> {
+        TypstWorldRef { main, meta: self }
     }
 
-    pub fn get_main_source_mut(&mut self) -> &mut Source {
-        &mut self.main
+    pub fn build_from_str(&self, text: &str) -> TypstWorldRef<'_> {
+        self.build(Source::detached(text))
     }
 
+    pub fn compile_str(&self, text: &str) -> SourceResult<Document> {
+        // Build typst world
+        let world = self.build_from_str(&text);
+        let mut tracer = Tracer::new();
+
+        // Compile document
+        let document = typst::compile(&world, &mut tracer)?;
+
+        // Logs out typst warnings
+        let warnings = tracer.warnings();
+        if warnings.is_empty() == false {
+            warn!("[Typst compilation warning]: {:#?}", warnings);
+        }
+
+        Ok(document)
+    }
+}
+
+pub struct TypstWorldRef<'a> {
+    /// The input path.
+    pub main: Source,
+    meta: &'a TypstWorldMeta,
+}
+
+impl<'a> TypstWorldRef<'a> {
     /// Access the canonical slot for the given file id.
     fn slot<F, T>(&self, id: FileId, f: F) -> T
     where
         F: FnOnce(&mut FileSlot) -> T,
     {
-        let mut map = self.slots.lock().unwrap();
+        let mut map = self.meta.slots.lock().unwrap();
         f(map.entry(id).or_insert_with(|| FileSlot::new(id)))
     }
 }
 
-impl World for TypstWorld {
+impl<'a> World for TypstWorldRef<'a> {
     fn library(&self) -> &Prehashed<Library> {
-        &self.library
+        &self.meta.library
     }
 
     fn book(&self) -> &Prehashed<FontBook> {
-        &self.book
+        &self.meta.book
     }
 
     fn main(&self) -> Source {
@@ -86,19 +109,19 @@ impl World for TypstWorld {
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
-        self.slot(id, |slot| slot.source(&self.root))
+        self.slot(id, |slot| slot.source(&self.meta.root))
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.slot(id, |slot| slot.file(&self.root))
+        self.slot(id, |slot| slot.file(&self.meta.root))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        self.fonts[index].get()
+        self.meta.fonts[index].get()
     }
 
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = self.now.get_or_init(chrono::Local::now);
+        let now = self.meta.now.get_or_init(chrono::Local::now);
 
         let naive = match offset {
             None => now.naive_local(),
