@@ -51,7 +51,7 @@ impl AssetLoader for SvgAssetLoader {
             let typst_asset = load_context
                 .load_direct_with_reader(reader, asset_path)
                 .await
-                .or_else(|_| Err(SvgAssetLoaderError::LoadDirectError))?;
+                .map_err(|_| SvgAssetLoaderError::LoadDirectError)?;
 
             let typst_asset = typst_asset
                 .take::<TypstAsset>()
@@ -82,10 +82,11 @@ pub struct SvgAssetLoaderSettings {
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum SvgAssetLoaderError {
-    /// A [`LoadDirectError`].
+    /// A [`bevy::asset::LoadDirectError`].
     #[error("Could not load typst file.")]
     LoadDirectError,
 
+    /// A [`usvg::Error`] when parsing string to a [`usvg::Tree`].
     #[error("Could parse typst as Svg: {0}")]
     UsvgError(#[from] usvg::Error),
 }

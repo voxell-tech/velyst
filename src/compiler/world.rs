@@ -62,7 +62,7 @@ impl TypstWorldMeta {
 
     pub fn compile_str(&self, text: &str) -> SourceResult<Document> {
         // Build typst world
-        let world = self.build_from_str(&text);
+        let world = self.build_from_str(text);
         let mut tracer = Tracer::new();
 
         // Compile document

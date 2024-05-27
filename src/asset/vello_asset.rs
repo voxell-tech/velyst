@@ -9,14 +9,15 @@ use bevy::{
     },
 };
 use bevy_vello::{
-    integrations::{VectorFile, VectorLoaderError, VelloAsset},
+    integrations::{VectorFile, VelloAsset},
     vello,
     vello_svg::{self, usvg},
 };
-use serde::{Deserialize, Serialize};
 use typst::layout::Abs;
 
 use crate::prelude::TypstAsset;
+
+use super::svg_asset::SvgAssetLoaderSettings;
 
 pub struct VelloAssetPlugin;
 
@@ -34,7 +35,7 @@ impl AssetLoader for VelloAssetLoader {
 
     type Settings = SvgAssetLoaderSettings;
 
-    type Error = SvgAssetLoaderError;
+    type Error = VelloAssetLoaderError;
 
     fn load<'a>(
         &'a self,
@@ -47,7 +48,7 @@ impl AssetLoader for VelloAssetLoader {
             let typst_asset = load_context
                 .load_direct_with_reader(reader, asset_path)
                 .await
-                .or_else(|_| Err(SvgAssetLoaderError::LoadDirectError))?;
+                .map_err(|_| VelloAssetLoaderError::LoadDirectError)?;
 
             let typst_asset = typst_asset
                 .take::<TypstAsset>()
@@ -94,22 +95,15 @@ impl AssetLoader for VelloAssetLoader {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
-pub struct SvgAssetLoaderSettings {
-    pub padding: f64,
-}
-
-/// Possible errors that can be produced by [`SvgAssetLoader`].
+/// Possible errors that can be produced by [`VelloAssetLoader`].
 #[non_exhaustive]
 #[derive(Debug, Error)]
-pub enum SvgAssetLoaderError {
-    /// A [`LoadDirectError`].
+pub enum VelloAssetLoaderError {
+    /// A [`bevy::asset::LoadDirectError`].
     #[error("Could not load typst file.")]
     LoadDirectError,
 
+    /// A [`usvg::Error`] when parsing string into a [`usvg::Tree`].
     #[error("Could parse typst as Svg: {0}")]
     UsvgError(#[from] usvg::Error),
-
-    #[error("Could not load Svg into Vello scene.")]
-    VectorLoaderError(#[from] VectorLoaderError),
 }

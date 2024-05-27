@@ -65,7 +65,7 @@ impl AssetLoader for TypstAssetLoader {
             let document = self
                 .world_builder
                 .compile_str(&text)
-                .or_else(|e| Err(TypstCompileError(e)))?;
+                .map_err(TypstCompileError)?;
 
             Ok(TypstAsset(document))
         })
