@@ -1,21 +1,25 @@
 #set page(
-  height: auto,
-  width: 1000pt,
-  fill: rgb("#19181A"),
+    height: auto,
+    width: auto,
+    fill: rgb("#19181A"),
 )
+#set raw(theme: "Monokai Pro.tmTheme")
+#set text(size: 48pt, fill: rgb("#FCFCFA"))
 
-#set text(size: 32pt, fill: rgb("#FCFCFA"))
+#box()[
+    #text(fill: gradient.linear(rgb("#13A8C1"), rgb("#21C0AA")))[= Typst]
+]
 
 Total displaced soil by glacial flow:
 
 $ 7.32 beta +
-  sum_(i=0)^nabla
-    (Q_i (a_i - epsilon)) / 2 $
+    sum_(i=0)^nabla
+        (Q_i (a_i - epsilon)) / 2 $
 
 #lorem(10)
 
 ```rust
 fn main() {
-  println!("Hello, world!")
+    println!("Hello, world!")
 }
 ```
