@@ -8,7 +8,7 @@ A [Typst](https://typst.app) integration for [Bevy](https://bevyengine.org). Bev
 
 ## Join the community!
 
-You can join us on the [Voxell discord server](https://discord.gg/WDBnuNH).
+You can join us on the [Voxell discord server](https://discord.gg/Mhnyp6VYEQ).
 
 ## License
 
