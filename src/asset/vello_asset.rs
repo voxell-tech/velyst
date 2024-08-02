@@ -53,17 +53,9 @@ impl AssetLoader for VelloAssetLoader {
 
         let scene = vello_svg::render_tree(&tree);
 
-        let view_size = tree.size();
-        let view_width = view_size.width();
-        let view_height = view_size.height();
-
-        let image_size = tree.size();
-        let image_width = image_size.width();
-        let image_height = image_size.height();
-
-        // Use ratio to calculate actual width and height
-        let width = view_width * view_width / image_width;
-        let height = view_height * view_height / image_height;
+        let size = tree.size();
+        let width = size.width();
+        let height = size.height();
 
         let local_transform_center = Transform::from_xyz(width * 0.5, -height * 0.5, 0.0);
 
