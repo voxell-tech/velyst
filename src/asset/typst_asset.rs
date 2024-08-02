@@ -3,12 +3,9 @@ use std::sync::Arc;
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     prelude::*,
-    utils::{
-        thiserror::{self, Error},
-        BoxedFuture,
-    },
 };
 use ecow::EcoVec;
+use thiserror::Error;
 use typst::{diag::SourceDiagnostic, model::Document};
 
 use crate::compiler::world::TypstWorldMeta;
@@ -52,23 +49,21 @@ impl AssetLoader for TypstAssetLoader {
 
     type Error = TypstAssetLoaderError;
 
-    fn load<'a>(
+    async fn load<'a>(
         &'a self,
-        reader: &'a mut Reader,
+        reader: &'a mut Reader<'_>,
         _settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let mut text = String::new();
-            reader.read_to_string(&mut text).await?;
+        _load_context: &'a mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut text = String::new();
+        reader.read_to_string(&mut text).await?;
 
-            let document = self
-                .world_builder
-                .compile_str(&text)
-                .map_err(TypstCompileError)?;
+        let document = self
+            .world_builder
+            .compile_str(&text)
+            .map_err(TypstCompileError)?;
 
-            Ok(TypstAsset(document))
-        })
+        Ok(TypstAsset(document))
     }
 
     fn extensions(&self) -> &[&str] {

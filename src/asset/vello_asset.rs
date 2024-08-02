@@ -3,16 +3,12 @@ use std::sync::Arc;
 use bevy::{
     asset::{io::Reader, AssetLoader, LoadContext},
     prelude::*,
-    utils::{
-        thiserror::{self, Error},
-        BoxedFuture,
-    },
 };
 use bevy_vello::{
     integrations::{VectorFile, VelloAsset},
-    vello,
     vello_svg::{self, usvg},
 };
+use thiserror::Error;
 use typst::layout::Abs;
 
 use crate::prelude::TypstAsset;
@@ -37,57 +33,49 @@ impl AssetLoader for VelloAssetLoader {
 
     type Error = VelloAssetLoaderError;
 
-    fn load<'a>(
+    async fn load<'a>(
         &'a self,
-        reader: &'a mut Reader,
+        _reader: &'a mut Reader<'_>,
         settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let asset_path = load_context.asset_path().clone();
-            let typst_asset = load_context
-                .load_direct_with_reader(reader, asset_path)
-                .await
-                .map_err(|_| VelloAssetLoaderError::LoadDirectError)?;
+        load_context: &'a mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let asset_path = load_context.asset_path().clone();
+        let direct_loader = load_context.loader().direct();
 
-            let typst_asset = typst_asset
-                .take::<TypstAsset>()
-                .expect("TypstAsset missing after loading.");
+        let typst_asset = direct_loader
+            .load::<TypstAsset>(asset_path)
+            .await
+            .map_err(|_| VelloAssetLoaderError::LoadDirectError)?
+            .take();
 
-            let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
-            let tree = usvg::Tree::from_str(
-                &svg_str,
-                &usvg::Options::default(),
-                &usvg::fontdb::Database::default(),
-            )?;
+        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
+        let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
 
-            let mut scene = vello::Scene::new();
-            vello_svg::render_tree(&mut scene, &tree);
+        let scene = vello_svg::render_tree(&tree);
 
-            let view_size = tree.view_box().rect.size();
-            let view_width = view_size.width();
-            let view_height = view_size.height();
+        let view_size = tree.size();
+        let view_width = view_size.width();
+        let view_height = view_size.height();
 
-            let image_size = tree.size();
-            let image_width = image_size.width();
-            let image_height = image_size.height();
+        let image_size = tree.size();
+        let image_width = image_size.width();
+        let image_height = image_size.height();
 
-            // Use ration to calculate actual width and height
-            let width = view_width * view_width / image_width;
-            let height = view_height * view_height / image_height;
+        // Use ratio to calculate actual width and height
+        let width = view_width * view_width / image_width;
+        let height = view_height * view_height / image_height;
 
-            let local_transform_center = Transform::from_xyz(width * 0.5, -height * 0.5, 0.0);
+        let local_transform_center = Transform::from_xyz(width * 0.5, -height * 0.5, 0.0);
 
-            let vello_asset = VelloAsset {
-                file: VectorFile::Svg(Arc::new(scene)),
-                local_transform_center,
-                width,
-                height,
-                alpha: 1.0,
-            };
+        let vello_asset = VelloAsset {
+            file: VectorFile::Svg(Arc::new(scene)),
+            local_transform_center,
+            width,
+            height,
+            alpha: 1.0,
+        };
 
-            Ok(vello_asset)
-        })
+        Ok(vello_asset)
     }
 
     fn extensions(&self) -> &[&str] {

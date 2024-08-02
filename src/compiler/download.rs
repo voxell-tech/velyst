@@ -179,7 +179,9 @@ impl RemoteReader {
                     }))
                 )
             }
-            None => format!("Total: {total} Speed: {speed_h} Elapsed: {elapsed}"),
+            None => {
+                format!("Total: {total} Speed: {speed_h} Elapsed: {elapsed}")
+            }
         };
 
         let _ = write!(self.stderr, "{output}");

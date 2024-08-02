@@ -41,9 +41,8 @@ impl Plugin for TypstPlugin {
         assets_path.push("assets");
         let world_builder = Arc::new(TypstWorldMeta::new(assets_path, &self.font_paths));
 
-        app.add_plugins((SvgAssetPlugin, VelloAssetPlugin))
-            // Register loader last to make it the default loader
-            .add_plugins(TypstAssetPlugin::new(world_builder.clone()))
+        app.add_plugins(TypstAssetPlugin::new(world_builder.clone()))
+            .add_plugins((SvgAssetPlugin, VelloAssetPlugin))
             .insert_resource(TypstCompiler { world_builder });
     }
 }

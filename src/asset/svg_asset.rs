@@ -1,13 +1,10 @@
 use bevy::{
     asset::{io::Reader, AssetLoader, LoadContext},
     prelude::*,
-    utils::{
-        thiserror::{self, Error},
-        BoxedFuture,
-    },
 };
 use bevy_vello::vello_svg::usvg;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use typst::layout::Abs;
 
 use crate::prelude::TypstAsset;
@@ -40,32 +37,24 @@ impl AssetLoader for SvgAssetLoader {
 
     type Error = SvgAssetLoaderError;
 
-    fn load<'a>(
+    async fn load<'a>(
         &'a self,
-        reader: &'a mut Reader,
+        _reader: &'a mut Reader<'_>,
         settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext,
-    ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
-        Box::pin(async move {
-            let asset_path = load_context.asset_path().clone();
-            let typst_asset = load_context
-                .load_direct_with_reader(reader, asset_path)
-                .await
-                .map_err(|_| SvgAssetLoaderError::LoadDirectError)?;
+        load_context: &'a mut LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let asset_path = load_context.asset_path().clone();
+        let direct_loader = load_context.loader().direct();
+        let typst_asset = direct_loader
+            .load::<TypstAsset>(asset_path)
+            .await
+            .map_err(|_| SvgAssetLoaderError::LoadDirectError)?
+            .take();
 
-            let typst_asset = typst_asset
-                .take::<TypstAsset>()
-                .expect("TypstAsset missing after loading.");
+        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
+        let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
 
-            let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
-            let tree = usvg::Tree::from_str(
-                &svg_str,
-                &usvg::Options::default(),
-                &usvg::fontdb::Database::default(),
-            )?;
-
-            Ok(SvgAsset(tree))
-        })
+        Ok(SvgAsset(tree))
     }
 
     fn extensions(&self) -> &[&str] {
