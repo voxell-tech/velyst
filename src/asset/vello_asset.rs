@@ -1,17 +1,12 @@
-use std::sync::Arc;
-
 use bevy::{
     asset::{io::Reader, AssetLoader, LoadContext},
     prelude::*,
 };
-use bevy_vello::{
-    integrations::{VectorFile, VelloAsset},
-    vello_svg::{self, usvg},
-};
+use bevy_vello::{integrations::VelloAsset, vello_svg::usvg};
 use thiserror::Error;
 use typst::layout::Abs;
 
-use crate::prelude::TypstAsset;
+use crate::{compiler::TypstScene, prelude::TypstAsset};
 
 use super::svg_asset::SvgAssetLoaderSettings;
 
@@ -48,25 +43,9 @@ impl AssetLoader for VelloAssetLoader {
             .map_err(|_| VelloAssetLoaderError::LoadDirectError)?
             .take();
 
-        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
-        let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
-
-        let scene = vello_svg::render_tree(&tree);
-
-        let size = tree.size();
-        let width = size.width();
-        let height = size.height();
-
-        let local_transform_center = Transform::from_xyz(width * 0.5, -height * 0.5, 0.0);
-
-        let vello_asset = VelloAsset {
-            file: VectorFile::Svg(Arc::new(scene)),
-            local_transform_center,
-            width,
-            height,
-            alpha: 1.0,
-        };
-
+        let vello_asset =
+            TypstScene::from_document(typst_asset.document(), Abs::pt(settings.padding))?
+                .as_asset();
         Ok(vello_asset)
     }
 

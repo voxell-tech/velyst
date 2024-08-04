@@ -10,21 +10,13 @@ use typst::{diag::SourceDiagnostic, model::Document};
 
 use crate::compiler::world::TypstWorldMeta;
 
-pub struct TypstAssetPlugin {
-    world_builder: Arc<TypstWorldMeta>,
-}
-
-impl TypstAssetPlugin {
-    pub fn new(world_builder: Arc<TypstWorldMeta>) -> Self {
-        Self { world_builder }
-    }
-}
+pub struct TypstAssetPlugin(pub Arc<TypstWorldMeta>);
 
 impl Plugin for TypstAssetPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<TypstAsset>()
             .register_asset_loader(TypstAssetLoader {
-                world_builder: self.world_builder.clone(),
+                world_meta: self.0.clone(),
             });
     }
 }
@@ -39,7 +31,7 @@ impl TypstAsset {
 }
 
 pub struct TypstAssetLoader {
-    world_builder: Arc<TypstWorldMeta>,
+    world_meta: Arc<TypstWorldMeta>,
 }
 
 impl AssetLoader for TypstAssetLoader {
@@ -59,7 +51,7 @@ impl AssetLoader for TypstAssetLoader {
         reader.read_to_string(&mut text).await?;
 
         let document = self
-            .world_builder
+            .world_meta
             .compile_str(&text)
             .map_err(TypstCompileError)?;
 

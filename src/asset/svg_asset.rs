@@ -51,7 +51,7 @@ impl AssetLoader for SvgAssetLoader {
             .map_err(|_| SvgAssetLoaderError::LoadDirectError)?
             .take();
 
-        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
+        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::pt(settings.padding));
         let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
 
         Ok(SvgAsset(tree))
@@ -64,6 +64,7 @@ impl AssetLoader for SvgAssetLoader {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct SvgAssetLoaderSettings {
+    /// Padding around the document (in [`Abs::pt()`]).
     pub padding: f64,
 }
 
