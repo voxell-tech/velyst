@@ -1,120 +1,134 @@
-use typst::{
-    diag::EcoString,
-    foundations::{Content, Label, Packed, Smart},
-    layout, model, text,
-};
+use prelude::*;
+use typst::foundations::{SequenceElem, Style};
 
-// TODO: Create a unit generator.
-/// Length in absolute points.
-pub fn length_abs(abs: layout::Abs) -> layout::Length {
-    layout::Length::from(abs)
-}
-
-pub fn abs_pt(pt: f64) -> layout::Length {
-    layout::Length::from(layout::Abs::pt(pt))
-}
-
-/// Absolute length in points.
-pub fn pt(pt: f64) -> layout::Abs {
-    layout::Abs::pt(pt)
-}
-
-macro_rules! fn_elem_empty {
-    ($fn_name:ident, $elem:ty) => {
-        pub fn $fn_name() -> $elem {
-            <$elem>::new()
-        }
-    };
-}
-
-macro_rules! fn_elem {
-    ($fn_name:ident, $elem:ty, $($param:ident = $in_elem:ty),+) => {
-        pub fn $fn_name($($param: impl Into<$in_elem>),+) -> $elem {
-            <$elem>::new($($param.into()),+)
-        }
+pub mod prelude {
+    pub use typst::{
+        diag::EcoString,
+        foundations::{Content, Label, NativeElement, Packed, Smart},
+        layout::{self, Abs, Em, Length, Ratio, Rel},
+        model, text,
     };
 
-    ($fn_name:ident, $elem:ty) => {
-        fn_elem!($fn_name, $elem, body = ::typst::foundations::Content);
-    };
-
-    ($fn_name:ident, $elem:ty, $in_elem:ty) => {
-        fn_elem!($fn_name, $elem, body = $in_elem);
-    };
+    pub use crate::{elem::*, sequence, DocWriter, SimpleWriter};
 }
 
-// Layout
-fn_elem!(page, layout::PageElem);
-fn_elem_empty!(pagebreak, layout::PagebreakElem);
-fn_elem!(vertical, layout::VElem, layout::Spacing);
-fn_elem!(horizontal, layout::HElem, layout::Spacing);
-fn_elem_empty!(boxed, layout::BoxElem);
-fn_elem_empty!(block, layout::BlockElem);
-fn_elem!(stack, layout::StackElem, Vec<layout::StackChild>);
-fn_elem!(grid, layout::GridElem, Vec<layout::GridChild>);
-fn_elem!(column, layout::ColumnsElem);
-fn_elem_empty!(colbreak, layout::ColbreakElem);
-fn_elem!(place, layout::PlaceElem);
-fn_elem!(align, layout::AlignElem);
-fn_elem!(pad, layout::PadElem);
-fn_elem!(repeat, layout::RepeatElem);
-fn_elem!(moved, layout::MoveElem);
-fn_elem!(scale, layout::ScaleElem);
-fn_elem!(rotate, layout::RotateElem);
-fn_elem!(hide, layout::HideElem);
+pub mod elem;
 
-// Model
-fn_elem_empty!(outline, model::OutlineElem);
-fn_elem!(doc, model::DocumentElem, Vec<Content>);
-fn_elem!(reference, model::RefElem, Label);
-fn_elem!(
-    link,
-    model::LinkElem,
-    dest = model::LinkTarget,
-    body = Content
-);
-fn_elem!(heading, model::HeadingElem);
-fn_elem!(figure, model::FigureElem);
-fn_elem!(footnote, model::FootnoteElem, model::FootnoteBody);
-fn_elem!(quote, model::QuoteElem);
-fn_elem!(cite, model::CiteElem, Label);
-fn_elem!(
-    bibliography,
-    model::BibliographyElem,
-    paths = model::BibliographyPaths,
-    bibliography = model::Bibliography
-);
-fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
-fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
-fn_elem_empty!(parbreak, model::ParbreakElem);
-fn_elem!(par, model::ParElem, Vec<Content>);
-fn_elem!(table, model::TableElem, Vec<model::TableChild>);
-fn_elem!(terms, model::TermsElem, Vec<Packed<model::TermItem>>);
-fn_elem!(emph, model::EmphElem);
-fn_elem!(strong, model::StrongElem);
+pub trait DocWriter: Sized {
+    /// A immutable reference to all contents within the writer.
+    fn contents(&self) -> &Vec<Content>;
+    /// A mutable reference to all contents within the writer.
+    fn contents_mut(&mut self) -> &mut Vec<Content>;
+    /// Moves all contents out from the writer and drop the writer.
+    fn take_contents(self) -> Vec<Content>;
 
-// Text
-fn_elem!(text, text::TextElem, EcoString);
-fn_elem_empty!(linebreak, text::LinebreakElem);
-fn_elem_empty!(smart_quote, text::SmartQuoteElem);
-fn_elem!(subscript, text::SubElem);
-fn_elem!(superscript, text::SuperElem);
-fn_elem!(underline, text::UnderlineElem);
-fn_elem!(overline, text::OverlineElem);
-fn_elem!(strike, text::StrikeElem);
-fn_elem!(highlight, text::HighlightElem);
-fn_elem!(raw, text::RawElem, text::RawContent);
+    /// Pack all contents within the writer into a single [`Content`].
+    fn pack(self) -> Content {
+        SequenceElem::new(self.take_contents()).pack()
+    }
 
-#[macro_export]
-macro_rules! sequence {
-    ($($native_elem:expr),*) => {
-        ::typst::foundations::SequenceElem::new(vec![
-            $(::typst::foundations::Content::from($native_elem),)*
-        ])
-    };
+    /// Adds a new [`Content`] into the writer while returning
+    /// a [`ContentMut`], mutably referencing the newly added content.
+    fn add_content(&mut self, content: impl Into<Content>) -> ContentMut {
+        self.contents_mut().push(content.into());
+        ContentMut(self.contents_mut().last_mut().unwrap())
+    }
 }
 
 #[derive(Default)]
-pub struct ElemBuilder(pub Vec<Content>);
+pub struct SimpleWriter(pub Vec<Content>);
 
-impl ElemBuilder {}
+impl DocWriter for SimpleWriter {
+    fn contents(&self) -> &Vec<Content> {
+        &self.0
+    }
+
+    fn contents_mut(&mut self) -> &mut Vec<Content> {
+        &mut self.0
+    }
+
+    fn take_contents(self) -> Vec<Content> {
+        self.0
+    }
+}
+
+impl SimpleWriter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn blank_page(
+        &mut self,
+        width: f64,
+        height: f64,
+        writer: impl Fn(&mut Self),
+    ) -> ContentMut {
+        let mut doc = Self::default();
+        writer(&mut doc);
+
+        let page_elem = page(
+            scale(
+                block()
+                    .with_width(Abs::pt(width).smart_rel())
+                    .with_height(Abs::pt(height).smart_rel())
+                    .with_body(Some(doc.pack())),
+            )
+            // Ratio needed to convert pt to pixels
+            .with_x(Ratio::new(0.75))
+            .with_y(Ratio::new(0.75))
+            .with_reflow(true),
+        )
+        .with_width(Smart::Auto)
+        .with_height(Smart::Auto)
+        .with_margin(layout::Margin::splat(Some(Abs::zero().smart_rel())));
+
+        self.add_content(page_elem.pack())
+    }
+}
+
+pub struct ContentMut<'a>(&'a mut Content);
+
+impl<'a> ContentMut<'a> {
+    pub fn style(self, style: impl Into<Style>) -> Self {
+        let content_value = std::mem::take(self.0);
+        *self.0 = content_value.styled(style);
+        self
+    }
+
+    pub fn as_content(self) -> &'a mut Content {
+        self.0
+    }
+}
+
+pub trait UnitExt: Sized {
+    fn length(self) -> Length;
+    fn rel(self) -> Rel;
+
+    fn smart_length(self) -> Smart<Length> {
+        Smart::Custom(self.length())
+    }
+
+    fn smart_rel(self) -> Smart<Rel> {
+        Smart::Custom(self.rel())
+    }
+}
+
+impl UnitExt for Abs {
+    fn length(self) -> Length {
+        Length::from(self)
+    }
+
+    fn rel(self) -> Rel {
+        Rel::from(self)
+    }
+}
+
+impl UnitExt for Em {
+    fn length(self) -> Length {
+        Length::from(self)
+    }
+
+    fn rel(self) -> Rel {
+        Rel::from(self)
+    }
+}
