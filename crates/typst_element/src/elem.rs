@@ -1,6 +1,6 @@
 use typst::{
     diag::EcoString,
-    foundations::{Content, Label, Packed},
+    foundations::{Content, Label, Packed, Style, StyledElem},
     layout, model, text,
 };
 
@@ -92,9 +92,28 @@ fn_elem!(raw, text::RawElem, text::RawContent);
 
 #[macro_export]
 macro_rules! sequence {
-($($native_elem:expr),*) => {
-    ::typst::foundations::SequenceElem::new(vec![
-        $(::typst::foundations::Content::from($native_elem),)*
-    ])
-};
+    ($($native_elem:expr),*) => {
+        ::typst::foundations::SequenceElem::new(vec![
+            $(::typst::foundations::Content::from($native_elem),)*
+        ])
+    };
+}
+
+pub trait ContentExt {
+    fn style(self, style: impl Into<Style>) -> StyledElem;
+
+    /// Create [`layout::AlignElem`] around the content.
+    fn align(self, alignment: layout::Alignment) -> layout::AlignElem;
+}
+
+impl<T: Into<Content>> ContentExt for T {
+    fn style(self, style: impl Into<Style>) -> StyledElem {
+        let content: Content = self.into();
+
+        StyledElem::new(content, style.into().into())
+    }
+
+    fn align(self, alignment: layout::Alignment) -> layout::AlignElem {
+        align(self.into()).with_alignment(alignment)
+    }
 }

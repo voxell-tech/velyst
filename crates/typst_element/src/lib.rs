@@ -59,28 +59,17 @@ impl SimpleWriter {
 
     pub fn blank_page(
         &mut self,
-        width: f64,
-        height: f64,
+        // width: f64,
+        // height: f64,
         writer: impl Fn(&mut Self),
     ) -> ContentMut {
         let mut doc = Self::default();
         writer(&mut doc);
 
-        let page_elem = page(
-            scale(
-                block()
-                    .with_width(Abs::pt(width).smart_rel())
-                    .with_height(Abs::pt(height).smart_rel())
-                    .with_body(Some(doc.pack())),
-            )
-            // Ratio needed to convert pt to pixels
-            .with_x(Ratio::new(0.75))
-            .with_y(Ratio::new(0.75))
-            .with_reflow(true),
-        )
-        .with_width(Smart::Auto)
-        .with_height(Smart::Auto)
-        .with_margin(layout::Margin::splat(Some(Abs::zero().smart_rel())));
+        let page_elem = page(doc.pack())
+            .with_width(Smart::Auto)
+            .with_height(Smart::Auto)
+            .with_margin(layout::Margin::splat(Some(Abs::zero().smart_rel())));
 
         self.add_content(page_elem.pack())
     }
