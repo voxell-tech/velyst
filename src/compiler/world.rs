@@ -1,7 +1,7 @@
 use std::{
     fs, mem,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Mutex, OnceLock},
 };
 
 use bevy::{prelude::*, utils::HashMap};

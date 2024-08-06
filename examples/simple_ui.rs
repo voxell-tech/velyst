@@ -3,16 +3,12 @@ use bevy_typst::{
     compiler::{TypstCompiler, TypstScene},
     prelude::*,
 };
-use bevy_vello::{VelloAssetBundle, VelloPlugin, VelloScene, VelloSceneBundle};
+use bevy_vello::{VelloPlugin, VelloScene, VelloSceneBundle};
 use typst::{
-    foundations::{Content, FromValue, NativeElement, SequenceElem, Smart},
-    layout::{
-        Abs, AlignElem, Alignment, BlockElem, BoxElem, HAlignment, Length, Margin, PageElem, Ratio,
-        Rel, VAlignment,
-    },
-    model::HeadingElem,
-    text::TextElem,
+    foundations::{Content, NativeElement, SequenceElem, Smart, Style},
+    layout::{self, Abs},
 };
+use typst_element::{align, block, heading, page, scale, sequence, text};
 
 fn main() {
     App::new()
@@ -45,8 +41,8 @@ fn ui_update(
         return;
     };
 
-    let width = window.width() as f64 / 1.3333334;
-    let height = window.height() as f64 / 1.3333334;
+    let width = window.width() as f64;
+    let height = window.height() as f64;
 
     println!("width: {width}, height: {height}");
 
@@ -54,26 +50,48 @@ fn ui_update(
         return;
     };
 
-    let content = PageElem::new(
-        SequenceElem::new(vec![
-            HeadingElem::new(TextElem::new(time.elapsed_seconds().to_string().into()).pack())
-                .pack(),
-            TextElem::new((1.0 / time.delta_seconds()).to_string().into()).pack(),
-        ])
-        .pack(),
+    fn length(pt: f64) -> layout::Length {
+        layout::Length::from(layout::Abs::pt(pt))
+    }
+
+    let content = align(
+        page(
+            scale(
+                block()
+                    .with_width(Smart::Custom(layout::Rel::new(
+                        layout::Ratio::zero(),
+                        length(width),
+                    )))
+                    .with_height(Smart::Custom(layout::Rel::new(
+                        layout::Ratio::zero(),
+                        length(height),
+                    )))
+                    .with_body(Some(
+                        sequence!(
+                            heading(text(time.elapsed_seconds().to_string())),
+                            text((1.0 / time.delta_seconds()).to_string())
+                        )
+                        .pack(),
+                    )),
+            )
+            .with_x(layout::Ratio::new(0.75))
+            .with_y(layout::Ratio::new(0.75))
+            .with_reflow(true),
+        )
+        .with_width(Smart::Auto)
+        .with_height(Smart::Auto)
+        .with_margin(layout::Margin::splat(Some(Smart::Custom(
+            layout::Rel::zero(),
+        )))),
     )
-    .with_width(Smart::Custom(Length::from(Abs::pt(width))))
-    .with_height(Smart::Custom(Length::from(Abs::pt(height))))
-    .with_margin(Margin::splat(Some(Smart::Custom(Rel::zero()))))
-    .pack()
-    .styled(AlignElem::set_alignment(Alignment::Both(
-        HAlignment::Center,
-        VAlignment::Horizon,
-    )));
+    .with_alignment(layout::Alignment::Both(
+        layout::HAlignment::Center,
+        layout::VAlignment::Horizon,
+    ))
+    .pack();
 
     let mut document = world.compile_content(content).unwrap();
     let frame = std::mem::take(&mut document.pages[0].frame);
-    // println!("{:?}", frame.width().to_raw());
     document.pages[0].frame = frame.mark_box();
     let typst_scene = TypstScene::from_document(&document, Abs::zero()).unwrap();
 
@@ -84,4 +102,120 @@ fn ui_update(
 
     *transform = Transform::from_xyz(-typst_scene.width * 0.5, typst_scene.height * 0.5, 0.0);
     *scene = typst_scene.as_component();
+}
+
+#[derive(Default)]
+pub struct TypstBuidler(pub Vec<Content>);
+
+impl TypstBuidler {
+    pub fn add_content(&mut self, content: Content) -> &mut Content {
+        self.0.push(content);
+        self.0.last_mut().unwrap()
+    }
+
+    pub fn pack(self) -> Content {
+        SequenceElem::new(self.0).pack()
+    }
+}
+
+impl TypstBuidler {
+    pub fn new(children: Vec<Content>) -> Self {
+        Self(children)
+    }
+
+    // pub fn page(&mut self, builder_fn: impl Fn(&mut TypstBuidler)) -> ContentMut {
+    //     let mut builder = Self::default();
+    //     builder_fn(&mut builder);
+
+    //     let content = PageElem::new(builder.pack()).pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // pub fn text(&mut self, text: impl Into<EcoString>) -> ContentMut {
+    //     let content = TextElem::new(text.into()).pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // // pub fn quote(&mut self, builder_fn: impl Fn(&mut SequenceBuidler)) -> ContentMut {
+    // //     let mut builder = Self::default();
+    // //     builder_fn(&mut builder);
+
+    // //     let content = QuoteElem::new(builder.pack()).pack();
+    // //     ContentMut(self.add_content(content))
+    // // }
+
+    // pub fn heading(&mut self, builder_fn: impl Fn(&mut TypstBuidler)) -> ContentMut {
+    //     let mut builder = Self::default();
+    //     builder_fn(&mut builder);
+
+    //     let content = HeadingElem::new(builder.pack()).pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // // pub fn boxed(&mut self, builder_fn: impl Fn(&mut SequenceBuidler)) -> ContentMut {
+    // //     let mut builder = Self::default();
+    // //     builder_fn(&mut builder);
+
+    // //     let mut content = BoxElem::new().with_body();
+    // //     let content = BoxElem::new(builder.pack()).pack();
+    // //     ContentMut(self.add_content(content))
+    // // }
+
+    // pub fn par(&mut self, builder_fn: impl Fn(&mut TypstBuidler)) -> ContentMut {
+    //     let mut builder = Self::default();
+    //     builder_fn(&mut builder);
+
+    //     let content = ParElem::new(builder.0).pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // pub fn linebreak(&mut self) -> ContentMut {
+    //     let content = LinebreakElem::new().pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // pub fn parbreak(&mut self) -> ContentMut {
+    //     let content = ParbreakElem::new().pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // pub fn bullet_list(&mut self, builder_fn: impl Fn(&mut TypstBuidler)) -> ContentMut {
+    //     let mut builder = Self::default();
+    //     builder_fn(&mut builder);
+
+    //     let content = ListElem::new(
+    //         builder
+    //             .0
+    //             .drain(..)
+    //             .map(|c| Packed::new(ListItem::new(c)))
+    //             .collect(),
+    //     )
+    //     .pack();
+    //     ContentMut(self.add_content(content))
+    // }
+
+    // pub fn numbered_list(&mut self, builder_fn: impl Fn(&mut TypstBuidler)) -> ContentMut {
+    //     let mut builder = Self::default();
+    //     builder_fn(&mut builder);
+
+    //     let content = EnumElem::new(
+    //         builder
+    //             .0
+    //             .drain(..)
+    //             .map(|c| Packed::new(EnumItem::new(c)))
+    //             .collect(),
+    //     )
+    //     .pack();
+    //     ContentMut(self.add_content(content))
+    // }
+}
+
+pub struct ContentMut<'a>(&'a mut Content);
+
+impl<'a> ContentMut<'a> {
+    pub fn style(self, style: impl Into<Style>) -> Self {
+        let content_value = std::mem::take(self.0);
+        *self.0 = content_value.styled(style);
+        self
+    }
 }
