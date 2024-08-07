@@ -5,7 +5,7 @@ use bevy_typst::{
 };
 use bevy_vello::{prelude::*, VelloPlugin};
 use typst::visualize;
-use typst_element::{elem::ContentExt, prelude::*, UnitExt};
+use typst_element::{prelude::*, UnitExt};
 
 fn main() {
     App::new()
@@ -52,14 +52,6 @@ fn ui_update(
         return;
     };
 
-    let gradient = visualize::Gradient::Linear(std::sync::Arc::new(visualize::LinearGradient {
-        stops: vec![],
-        angle: layout::Angle::zero(),
-        space: visualize::ColorSpace::Srgb,
-        relative: Smart::Auto,
-        anti_alias: true,
-    }));
-
     let mut writer = SimpleWriter::new();
 
     writer.blank_page(|writer| {
@@ -68,7 +60,8 @@ fn ui_update(
                 heading(text(time.elapsed_seconds().to_string())),
                 text((1.0 / time.delta_seconds()).to_string())
             )
-            .align(layout::Alignment::Both(
+            .pack()
+            .aligned(layout::Alignment::Both(
                 layout::HAlignment::Center,
                 layout::VAlignment::Horizon,
             )),
@@ -83,6 +76,9 @@ fn ui_update(
         .styled(text::TextElem::set_size(text::TextSize(
             Abs::pt(24.0).length(),
         )));
+
+    // content.query()
+    // layout::PageElem::set_binding(Smart::Custom(layout::Binding::Left));
 
     let document = world.compile_content(content).unwrap();
     let typst_scene = TypstScene::from_document(&document, Abs::zero()).unwrap();

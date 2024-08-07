@@ -6,7 +6,7 @@ use bevy_vello::{integrations::VelloAsset, vello_svg::usvg};
 use thiserror::Error;
 use typst::layout::Abs;
 
-use crate::{compiler::TypstScene, prelude::TypstAsset};
+use crate::{compiler::TypstScene, prelude::TypstDocAsset};
 
 use super::svg_asset::SvgAssetLoaderSettings;
 
@@ -38,7 +38,7 @@ impl AssetLoader for VelloAssetLoader {
         let direct_loader = load_context.loader().direct();
 
         let typst_asset = direct_loader
-            .load::<TypstAsset>(asset_path)
+            .load::<TypstDocAsset>(asset_path)
             .await
             .map_err(|_| VelloAssetLoaderError::LoadDirectError)?
             .take();

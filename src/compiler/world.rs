@@ -11,7 +11,7 @@ use typst::{
     diag::{warning, FileError, FileResult, SourceResult},
     engine::{Engine, Route},
     eval::Tracer,
-    foundations::{Bytes, Content, Datetime, StyleChain},
+    foundations::{Bytes, Content, Datetime, Module, StyleChain},
     introspection::{Introspector, Locator},
     layout::LayoutRoot,
     model::Document,
@@ -70,8 +70,22 @@ impl TypstWorldMeta {
         self.world(Source::detached(text))
     }
 
+    pub fn eval_str(&self, text: impl Into<String>) -> SourceResult<Module> {
+        // Typst world
+        let world: &dyn World = &self.world_from_str(text);
+        let mut tracer = Tracer::new();
+
+        // Try to evaluate the source file into a module.
+        typst::eval::eval(
+            world.track(),
+            Route::default().track(),
+            tracer.track_mut(),
+            &world.main(),
+        )
+    }
+
     pub fn compile_str(&self, text: impl Into<String>) -> SourceResult<Document> {
-        // Build typst world
+        // Typst world
         let world = self.world_from_str(text);
         let mut tracer = Tracer::new();
 

@@ -14,7 +14,7 @@ pub mod prelude {
     pub use crate::{
         asset::{
             svg_asset::{SvgAsset, SvgAssetLoaderSettings},
-            typst_asset::TypstAsset,
+            typst_asset::{TypstDocAsset, TypstModAsset},
         },
         TypstPlugin,
     };

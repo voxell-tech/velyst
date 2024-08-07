@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typst::layout::Abs;
 
-use crate::prelude::TypstAsset;
+use crate::prelude::TypstDocAsset;
 
 pub struct SvgAssetPlugin;
 
@@ -46,7 +46,7 @@ impl AssetLoader for SvgAssetLoader {
         let asset_path = load_context.asset_path().clone();
         let direct_loader = load_context.loader().direct();
         let typst_asset = direct_loader
-            .load::<TypstAsset>(asset_path)
+            .load::<TypstDocAsset>(asset_path)
             .await
             .map_err(|_| SvgAssetLoaderError::LoadDirectError)?
             .take();
