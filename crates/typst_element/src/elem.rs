@@ -1,9 +1,9 @@
 use typst::{
     diag::EcoString,
-    foundations::{Content, Label, Packed},
+    foundations::{self, Content, IntoValue, Label, Packed},
     layout,
     loading::Readable,
-    model, text, visualize,
+    math, model, symbols, text, visualize,
 };
 
 macro_rules! fn_elem_empty {
@@ -28,6 +28,25 @@ macro_rules! fn_elem {
     ($fn_name:ident, $elem:ty, $in_elem:ty) => {
         fn_elem!($fn_name, $elem, body = $in_elem);
     };
+}
+
+// Foundations
+
+#[macro_export]
+macro_rules! sequence {
+    ($($native_elem:expr),*,) => {
+        ::typst::foundations::SequenceElem::new(vec![
+            $(::typst::foundations::Content::from($native_elem),)*
+        ])
+    };
+}
+
+pub fn context<T: IntoValue>(
+    func: foundations::Func,
+    args: impl IntoIterator<Item = T>,
+) -> foundations::ContextElem {
+    let mut args = foundations::Args::new(func.span(), args);
+    foundations::ContextElem::new(func.with(&mut args))
 }
 
 // Layout
@@ -92,14 +111,16 @@ fn_elem!(strike, text::StrikeElem);
 fn_elem!(highlight, text::HighlightElem);
 fn_elem!(raw, text::RawElem, text::RawContent);
 
-#[macro_export]
-macro_rules! sequence {
-    ($($native_elem:expr),*,) => {
-        ::typst::foundations::SequenceElem::new(vec![
-            $(::typst::foundations::Content::from($native_elem),)*
-        ])
-    };
+// Symbols
+
+pub fn symbol(c: char) -> symbols::Symbol {
+    symbols::Symbol::single(c)
 }
+
+// Math
+
+fn_elem!(equation, math::EquationElem);
+fn_elem!(lr, math::LrElem);
 
 // Visualize
 
