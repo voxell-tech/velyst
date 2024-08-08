@@ -1,7 +1,7 @@
 use typst::{
     diag::EcoString,
     foundations::{Content, Label, Packed},
-    layout, model, text,
+    layout, model, text, visualize,
 };
 
 macro_rules! fn_elem_empty {
@@ -97,4 +97,18 @@ macro_rules! sequence {
             $(::typst::foundations::Content::from($native_elem),)*
         ])
     };
+}
+
+// Visualize
+
+pub fn solid(color: visualize::Color) -> visualize::Paint {
+    visualize::Paint::Solid(color)
+}
+
+pub fn gradient(gradient: visualize::Gradient) -> visualize::Paint {
+    visualize::Paint::Gradient(gradient)
+}
+
+pub fn pattern(pattern: visualize::Pattern) -> visualize::Paint {
+    visualize::Paint::Pattern(pattern)
 }

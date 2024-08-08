@@ -21,7 +21,6 @@
 
 #set text(size: font_config.size, fill: base8)
 
-// #circle(width: 8pt, stroke: none, fill: base4)
 #let frame(body) = {
   box(
     body,
@@ -32,7 +31,13 @@
 }
 
 #let button(body) = {
-  box(body, inset: isnet, radius: icon_padding, fill: base2)
+  box(
+    body,
+    inset: icon_config.inset * 2,
+    radius: icon_config.padding,
+    fill: base2,
+    stroke: 2pt + base6,
+  )
 }
 
 #let icon(e) = {

@@ -57,12 +57,7 @@ impl SimpleWriter {
         Self::default()
     }
 
-    pub fn blank_page(
-        &mut self,
-        // width: f64,
-        // height: f64,
-        writer: impl Fn(&mut Self),
-    ) -> ContentMut {
+    pub fn blank_page(&mut self, writer: impl FnOnce(&mut Self)) -> ContentMut {
         let mut doc = Self::default();
         writer(&mut doc);
 
