@@ -11,7 +11,9 @@ use typst::{
     diag::{warning, FileError, FileResult, SourceResult},
     engine::{Engine, Route},
     eval::Tracer,
-    foundations::{Bytes, Content, Datetime, Module, StyleChain},
+    foundations::{
+        Bytes, Content, Context, Datetime, FromValue, Func, IntoArgs, Module, StyleChain,
+    },
     introspection::{Introspector, Locator},
     layout::LayoutRoot,
     model::Document,
@@ -101,12 +103,47 @@ impl TypstWorldMeta {
         Ok(document)
     }
 
+    /// Create a temporary [`Engine`] from the world for Typst evalulation.
+    pub fn scoped_engine<T>(&self, scope: impl FnOnce(&mut Engine) -> T) -> T {
+        let world: &dyn World = &self.empty_world();
+
+        let document = Document::default();
+        let constraint = <Introspector as Validate>::Constraint::new();
+        let mut locator = Locator::new();
+        let mut tracer = Tracer::new();
+
+        let mut engine = Engine {
+            world: world.track(),
+            introspector: document.introspector.track_with(&constraint),
+            route: Route::default(),
+            locator: &mut locator,
+            tracer: tracer.track_mut(),
+        };
+
+        scope(&mut engine)
+    }
+
+    /// Evalulate a Typst function ([`Func`]) with the given arguments ([`IntoArgs`]).
+    ///
+    /// # Panic
+    ///
+    /// 1. Provided arguments ([`IntoArgs`]) does not match the function parameters.
+    /// 2. Function fails to evaluate the results.
+    /// 3. The expected output type from the function is wrong.
+    pub fn eval_func<T: FromValue>(&self, func: &Func, args: impl IntoArgs) -> T {
+        self.scoped_engine(|engine| func.call(engine, Context::none().track(), args))
+            .unwrap()
+            .cast::<T>()
+            .unwrap()
+    }
+
+    // Referenced from: https://github.com/typst/typst/blob/v0.11.1/crates/typst/src/lib.rs#L107-L165
+    // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
+    /// Compile [`Content`] into a [`Document`].
     pub fn compile_content(&self, content: Content) -> SourceResult<Document> {
         let world: &dyn World = &self.empty_world();
         let style_chain = StyleChain::new(&world.library().styles);
 
-        // Referenced from: https://github.com/typst/typst/blob/v0.11.1/crates/typst/src/lib.rs#L107-L165
-        // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
         let mut document = Document::default();
         let mut tracer = Tracer::new();
         let mut iter = 0;
