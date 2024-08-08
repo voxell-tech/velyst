@@ -1,7 +1,9 @@
 use typst::{
     diag::EcoString,
     foundations::{Content, Label, Packed},
-    layout, model, text, visualize,
+    layout,
+    loading::Readable,
+    model, text, visualize,
 };
 
 macro_rules! fn_elem_empty {
@@ -49,7 +51,6 @@ fn_elem!(rotate, layout::RotateElem);
 fn_elem!(hide, layout::HideElem);
 
 // Model
-fn_elem_empty!(outline, model::OutlineElem);
 fn_elem!(doc, model::DocumentElem, Vec<Content>);
 fn_elem!(reference, model::RefElem, Label);
 fn_elem!(
@@ -58,6 +59,7 @@ fn_elem!(
     dest = model::LinkTarget,
     body = Content
 );
+fn_elem_empty!(outline, model::OutlineElem);
 fn_elem!(heading, model::HeadingElem);
 fn_elem!(figure, model::FigureElem);
 fn_elem!(footnote, model::FootnoteElem, model::FootnoteBody);
@@ -92,7 +94,7 @@ fn_elem!(raw, text::RawElem, text::RawContent);
 
 #[macro_export]
 macro_rules! sequence {
-    ($($native_elem:expr),*) => {
+    ($($native_elem:expr),*,) => {
         ::typst::foundations::SequenceElem::new(vec![
             $(::typst::foundations::Content::from($native_elem),)*
         ])
@@ -100,6 +102,24 @@ macro_rules! sequence {
 }
 
 // Visualize
+
+fn_elem!(
+    image,
+    visualize::ImageElem,
+    path = EcoString,
+    readable = Readable
+);
+fn_elem_empty!(line, visualize::LineElem);
+fn_elem_empty!(rect, visualize::RectElem);
+fn_elem_empty!(square, visualize::SquareElem);
+fn_elem_empty!(ellipse, visualize::EllipseElem);
+fn_elem_empty!(circle, visualize::CircleElem);
+fn_elem!(
+    polygon,
+    visualize::PolygonElem,
+    Vec<layout::Axes<layout::Rel<layout::Length>>>
+);
+fn_elem!(path, visualize::PathElem, Vec<visualize::PathVertex>);
 
 pub fn solid(color: visualize::Color) -> visualize::Paint {
     visualize::Paint::Solid(color)
@@ -111,4 +131,8 @@ pub fn gradient(gradient: visualize::Gradient) -> visualize::Paint {
 
 pub fn pattern(pattern: visualize::Pattern) -> visualize::Paint {
     visualize::Paint::Pattern(pattern)
+}
+
+pub fn stroke(paint: visualize::Paint, thickness: layout::Length) -> visualize::Stroke {
+    visualize::Stroke::from_pair(paint, thickness)
 }
