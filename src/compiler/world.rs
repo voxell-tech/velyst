@@ -123,20 +123,6 @@ impl TypstWorldMeta {
         scope(&mut engine)
     }
 
-    /// Evalulate a Typst function ([`Func`]) with the given arguments ([`IntoArgs`]).
-    ///
-    /// # Panic
-    ///
-    /// 1. Provided arguments ([`IntoArgs`]) does not match the function parameters.
-    /// 2. Function fails to evaluate the results.
-    /// 3. The expected output type from the function is wrong.
-    pub fn eval_func<T: FromValue>(&self, func: &Func, args: impl IntoArgs) -> T {
-        self.scoped_engine(|engine| func.call(engine, Context::none().track(), args))
-            .unwrap()
-            .cast::<T>()
-            .unwrap()
-    }
-
     // Referenced from: https://github.com/typst/typst/blob/v0.11.1/crates/typst/src/lib.rs#L107-L165
     // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
     /// Compile [`Content`] into a [`Document`].
