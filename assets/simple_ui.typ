@@ -21,6 +21,11 @@
 
 #set text(size: font_config.size, fill: base8)
 
+#let gradient_title(body) = {
+  set text(size: font_config.size, fill: base8)
+  text(fill: gradient.linear(blue, green))[= #body]
+}
+
 #let frame(body) = {
   box(
     body,
@@ -53,12 +58,12 @@
 }
 
 #block(width: 1280pt, height: 720pt, inset: font_config.inset)[
-  #text(fill: gradient.linear(blue, green))[= Smart Assist]
-  #frame[
-    #icon(emoji.clock.two)
-    #icon(emoji.cloud)
-    #icon(emoji.notebook)
-  ]
+  #gradient_title("Typst")
+  // #frame[
+  //   #icon(emoji.clock.two)
+  //   #icon(emoji.cloud)
+  //   #icon(emoji.notebook)
+  // ]
 
   #let size = 400pt
   #let half_size = size / 2
