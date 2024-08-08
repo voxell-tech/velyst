@@ -1,15 +1,17 @@
+use foundations::{FromValue, Scope, SequenceElem, Style};
 use prelude::*;
-use typst::foundations::{SequenceElem, Style};
 
 pub mod prelude {
     pub use typst::{
         diag::EcoString,
-        foundations::{Content, Label, NativeElement, Packed, Smart},
+        foundations::{self, Content, Label, NativeElement, Packed, Smart},
         layout::{self, Abs, Em, Length, Ratio, Rel},
-        model, text,
+        math, model, text, visualize,
     };
 
-    pub use crate::{elem::*, sequence, DocWriter, SimpleWriter};
+    pub use crate::{elem::*, sequence};
+    pub use crate::{DocWriter, SimpleWriter};
+    pub use crate::{ScopeExt, UnitExt};
 }
 
 pub mod elem;
@@ -114,5 +116,21 @@ impl UnitExt for Em {
 
     fn rel(self) -> Rel {
         Rel::from(self)
+    }
+}
+
+pub trait ScopeExt {
+    /// Clone a variable and cast it into the final value _unchecked_.
+    ///
+    /// # Panic
+    ///
+    /// - Variable does not exists.
+    /// - Variable type does not match the desired value type.
+    fn get_unchecked<T: FromValue>(&self, var: &str) -> T;
+}
+
+impl ScopeExt for Scope {
+    fn get_unchecked<T: FromValue>(&self, var: &str) -> T {
+        self.get(var).cloned().unwrap().cast::<T>().unwrap()
     }
 }
