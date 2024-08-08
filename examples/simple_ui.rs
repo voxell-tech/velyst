@@ -14,16 +14,23 @@ fn main() {
         // Custom plugins
         .add_plugins((TypstPlugin::default(), VelloPlugin))
         .add_systems(Startup, setup)
-        .add_systems(Update, ui_update)
+        .add_systems(
+            Update,
+            (
+                init_template.run_if(not(resource_exists::<Template>)),
+                ui_update.run_if(resource_exists::<Template>),
+            ),
+        )
         .run();
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
-    // commands.spawn((VelloAssetBundle {
-    //     vector: asset_server.load("simple_ui.typ"),
-    //     ..default()
-    // },));
+    commands.spawn(asset_server.load::<TypstModAsset>("simple_ui.typ"));
+
+    // let value = module.scope().get("red").unwrap();
+    // let color = value.clone().cast::<typst::visualize::Color>();
+    // println!("{color:?}");
 
     commands.spawn(VelloSceneBundle {
         coordinate_space: CoordinateSpace::ScreenSpace,
@@ -31,12 +38,101 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
+#[derive(Resource)]
+struct Template {
+    pub frame: typst::foundations::Func,
+    pub button: typst::foundations::Func,
+    pub icon: typst::foundations::Func,
+}
+
+#[derive(Resource)]
+struct ColorTemplate {
+    pub red: typst::visualize::Color,
+    pub orange: typst::visualize::Color,
+    pub yellow: typst::visualize::Color,
+    pub green: typst::visualize::Color,
+    pub blue: typst::visualize::Color,
+    pub purple: typst::visualize::Color,
+    pub base0: typst::visualize::Color,
+    pub base1: typst::visualize::Color,
+    pub base2: typst::visualize::Color,
+    pub base3: typst::visualize::Color,
+    pub base4: typst::visualize::Color,
+    pub base5: typst::visualize::Color,
+    pub base6: typst::visualize::Color,
+    pub base7: typst::visualize::Color,
+    pub base8: typst::visualize::Color,
+}
+
+pub struct Test;
+
+fn init_template(
+    mut commands: Commands,
+    q_simple_ui: Query<&Handle<TypstModAsset>>,
+    typst_mod_assets: Res<Assets<TypstModAsset>>,
+) {
+    let Ok(simple_ui) = q_simple_ui.get_single() else {
+        return;
+    };
+
+    if let Some(module) = typst_mod_assets.get(simple_ui).map(|asset| asset.module()) {
+        let scope = module.scope();
+
+        let red = scope.get("red").unwrap().clone();
+        let orange = scope.get("orange").unwrap().clone();
+        let yellow = scope.get("yellow").unwrap().clone();
+        let green = scope.get("green").unwrap().clone();
+        let blue = scope.get("blue").unwrap().clone();
+        let purple = scope.get("purple").unwrap().clone();
+        let base0 = scope.get("base0").unwrap().clone();
+        let base1 = scope.get("base1").unwrap().clone();
+        let base2 = scope.get("base2").unwrap().clone();
+        let base3 = scope.get("base3").unwrap().clone();
+        let base4 = scope.get("base4").unwrap().clone();
+        let base5 = scope.get("base5").unwrap().clone();
+        let base6 = scope.get("base6").unwrap().clone();
+        let base7 = scope.get("base7").unwrap().clone();
+        let base8 = scope.get("base8").unwrap().clone();
+
+        commands.insert_resource(ColorTemplate {
+            red: red.cast::<typst::visualize::Color>().unwrap(),
+            orange: orange.cast::<typst::visualize::Color>().unwrap(),
+            yellow: yellow.cast::<typst::visualize::Color>().unwrap(),
+            green: green.cast::<typst::visualize::Color>().unwrap(),
+            blue: blue.cast::<typst::visualize::Color>().unwrap(),
+            purple: purple.cast::<typst::visualize::Color>().unwrap(),
+            base0: base0.cast::<typst::visualize::Color>().unwrap(),
+            base1: base1.cast::<typst::visualize::Color>().unwrap(),
+            base2: base2.cast::<typst::visualize::Color>().unwrap(),
+            base3: base3.cast::<typst::visualize::Color>().unwrap(),
+            base4: base4.cast::<typst::visualize::Color>().unwrap(),
+            base5: base5.cast::<typst::visualize::Color>().unwrap(),
+            base6: base6.cast::<typst::visualize::Color>().unwrap(),
+            base7: base7.cast::<typst::visualize::Color>().unwrap(),
+            base8: base8.cast::<typst::visualize::Color>().unwrap(),
+        });
+
+        let frame = scope.get("frame").unwrap().clone();
+        let button = scope.get("button").unwrap().clone();
+        let icon = scope.get("icon").unwrap().clone();
+
+        commands.insert_resource(Template {
+            frame: frame.cast::<typst::foundations::Func>().unwrap(),
+            button: button.cast::<typst::foundations::Func>().unwrap(),
+            icon: icon.cast::<typst::foundations::Func>().unwrap(),
+        });
+    }
+}
+
 fn ui_update(
     mut q_scene: Query<&mut VelloScene>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     world: Res<TypstCompiler>,
     time: Res<Time>,
+    template: Res<Template>,
+    color_template: Res<ColorTemplate>,
 ) {
+    let world = world.world_meta();
     let Ok(window) = q_window.get_single() else {
         return;
     };
@@ -54,11 +150,26 @@ fn ui_update(
 
     let mut writer = SimpleWriter::new();
 
+    let frame = world.eval_func::<Content>(&template.frame, [text("Frame example")]);
+    let button = world.eval_func::<Content>(&template.button, [text("Button example")]);
+
     writer.blank_page(|writer| {
         writer.add_content(
             sequence!(
-                heading(text(time.elapsed_seconds().to_string())),
-                text((1.0 / time.delta_seconds()).to_string())
+                heading(text(time.elapsed_seconds().to_string()))
+                    .pack()
+                    .styled(text::TextElem::set_fill(solid(color_template.blue))),
+                text((1.0 / time.delta_seconds()).to_string()),
+                linebreak(),
+                frame.clone(),
+                linebreak(),
+                frame.clone(),
+                linebreak(),
+                frame.clone(),
+                linebreak(),
+                frame.clone(),
+                linebreak(),
+                button
             )
             .pack()
             .aligned(layout::Alignment::Both(
@@ -77,8 +188,7 @@ fn ui_update(
             Abs::pt(24.0).length(),
         )));
 
-    // content.query()
-    // layout::PageElem::set_binding(Smart::Custom(layout::Binding::Left));
+    // let context_elem = typst::foundations::ContextElem::new(template.frame.clone()).pack();
 
     let document = world.compile_content(content).unwrap();
     let typst_scene = TypstScene::from_document(&document, Abs::zero()).unwrap();

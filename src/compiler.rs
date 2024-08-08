@@ -7,12 +7,7 @@ use bevy_vello::{
     vello_svg::{self, usvg},
     VelloScene,
 };
-use typst::{
-    diag::SourceResult,
-    foundations::{Content, Module},
-    layout::Abs,
-    model::Document,
-};
+use typst::{layout::Abs, model::Document};
 use world::TypstWorldMeta;
 
 pub mod fonts;
@@ -25,16 +20,12 @@ mod package;
 pub struct TypstCompiler(pub Arc<TypstWorldMeta>);
 
 impl TypstCompiler {
-    pub fn eval_str(&self, text: impl Into<String>) -> SourceResult<Module> {
-        self.0.eval_str(text)
+    pub fn world_meta(&self) -> &Arc<TypstWorldMeta> {
+        &self.0
     }
 
-    pub fn compile_str(&self, text: impl Into<String>) -> SourceResult<Document> {
-        self.0.compile_str(text)
-    }
-
-    pub fn compile_content(&self, content: Content) -> SourceResult<Document> {
-        self.0.compile_content(content)
+    pub fn world_meta_clone(&self) -> Arc<TypstWorldMeta> {
+        self.0.clone()
     }
 }
 
