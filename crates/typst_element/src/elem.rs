@@ -8,6 +8,7 @@ use typst::{
 
 macro_rules! fn_elem_empty {
     ($fn_name:ident, $elem:ty) => {
+        #[doc = concat!("[", stringify!($elem), "]")]
         pub fn $fn_name() -> $elem {
             <$elem>::new()
         }
@@ -16,6 +17,7 @@ macro_rules! fn_elem_empty {
 
 macro_rules! fn_elem {
     ($fn_name:ident, $elem:ty, $($param:ident = $in_elem:ty),+) => {
+        #[doc = concat!("[", stringify!($elem), "]")]
         pub fn $fn_name($($param: impl Into<$in_elem>),+) -> $elem {
             <$elem>::new($($param.into()),+)
         }
@@ -32,6 +34,7 @@ macro_rules! fn_elem {
 
 // Foundations
 
+/// [foundations::SequenceElem]
 #[macro_export]
 macro_rules! sequence {
     ($($native_elem:expr),*,) => {
@@ -41,6 +44,7 @@ macro_rules! sequence {
     };
 }
 
+/// [foundations::ContextElem]
 pub fn context<T: IntoValue>(
     func: foundations::Func,
     args: impl IntoIterator<Item = T>,
@@ -142,18 +146,22 @@ fn_elem!(
 );
 fn_elem!(path, visualize::PathElem, Vec<visualize::PathVertex>);
 
+/// [visualize::Paint::Solid]
 pub fn solid(color: visualize::Color) -> visualize::Paint {
     visualize::Paint::Solid(color)
 }
 
+/// [visualize::Paint::Gradient]
 pub fn gradient(gradient: visualize::Gradient) -> visualize::Paint {
     visualize::Paint::Gradient(gradient)
 }
 
+/// [visualize::Paint::Pattern]
 pub fn pattern(pattern: visualize::Pattern) -> visualize::Paint {
     visualize::Paint::Pattern(pattern)
 }
 
+/// [visualize::Stroke]
 pub fn stroke(paint: visualize::Paint, thickness: layout::Length) -> visualize::Stroke {
     visualize::Stroke::from_pair(paint, thickness)
 }
