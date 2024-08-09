@@ -16,6 +16,7 @@ bevy_vello_graphics = { version = "0.1.0", git = "https://github.com/voxell-tech
 # Typst dependencies
 typst = "0.11"
 comemo = "0.4" # in sync with typst
+unicode-math-class = "0.1" # in sync with typst
 
 [package]
 name = "bevy_typst"

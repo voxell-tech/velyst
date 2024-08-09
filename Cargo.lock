@@ -4579,6 +4579,7 @@ name = "typst_element"
 version = "0.1.0"
 dependencies = [
  "typst",
+ "unicode-math-class",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@ use typst::{
     loading::Readable,
     math, model, symbols, text, visualize,
 };
+use unicode_math_class::MathClass;
 
 macro_rules! fn_elem_empty {
     ($fn_name:ident, $elem:ty) => {
@@ -125,6 +126,32 @@ pub fn symbol(c: char) -> symbols::Symbol {
 
 fn_elem!(equation, math::EquationElem);
 fn_elem!(lr, math::LrElem);
+fn_elem!(mid, math::MidElem);
+fn_elem!(attach, math::AttachElem);
+fn_elem!(scripts, math::ScriptsElem);
+fn_elem!(limits, math::LimitsElem);
+fn_elem!(
+    accent,
+    math::AccentElem,
+    body = Content,
+    accent = math::Accent
+);
+fn_elem!(math_underline, math::UnderlineElem);
+fn_elem!(math_overline, math::OverlineElem);
+fn_elem!(underbrace, math::UnderbraceElem);
+fn_elem!(overbrace, math::OverbraceElem);
+fn_elem!(underbracket, math::UnderbracketElem);
+fn_elem!(overbracket, math::OverbracketElem);
+fn_elem!(cancel, math::CancelElem);
+fn_elem!(frac, math::FracElem, num = Content, denom = Content);
+fn_elem!(binom, math::BinomElem, upper = Content, lower = Vec<Content>);
+fn_elem!(vec, math::VecElem, Vec<Content>);
+fn_elem!(mat, math::MatElem, Vec<Vec<Content>>);
+fn_elem!(cases, math::CasesElem, Vec<Content>);
+fn_elem!(root, math::RootElem);
+fn_elem!(class, math::ClassElem, class = MathClass, body = Content);
+fn_elem!(op, math::OpElem);
+fn_elem!(primes, math::PrimesElem, usize);
 
 // Visualize
 

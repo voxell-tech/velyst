@@ -8,3 +8,4 @@ readme.workspace = true
 
 [dependencies]
 typst = { workspace = true }
+unicode-math-class = { workspace = true }
