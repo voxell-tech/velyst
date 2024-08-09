@@ -1,17 +1,42 @@
-[package]
-name = "bevy_typst"
+[workspace]
+resolver = "2"
+members = ["crates/*", ]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/nixon-voxell/bevy_typst"
+readme = "README.md"
+
+[workspace.dependencies]
+# Bevy dependencies
+bevy = { version = "0.14", default-features = false }
+bevy_vello_graphics = { version = "0.1.0", git = "https://github.com/voxell-tech/bevy_vello_graphics" }
+# Typst dependencies
+typst = "0.11"
+comemo = "0.4" # in sync with typst
+unicode-math-class = "0.1" # in sync with typst
+
+[package]
+name = "bevy_typst"
+description = "Typst integration in Bevy."
+exclude = ["/assets/", "/.github/", "/examples/"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
 
 [dependencies]
-bevy = "0.14"
+typst_element = { version = "0.1.0", path = "crates/typst_element" }
+bevy = { workspace = true }
 bevy_vello = { version = "0.5", features = ["svg"] }
-# typst dependencies
-typst = "0.11"
+bevy_vello_graphics = { workspace = true }
+typst = { workspace = true }
 typst-svg = "0.11"
 typst-assets = { version = "0.11", features = ["fonts"], optional = true }
-comemo = "0.4" # in sync with typst
+comemo = { workspace = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
 
 serde = "1"

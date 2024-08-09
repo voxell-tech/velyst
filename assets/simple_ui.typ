@@ -6,37 +6,46 @@
   fill: base0,
 )
 #let icon_config = (
-  size: 48pt,
+  size: 24pt,
 )
 #(icon_config.padding = icon_config.size / 4)
 #(icon_config.inset = icon_config.padding / 2)
 #(icon_config.frame = icon_config.size + icon_config.padding)
 
 #let font_config = (
-  size: 32pt,
+  size: 16pt,
 )
 #(font_config.padding = font_config.size / 4)
 #(font_config.inset = font_config.padding / 2)
 #(font_config.frame = font_config.size + font_config.padding)
 
-#set text(size: font_config.size, fill: base8)
+#let gradient_title(body) = {
+  text(size: font_config.size * 2, fill: gradient.linear(blue, green))[= #body]
+}
 
-// #circle(width: 8pt, stroke: none, fill: base4)
 #let frame(body) = {
+  set text(size: font_config.size, fill: base8)
   box(
     body,
-    inset: icon_config.inset * 2,
-    radius: icon_config.padding,
+    inset: font_config.inset * 2,
+    radius: font_config.padding,
     fill: base1,
   )
 }
 
 #let button(body) = {
-  box(body, inset: isnet, radius: icon_padding, fill: base2)
+  set text(size: font_config.size, fill: base8)
+  box(
+    body,
+    inset: font_config.inset * 2,
+    radius: font_config.padding,
+    fill: base2,
+    stroke: 2pt + base6,
+  )
 }
 
 #let icon(e) = {
-  set text(size: icon_config.size)
+  set text(size: icon_config.size, fill: base8)
   box(
     align(center + horizon)[#e],
     width: icon_config.frame,
@@ -47,49 +56,50 @@
   )
 }
 
+#let menu_item(top_content, bottom_content, height: 10em, width: 8em) = {
+  set text(size: font_config.size, fill: base8)
+
+  let top_height = height * 0.3
+  let bottom_height = height * 0.7
+
+  let half_height = height / 2
+  let half_width = width / 2
+
+  show par: set block(spacing: 0em)
+
+  pad(1em)[
+    #box(
+      stroke: rgb(base7) + 0.15em,
+      radius: 0.6em,
+      clip: true,
+    )[
+      #align(center + horizon)[
+        #box(
+          width: width,
+          height: top_height,
+          fill: rgb(base3),
+          inset: 0.5em,
+        )[#top_content]
+        #line(length: width, stroke: rgb(base5) + 4pt)
+        #box(
+          width: width,
+          height: bottom_height,
+          fill: rgb(base2),
+          inset: 0.5em,
+        )[#bottom_content]
+      ]
+    ]
+  ]
+}
+
 #block(width: 1280pt, height: 720pt, inset: font_config.inset)[
-  #text(fill: gradient.linear(blue, green))[= Smart Assist]
+  #gradient_title("Typst")
+  #linebreak()
   #frame[
     #icon(emoji.clock.two)
     #icon(emoji.cloud)
     #icon(emoji.notebook)
   ]
 
-  #let size = 400pt
-  #let half_size = size / 2
-  #let offset = 50pt
-  #for value in (1, 2, 3) {
-    let o = offset * value
-    place(
-      top,
-      dx: 40% - half_size + o - offset,
-      dy: 50% - half_size + o - offset,
-    )[
-      #box(
-        width: size,
-        height: size,
-        fill: rgb(base7.transparentize(60%)),
-      )
-    ]
-  }
-
-  #place(top + right)[
-    #box(
-      width: 360pt,
-      height: 100%,
-      radius: icon_config.padding,
-      fill: gradient.linear(
-        blue.transparentize(80%),
-        red.transparentize(80%),
-        angle: 15deg,
-      ),
-      stroke: gradient.linear(
-        blue,
-        red,
-        angle: 15deg,
-      ) + font_config.inset,
-    )[
-      #align(center + horizon)[ === Properties ]
-    ]
-  ]
+  #menu_item([= Test], [#lorem(10)])
 ]

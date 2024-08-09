@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typst::layout::Abs;
 
-use crate::prelude::TypstAsset;
+use crate::prelude::TypstDocAsset;
 
 pub struct SvgAssetPlugin;
 
@@ -46,12 +46,12 @@ impl AssetLoader for SvgAssetLoader {
         let asset_path = load_context.asset_path().clone();
         let direct_loader = load_context.loader().direct();
         let typst_asset = direct_loader
-            .load::<TypstAsset>(asset_path)
+            .load::<TypstDocAsset>(asset_path)
             .await
             .map_err(|_| SvgAssetLoaderError::LoadDirectError)?
             .take();
 
-        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::raw(settings.padding));
+        let svg_str = typst_svg::svg_merged(typst_asset.document(), Abs::pt(settings.padding));
         let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
 
         Ok(SvgAsset(tree))
@@ -64,6 +64,7 @@ impl AssetLoader for SvgAssetLoader {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct SvgAssetLoaderSettings {
+    /// Padding around the document (in [`Abs::pt()`]).
     pub padding: f64,
 }
 

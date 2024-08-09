@@ -6,13 +6,16 @@ use std::{
 
 use bevy::{prelude::*, utils::HashMap};
 use chrono::{DateTime, Datelike, Local};
-use comemo::Prehashed;
+use comemo::{Prehashed, Track, Validate};
 use typst::{
-    diag::{FileError, FileResult, SourceResult},
+    diag::{warning, FileError, FileResult, SourceResult},
+    engine::{Engine, Route},
     eval::Tracer,
-    foundations::{Bytes, Datetime},
+    foundations::{Bytes, Content, Datetime, Module, StyleChain},
+    introspection::{Introspector, Locator},
+    layout::LayoutRoot,
     model::Document,
-    syntax::{FileId, Source},
+    syntax::{FileId, Source, Span},
     text::{Font, FontBook},
     Library, World,
 };
@@ -52,17 +55,38 @@ impl TypstWorldMeta {
         }
     }
 
-    pub fn build(&self, main: Source) -> TypstWorldRef<'_> {
+    pub fn empty_world(&self) -> TypstWorldRef {
+        TypstWorldRef {
+            main: Source::detached(""),
+            meta: self,
+        }
+    }
+
+    pub fn world(&self, main: Source) -> TypstWorldRef<'_> {
         TypstWorldRef { main, meta: self }
     }
 
-    pub fn build_from_str(&self, text: &str) -> TypstWorldRef<'_> {
-        self.build(Source::detached(text))
+    pub fn world_from_str(&self, text: impl Into<String>) -> TypstWorldRef<'_> {
+        self.world(Source::detached(text))
     }
 
-    pub fn compile_str(&self, text: &str) -> SourceResult<Document> {
-        // Build typst world
-        let world = self.build_from_str(text);
+    pub fn eval_str(&self, text: impl Into<String>) -> SourceResult<Module> {
+        // Typst world
+        let world: &dyn World = &self.world_from_str(text);
+        let mut tracer = Tracer::new();
+
+        // Try to evaluate the source file into a module.
+        typst::eval::eval(
+            world.track(),
+            Route::default().track(),
+            tracer.track_mut(),
+            &world.main(),
+        )
+    }
+
+    pub fn compile_str(&self, text: impl Into<String>) -> SourceResult<Document> {
+        // Typst world
+        let world = self.world_from_str(text);
         let mut tracer = Tracer::new();
 
         // Compile document
@@ -72,6 +96,81 @@ impl TypstWorldMeta {
         let warnings = tracer.warnings();
         if warnings.is_empty() == false {
             warn!("[Typst compilation warning]: {:#?}", warnings);
+        }
+
+        Ok(document)
+    }
+
+    /// Create a temporary [`Engine`] from the world for Typst evalulation.
+    pub fn scoped_engine<T>(&self, scope: impl FnOnce(&mut Engine) -> T) -> T {
+        let world: &dyn World = &self.empty_world();
+
+        let document = Document::default();
+        let constraint = <Introspector as Validate>::Constraint::new();
+        let mut locator = Locator::new();
+        let mut tracer = Tracer::new();
+
+        let mut engine = Engine {
+            world: world.track(),
+            introspector: document.introspector.track_with(&constraint),
+            route: Route::default(),
+            locator: &mut locator,
+            tracer: tracer.track_mut(),
+        };
+
+        scope(&mut engine)
+    }
+
+    // Referenced from: https://github.com/typst/typst/blob/v0.11.1/crates/typst/src/lib.rs#L107-L165
+    // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
+    /// Compile [`Content`] into a [`Document`].
+    pub fn compile_content(&self, content: Content) -> SourceResult<Document> {
+        let world: &dyn World = &self.empty_world();
+        let style_chain = StyleChain::new(&world.library().styles);
+
+        let mut document = Document::default();
+        let mut tracer = Tracer::new();
+        let mut iter = 0;
+
+        // Relayout until all introspections stabilize.
+        // If that doesn't happen within five attempts, we give up.
+        loop {
+            // Clear delayed errors.
+            tracer.delayed();
+
+            let constraint = <Introspector as Validate>::Constraint::new();
+            let mut locator = Locator::new();
+
+            let mut engine = Engine {
+                world: world.track(),
+                introspector: document.introspector.track_with(&constraint),
+                route: Route::default(),
+                locator: &mut locator,
+                tracer: tracer.track_mut(),
+            };
+
+            // Layout!
+            document = content.layout_root(&mut engine, style_chain)?;
+            document.introspector.rebuild(&document.pages);
+
+            if document.introspector.validate(&constraint) {
+                break;
+            }
+
+            iter += 1;
+            if iter >= 5 {
+                tracer.warn(warning!(
+                    Span::detached(), "layout did not converge within 5 attempts";
+                    hint: "check if any states or queries are updating themselves"
+                ));
+                break;
+            }
+        }
+
+        // Promote delayed errors.
+        let delayed = tracer.delayed();
+        if !delayed.is_empty() {
+            return Err(delayed);
         }
 
         Ok(document)

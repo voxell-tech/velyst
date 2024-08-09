@@ -14,7 +14,7 @@ pub mod prelude {
     pub use crate::{
         asset::{
             svg_asset::{SvgAsset, SvgAssetLoaderSettings},
-            typst_asset::TypstAsset,
+            typst_asset::{TypstDocAsset, TypstModAsset},
         },
         TypstPlugin,
     };
@@ -39,10 +39,10 @@ impl Plugin for TypstPlugin {
         // Using assets/ as the root path
         let mut assets_path = PathBuf::from(".");
         assets_path.push("assets");
-        let world_builder = Arc::new(TypstWorldMeta::new(assets_path, &self.font_paths));
+        let world_meta = Arc::new(TypstWorldMeta::new(assets_path, &self.font_paths));
 
-        app.add_plugins(TypstAssetPlugin::new(world_builder.clone()))
+        app.add_plugins(TypstAssetPlugin(world_meta.clone()))
             .add_plugins((SvgAssetPlugin, VelloAssetPlugin))
-            .insert_resource(TypstCompiler { world_builder });
+            .insert_resource(TypstCompiler(world_meta));
     }
 }
