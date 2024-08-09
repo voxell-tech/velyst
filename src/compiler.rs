@@ -29,6 +29,7 @@ impl TypstCompiler {
     }
 }
 
+#[derive(Clone)]
 pub struct TypstScene {
     pub scene: vello::Scene,
     pub width: f32,

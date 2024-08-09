@@ -11,9 +11,7 @@ use typst::{
     diag::{warning, FileError, FileResult, SourceResult},
     engine::{Engine, Route},
     eval::Tracer,
-    foundations::{
-        Bytes, Content, Context, Datetime, FromValue, Func, IntoArgs, Module, StyleChain,
-    },
+    foundations::{Bytes, Content, Datetime, Module, StyleChain},
     introspection::{Introspector, Locator},
     layout::LayoutRoot,
     model::Document,

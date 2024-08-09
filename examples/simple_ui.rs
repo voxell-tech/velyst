@@ -1,4 +1,4 @@
-use bevy::{prelude::*, ui::FocusPolicy, window::PrimaryWindow};
+use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_typst::{
     compiler::{world::TypstWorldMeta, TypstCompiler, TypstScene},
     prelude::*,
@@ -41,26 +41,9 @@ fn init_ui(
     if let Some(module) = typst_mod_assets.get(simple_ui).map(|asset| asset.module()) {
         let scope = module.scope();
 
-        let red = scope.get_unchecked::<visualize::Color>("red");
-        let orange = scope.get_unchecked::<visualize::Color>("orange");
-        let yellow = scope.get_unchecked::<visualize::Color>("yellow");
-        let green = scope.get_unchecked::<visualize::Color>("green");
-        let blue = scope.get_unchecked::<visualize::Color>("blue");
-        let purple = scope.get_unchecked::<visualize::Color>("purple");
-        let base0 = scope.get_unchecked::<visualize::Color>("base0");
-        let base1 = scope.get_unchecked::<visualize::Color>("base1");
-        let base2 = scope.get_unchecked::<visualize::Color>("base2");
-        let base3 = scope.get_unchecked::<visualize::Color>("base3");
-        let base4 = scope.get_unchecked::<visualize::Color>("base4");
-        let base5 = scope.get_unchecked::<visualize::Color>("base5");
-        let base6 = scope.get_unchecked::<visualize::Color>("base6");
-        let base7 = scope.get_unchecked::<visualize::Color>("base7");
-        let base8 = scope.get_unchecked::<visualize::Color>("base8");
-
-        let gradient_title = scope.get_unchecked::<foundations::Func>("gradient_title");
-        let frame = scope.get_unchecked::<foundations::Func>("frame");
-        let button = scope.get_unchecked::<foundations::Func>("button");
-        let icon = scope.get_unchecked::<foundations::Func>("icon");
+        let purple = scope.get_unchecked_color("purple");
+        let gradient_title = scope.get_unchecked_func("gradient_title");
+        let menu_item = scope.get_unchecked_func("menu_item");
 
         // Create ui
         commands
@@ -68,8 +51,8 @@ fn init_ui(
                 style: Style {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
-                    justify_content: JustifyContent::SpaceBetween,
-                    padding: UiRect::all(Val::Px(40.0)),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(60.0)),
                     ..default()
                 },
                 ..default()
@@ -86,15 +69,74 @@ fn init_ui(
                     .insert(vello_scene(scene));
             })
             .with_children(|parent| {
-                let mut writer = SimpleWriter::new();
-                writer.blank_page(|writer| {
-                    writer.add_content(context(gradient_title, ["Typst"]));
+                parent.spawn(EmptyNodeBundle {
+                    style: Style {
+                        flex_grow: 1.0,
+                        ..default()
+                    },
+                    ..default()
                 });
 
-                let scene = typst_scene(writer, world);
                 parent
-                    .spawn(EmptyNodeBundle::from_typst(&scene))
-                    .insert(vello_scene(scene));
+                    .spawn(EmptyNodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Row,
+                            justify_items: JustifyItems::Center,
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        ..default()
+                    })
+                    .with_children(|parent| {
+                        let create_menu = |title: Content, body: Content| -> TypstScene {
+                            let mut writer = SimpleWriter::new();
+                            writer.blank_page(|writer| {
+                                writer.add_content(context(menu_item.clone(), [title, body]));
+                            });
+                            typst_scene(writer, world)
+                        };
+
+                        // First item
+                        let scene0 = create_menu(
+                            heading(text("Model"))
+                                .pack()
+                                .styled(text::TextElem::set_fill(solid(purple))),
+                            text("Document structuring.").pack(),
+                        );
+                        parent
+                            .spawn(EmptyNodeBundle::from_typst(&scene0))
+                            .insert(vello_scene(scene0));
+
+                        // Second item
+                        let scene1 = create_menu(
+                            heading(text("Layout"))
+                                .pack()
+                                .styled(text::TextElem::set_fill(solid(purple))),
+                            text("Arranging elements on the page in different ways.").pack(),
+                        );
+                        parent
+                            .spawn(EmptyNodeBundle::from_typst(&scene1))
+                            .insert(vello_scene(scene1));
+
+                        // Third item
+                        let scene2 = create_menu(
+                            heading(text("Visualize"))
+                                .pack()
+                                .styled(text::TextElem::set_fill(solid(purple))),
+                            text("Drawing and data visualization.").pack(),
+                        );
+                        parent
+                            .spawn(EmptyNodeBundle::from_typst(&scene2))
+                            .insert(vello_scene(scene2));
+                    });
+
+                parent.spawn(EmptyNodeBundle {
+                    style: Style {
+                        flex_grow: 1.0,
+                        ..default()
+                    },
+                    ..default()
+                });
             });
 
         *initialized = true;
