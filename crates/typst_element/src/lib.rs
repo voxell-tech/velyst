@@ -1,4 +1,4 @@
-use foundations::{FromValue, Scope, SequenceElem, Style};
+use foundations::{SequenceElem, Style};
 use prelude::*;
 
 pub mod prelude {
@@ -9,12 +9,13 @@ pub mod prelude {
         math, model, text, visualize,
     };
 
+    pub use crate::extensions::{ScopeExt, UnitExt};
     pub use crate::{elem::*, sequence};
     pub use crate::{DocWriter, SimpleWriter};
-    pub use crate::{ScopeExt, UnitExt};
 }
 
 pub mod elem;
+pub mod extensions;
 
 pub trait DocWriter: Sized {
     /// A immutable reference to all contents within the writer.
@@ -83,54 +84,5 @@ impl<'a> ContentMut<'a> {
 
     pub fn as_content(self) -> &'a mut Content {
         self.0
-    }
-}
-
-pub trait UnitExt: Sized {
-    fn length(self) -> Length;
-    fn rel(self) -> Rel;
-
-    fn smart_length(self) -> Smart<Length> {
-        Smart::Custom(self.length())
-    }
-
-    fn smart_rel(self) -> Smart<Rel> {
-        Smart::Custom(self.rel())
-    }
-}
-
-impl UnitExt for Abs {
-    fn length(self) -> Length {
-        Length::from(self)
-    }
-
-    fn rel(self) -> Rel {
-        Rel::from(self)
-    }
-}
-
-impl UnitExt for Em {
-    fn length(self) -> Length {
-        Length::from(self)
-    }
-
-    fn rel(self) -> Rel {
-        Rel::from(self)
-    }
-}
-
-pub trait ScopeExt {
-    /// Clone a variable and cast it into the final value _unchecked_.
-    ///
-    /// # Panic
-    ///
-    /// - Variable does not exists.
-    /// - Variable type does not match the desired value type.
-    fn get_unchecked<T: FromValue>(&self, var: &str) -> T;
-}
-
-impl ScopeExt for Scope {
-    fn get_unchecked<T: FromValue>(&self, var: &str) -> T {
-        self.get(var).cloned().unwrap().cast::<T>().unwrap()
     }
 }
