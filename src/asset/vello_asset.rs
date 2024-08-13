@@ -3,12 +3,11 @@ use bevy::{
     prelude::*,
 };
 use bevy_vello::{integrations::VelloAsset, vello_svg::usvg};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typst::layout::Abs;
 
 use crate::{compiler::TypstScene, prelude::TypstDocAsset};
-
-use super::svg_asset::SvgAssetLoaderSettings;
 
 pub struct VelloAssetPlugin;
 
@@ -24,7 +23,7 @@ pub struct VelloAssetLoader;
 impl AssetLoader for VelloAssetLoader {
     type Asset = VelloAsset;
 
-    type Settings = SvgAssetLoaderSettings;
+    type Settings = VelloAssetLoaderSettings;
 
     type Error = VelloAssetLoaderError;
 
@@ -52,6 +51,12 @@ impl AssetLoader for VelloAssetLoader {
     fn extensions(&self) -> &[&str] {
         &["typ"]
     }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct VelloAssetLoaderSettings {
+    /// Padding around the document (in [`Abs::pt()`]).
+    pub padding: f64,
 }
 
 /// Possible errors that can be produced by [`VelloAssetLoader`].

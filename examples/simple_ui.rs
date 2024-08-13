@@ -8,10 +8,8 @@ use typst_element::prelude::*;
 
 fn main() {
     App::new()
-        // Bevy plugins
-        .add_plugins(DefaultPlugins)
-        // Custom plugins
-        .add_plugins((TypstPlugin::default(), VelloPlugin))
+        .add_plugins((DefaultPlugins, VelloPlugin::default()))
+        .add_plugins(TypstPlugin::default())
         .add_systems(Startup, setup)
         .add_systems(Update, init_ui)
         .run();

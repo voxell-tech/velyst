@@ -5,12 +5,10 @@ use typst::foundations::Label;
 
 fn main() {
     App::new()
-        // Bevy plugins
-        .add_plugins(DefaultPlugins)
-        // Custom plugins
-        .add_plugins((TypstPlugin::default(), VelloPlugin))
+        .add_plugins((DefaultPlugins, VelloPlugin::default()))
+        .add_plugins(TypstPlugin::default())
         .add_systems(Startup, setup)
-        .add_systems(Update, (check_document, check_module, check_svg))
+        .add_systems(Update, (check_document, check_module))
         .run();
 }
 
@@ -19,9 +17,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         asset_server.load::<TypstDocAsset>("hello_world.typ"),
         asset_server.load::<TypstModAsset>("hello_world.typ"),
-        asset_server.load::<SvgAsset>("hello_world.typ"),
         VelloAssetBundle {
-            vector: asset_server.load("hello_world.typ"),
+            asset: asset_server.load("hello_world.typ"),
             ..default()
         },
     ));
@@ -62,20 +59,5 @@ fn check_module(
                 )));
         println!("typst_title: {typst_title:?}");
         commands.entity(entity).remove::<Handle<TypstModAsset>>();
-    }
-}
-
-fn check_svg(
-    mut commands: Commands,
-    q_svg_asset: Query<(Entity, &Handle<SvgAsset>)>,
-    svg_assets: Res<Assets<SvgAsset>>,
-) {
-    let Ok((entity, handle)) = q_svg_asset.get_single() else {
-        return;
-    };
-
-    if svg_assets.get(handle).is_some() {
-        info!("Has tree.");
-        commands.entity(entity).remove::<Handle<SvgAsset>>();
     }
 }
