@@ -34,7 +34,6 @@ macro_rules! fn_elem {
 }
 
 // Foundations
-
 /// [foundations::SequenceElem]
 #[macro_export]
 macro_rules! sequence {
@@ -117,13 +116,11 @@ fn_elem!(highlight, text::HighlightElem);
 fn_elem!(raw, text::RawElem, text::RawContent);
 
 // Symbols
-
 pub fn symbol(c: char) -> symbols::Symbol {
     symbols::Symbol::single(c)
 }
 
 // Math
-
 fn_elem!(equation, math::EquationElem);
 fn_elem!(lr, math::LrElem);
 fn_elem!(mid, math::MidElem);
@@ -154,7 +151,6 @@ fn_elem!(op, math::OpElem);
 fn_elem!(primes, math::PrimesElem, usize);
 
 // Visualize
-
 fn_elem!(
     image,
     visualize::ImageElem,

@@ -54,6 +54,6 @@ embed-fonts = ["dep:typst-assets"]
 svg = []
 vello = []
 
-[lints.clippy]
+[workspace.lints.clippy]
 redundant_type_annotations = "warn"
 bool_comparison = "allow"
