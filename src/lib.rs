@@ -1,4 +1,4 @@
-pub use {typst, typst_svg};
+pub use {typst, typst_element, typst_svg};
 
 use {
     asset::{
@@ -16,7 +16,7 @@ pub mod prelude {
             svg_asset::{SvgAsset, SvgAssetLoaderSettings},
             typst_asset::{TypstDocAsset, TypstModAsset},
         },
-        TypstPlugin,
+        typst_template, TypstPlugin,
     };
 }
 
@@ -45,4 +45,37 @@ impl Plugin for TypstPlugin {
             .add_plugins((SvgAssetPlugin, VelloAssetPlugin))
             .insert_resource(TypstCompiler(world_meta));
     }
+}
+
+#[macro_export]
+macro_rules! typst_template {
+    {
+        $(#[$outer:meta])*
+        $vis:vis struct $struct_name:ident {
+            $(
+                $typst_ty:ty => (
+                    $($field:ident,)*
+                ),
+            )*
+        }
+    } => {
+        $(#[$outer])*
+        $vis struct $struct_name {
+            $($(pub $field: $typst_ty,)*)*
+        }
+
+        impl $struct_name {
+            /// Populate the template with a given scope.
+            ///
+            /// # Panic
+            ///
+            /// Will panic if any of the fields in the template does not exists
+            /// or does not match the type from the given scope.
+            pub fn new(scope: &$crate::typst::foundations::Scope) -> Self {
+                Self {
+                    $($($field: scope.get_unchecked(stringify!($field)),)*)*
+                }
+            }
+        }
+    };
 }
