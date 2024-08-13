@@ -16,6 +16,7 @@ pub mod prelude {
             svg_asset::{SvgAsset, SvgAssetLoaderSettings},
             typst_asset::{TypstDocAsset, TypstModAsset},
         },
+        compiler::{TypstCompiler, TypstScene},
         typst_template, TypstPlugin,
     };
 }

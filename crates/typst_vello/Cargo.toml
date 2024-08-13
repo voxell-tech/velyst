@@ -7,3 +7,6 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
+
+[lints]
+workspace = true

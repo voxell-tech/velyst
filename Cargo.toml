@@ -18,6 +18,10 @@ typst = "0.11"
 comemo = "0.4" # in sync with typst
 unicode-math-class = "0.1" # in sync with typst
 
+[workspace.lints.clippy]
+redundant_type_annotations = "warn"
+bool_comparison = "allow"
+
 [package]
 name = "bevy_typst"
 description = "Typst integration in Bevy."
@@ -54,6 +58,5 @@ embed-fonts = ["dep:typst-assets"]
 svg = []
 vello = []
 
-[workspace.lints.clippy]
-redundant_type_annotations = "warn"
-bool_comparison = "allow"
+[lints]
+workspace = true
