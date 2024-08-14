@@ -43,6 +43,48 @@ impl Plugin for TypstPlugin {
     }
 }
 
+/// Create a template struct easily.
+///
+/// This macro will also help you construct a `new(scope: &Scope)` method that
+/// initialize the template with a given [`Scope`][Scope].
+///
+/// # Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_typst::prelude::*;
+/// use bevy_typst::typst_element::prelude::*;
+///
+/// typst_template! {
+///     #[derive(Resource)]
+///     pub struct UiTemplate {
+///         foundations::Func => (
+///             parent,
+///             frame,
+///             important_frame,
+///             danger_frame,
+///         ),
+///     }
+/// }
+///
+/// fn load_ui_template(
+///     mut commands: Commands,
+///     ui_asset: Res<UiAsset>,
+///     typst_mods: Res<Assets<TypstModAsset>>,
+/// ) {
+///     let Some(asset) = typst_mods.get(&ui_asset.0) else {
+///         return;
+///     };
+///
+///     let ui_template = UiTemplate::new(asset.module().scope());
+///     commands.insert_resource(ui_template);
+/// }
+///
+/// #[derive(Resource)]
+/// pub struct UiAsset(Handle<TypstModAsset>);
+/// ```
+///
+/// [Scope]: typst::foundations::Scope
 #[macro_export]
 macro_rules! typst_template {
     {
@@ -69,7 +111,9 @@ macro_rules! typst_template {
             /// or does not match the type from the given scope.
             pub fn new(scope: &$crate::typst::foundations::Scope) -> Self {
                 Self {
-                    $($($field: scope.get_unchecked(stringify!($field)),)*)*
+                    $($($field: $crate::typst_element::extensions::ScopeExt::get_unchecked(
+                        scope, stringify!($field)
+                    ),)*)*
                 }
             }
         }
