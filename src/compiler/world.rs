@@ -6,17 +6,16 @@ use std::{
 
 use bevy::{prelude::*, utils::HashMap};
 use chrono::{DateTime, Datelike, Local};
-use comemo::{Prehashed, Track, Validate};
+use comemo::{Track, Validate};
 use typst::{
     diag::{warning, FileError, FileResult, SourceResult},
-    engine::{Engine, Route},
-    eval::Tracer,
+    engine::{Engine, Route, Sink, Traced},
     foundations::{Bytes, Content, Datetime, Module, StyleChain},
-    introspection::{Introspector, Locator},
-    layout::LayoutRoot,
+    introspection::Introspector,
     model::Document,
     syntax::{FileId, Source, Span},
     text::{Font, FontBook},
+    utils::LazyHash,
     Library, World,
 };
 
@@ -24,13 +23,13 @@ use super::fonts::{FontSearcher, FontSlot};
 use super::package;
 
 /// Metadata for [`TypstWorldRef`].
-pub struct TypstWorldMeta {
+pub struct TypstWorld {
     /// The root relative to which absolute paths are resolved.
     root: PathBuf,
     /// Typst's standard library.
-    library: Prehashed<Library>,
+    library: LazyHash<Library>,
     /// Metadata about discovered fonts.
-    book: Prehashed<FontBook>,
+    book: LazyHash<FontBook>,
     /// Locations of and storage for lazily loaded fonts.
     fonts: Vec<FontSlot>,
     /// Maps file ids to source files and buffers.
@@ -40,60 +39,50 @@ pub struct TypstWorldMeta {
     now: OnceLock<DateTime<Local>>,
 }
 
-impl TypstWorldMeta {
+impl TypstWorld {
     pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> Self {
         let mut searcher = FontSearcher::default();
         searcher.search(font_paths);
 
+        let main = Source::detached("");
+
+        let mut slots = HashMap::new();
+        slots.insert(main.id(), FileSlot::new_with_source(main));
+
         Self {
             root,
-            library: Prehashed::new(Library::default()),
-            book: Prehashed::new(searcher.book),
+            library: LazyHash::new(Library::default()),
+            book: LazyHash::new(searcher.book),
             fonts: searcher.fonts,
-            slots: Mutex::new(HashMap::new()),
+            slots: Mutex::new(slots),
             now: OnceLock::new(),
         }
     }
 
-    pub fn empty_world(&self) -> TypstWorldRef {
-        TypstWorldRef {
-            main: Source::detached(""),
-            meta: self,
-        }
-    }
-
-    pub fn world(&self, main: Source) -> TypstWorldRef<'_> {
-        TypstWorldRef { main, meta: self }
-    }
-
-    pub fn world_from_str(&self, text: impl Into<String>) -> TypstWorldRef<'_> {
-        self.world(Source::detached(text))
-    }
-
     pub fn eval_str(&self, text: impl Into<String>) -> SourceResult<Module> {
+        self.insert_slot(Source::detached(text));
         // Typst world
-        let world: &dyn World = &self.world_from_str(text);
-        let mut tracer = Tracer::new();
+        let world: &dyn World = self;
 
         // Try to evaluate the source file into a module.
         typst::eval::eval(
             world.track(),
+            Traced::default().track(),
+            Sink::new().track_mut(),
             Route::default().track(),
-            tracer.track_mut(),
-            &world.main(),
+            &world.source(world.main()).unwrap(),
         )
     }
 
     pub fn compile_str(&self, text: impl Into<String>) -> SourceResult<Document> {
-        // Typst world
-        let world = self.world_from_str(text);
-        let mut tracer = Tracer::new();
+        self.insert_slot(Source::detached(text));
 
         // Compile document
-        let document = typst::compile(&world, &mut tracer)?;
+        let warned = typst::compile(&self);
+        let document = warned.output?;
 
         // Logs out typst warnings
-        let warnings = tracer.warnings();
+        let warnings = warned.warnings;
         if warnings.is_empty() == false {
             warn!("[Typst compilation warning]: {:#?}", warnings);
         }
@@ -102,64 +91,65 @@ impl TypstWorldMeta {
     }
 
     /// Create a temporary [`Engine`] from the world for Typst evalulation.
-    pub fn scoped_engine<T>(&self, scope: impl FnOnce(&mut Engine) -> T) -> T {
-        let world: &dyn World = &self.empty_world();
+    pub fn scoped_engine<T>(&self, f: impl FnOnce(&mut Engine) -> T) -> T {
+        let world: &dyn World = self;
 
         let document = Document::default();
         let constraint = <Introspector as Validate>::Constraint::new();
-        let mut locator = Locator::new();
-        let mut tracer = Tracer::new();
+        let traced = Traced::default();
+        let mut sink = Sink::new();
 
         let mut engine = Engine {
             world: world.track(),
             introspector: document.introspector.track_with(&constraint),
+            traced: traced.track(),
+            sink: sink.track_mut(),
             route: Route::default(),
-            locator: &mut locator,
-            tracer: tracer.track_mut(),
         };
 
-        scope(&mut engine)
+        f(&mut engine)
     }
 
-    // Referenced from: https://github.com/typst/typst/blob/v0.11.1/crates/typst/src/lib.rs#L107-L165
+    // Referenced from: https://github.com/typst/typst/blob/88325d7d019fd65c5177a92df4347ae9a287fc19/crates/typst/src/lib.rs#L106-L178
     // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
     /// Compile [`Content`] into a [`Document`].
     pub fn compile_content(&self, content: Content) -> SourceResult<Document> {
-        let world: &dyn World = &self.empty_world();
+        let world: &dyn World = self;
         let style_chain = StyleChain::new(&world.library().styles);
 
         let mut document = Document::default();
-        let mut tracer = Tracer::new();
+        let traced = Traced::default();
+        let mut sink = Sink::new();
+
         let mut iter = 0;
 
         // Relayout until all introspections stabilize.
         // If that doesn't happen within five attempts, we give up.
         loop {
             // Clear delayed errors.
-            tracer.delayed();
+            sink.delayed();
 
             let constraint = <Introspector as Validate>::Constraint::new();
-            let mut locator = Locator::new();
 
             let mut engine = Engine {
                 world: world.track(),
                 introspector: document.introspector.track_with(&constraint),
+                traced: traced.track(),
+                sink: sink.track_mut(),
                 route: Route::default(),
-                locator: &mut locator,
-                tracer: tracer.track_mut(),
             };
 
             // Layout!
-            document = content.layout_root(&mut engine, style_chain)?;
+            document = typst::layout::layout_document(&mut engine, &content, style_chain)?;
             document.introspector.rebuild(&document.pages);
+            iter += 1;
 
             if document.introspector.validate(&constraint) {
                 break;
             }
 
-            iter += 1;
             if iter >= 5 {
-                tracer.warn(warning!(
+                sink.warn(warning!(
                     Span::detached(), "layout did not converge within 5 attempts";
                     hint: "check if any states or queries are updating themselves"
                 ));
@@ -168,7 +158,7 @@ impl TypstWorldMeta {
         }
 
         // Promote delayed errors.
-        let delayed = tracer.delayed();
+        let delayed = sink.delayed();
         if !delayed.is_empty() {
             return Err(delayed);
         }
@@ -177,50 +167,50 @@ impl TypstWorldMeta {
     }
 }
 
-pub struct TypstWorldRef<'a> {
-    /// The input path.
-    pub main: Source,
-    meta: &'a TypstWorldMeta,
-}
+impl TypstWorld {
+    /// Insert a new [`Source`].
+    fn insert_slot(&self, source: Source) {
+        let mut map = self.slots.lock().unwrap();
+        map.insert(source.id(), FileSlot::new_with_source(source));
+    }
 
-impl<'a> TypstWorldRef<'a> {
     /// Access the canonical slot for the given file id.
     fn slot<F, T>(&self, id: FileId, f: F) -> T
     where
         F: FnOnce(&mut FileSlot) -> T,
     {
-        let mut map = self.meta.slots.lock().unwrap();
+        let mut map = self.slots.lock().unwrap();
         f(map.entry(id).or_insert_with(|| FileSlot::new(id)))
     }
 }
 
-impl<'a> World for TypstWorldRef<'a> {
-    fn library(&self) -> &Prehashed<Library> {
-        &self.meta.library
+impl World for TypstWorld {
+    fn library(&self) -> &LazyHash<Library> {
+        &self.library
     }
 
-    fn book(&self) -> &Prehashed<FontBook> {
-        &self.meta.book
+    fn book(&self) -> &LazyHash<FontBook> {
+        &self.book
     }
 
-    fn main(&self) -> Source {
-        self.main.clone()
+    fn main(&self) -> FileId {
+        Source::detached("").id()
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
-        self.slot(id, |slot| slot.source(&self.meta.root))
+        self.slot(id, |slot| slot.source(&self.root))
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.slot(id, |slot| slot.file(&self.meta.root))
+        self.slot(id, |slot| slot.file(&self.root))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        self.meta.fonts[index].get()
+        self.fonts[index].get()
     }
 
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = self.meta.now.get_or_init(chrono::Local::now);
+        let now = self.now.get_or_init(chrono::Local::now);
 
         let naive = match offset {
             None => now.naive_local(),
@@ -252,8 +242,17 @@ impl FileSlot {
     fn new(id: FileId) -> Self {
         Self {
             id,
-            file: SlotCell::new(),
             source: SlotCell::new(),
+            file: SlotCell::new(),
+        }
+    }
+
+    /// Create a new path slot with source data.
+    fn new_with_source(source: Source) -> Self {
+        Self {
+            id: source.id(),
+            source: SlotCell::new_with_data(source),
+            file: SlotCell::new(),
         }
     }
 
@@ -302,6 +301,15 @@ impl<T: Clone> SlotCell<T> {
         }
     }
 
+    /// Creates a new cell with data.
+    fn new_with_data(data: T) -> Self {
+        Self {
+            data: Some(Ok(data)),
+            fingerprint: 0,
+            accessed: true,
+        }
+    }
+
     /// Gets the contents of the cell or initialize them.
     fn get_or_init(
         &mut self,
@@ -317,7 +325,7 @@ impl<T: Clone> SlotCell<T> {
 
         // Read and hash the file.
         let result = path().and_then(|p| read(&p));
-        let fingerprint = typst::util::hash128(&result);
+        let fingerprint = typst::utils::hash128(&result);
 
         // If the file contents didn't change, yield the old processed data.
         if mem::replace(&mut self.fingerprint, fingerprint) == fingerprint {

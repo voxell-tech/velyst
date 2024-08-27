@@ -8,9 +8,9 @@ use ecow::EcoVec;
 use thiserror::Error;
 use typst::{diag::SourceDiagnostic, foundations::Module, model::Document};
 
-use crate::compiler::world::TypstWorldMeta;
+use crate::compiler::world::TypstWorld;
 
-pub struct TypstAssetPlugin(pub Arc<TypstWorldMeta>);
+pub struct TypstAssetPlugin(pub Arc<TypstWorld>);
 
 impl Plugin for TypstAssetPlugin {
     fn build(&self, app: &mut App) {
@@ -30,7 +30,7 @@ impl TypstModAsset {
     }
 }
 
-pub struct TypstModAssetLoader(Arc<TypstWorldMeta>);
+pub struct TypstModAssetLoader(Arc<TypstWorld>);
 
 impl AssetLoader for TypstModAssetLoader {
     type Asset = TypstModAsset;
@@ -66,7 +66,7 @@ impl TypstDocAsset {
     }
 }
 
-pub struct TypstDocAssetLoader(Arc<TypstWorldMeta>);
+pub struct TypstDocAssetLoader(Arc<TypstWorld>);
 
 impl AssetLoader for TypstDocAssetLoader {
     type Asset = TypstDocAsset;

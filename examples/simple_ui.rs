@@ -1,9 +1,10 @@
 use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_typst::{
-    compiler::{world::TypstWorldMeta, TypstCompiler, TypstScene},
+    compiler::{world::TypstWorld, TypstCompiler, TypstScene},
     prelude::*,
 };
 use bevy_vello::{prelude::*, VelloPlugin};
+use typst::World;
 use typst_element::prelude::*;
 
 fn main() {
@@ -31,7 +32,7 @@ fn init_ui(
         return;
     }
 
-    let world = compiler.world_meta();
+    let world = compiler.world();
     let Ok(simple_ui) = q_simple_ui.get_single() else {
         return;
     };
@@ -42,6 +43,45 @@ fn init_ui(
         let purple = scope.get_unchecked_color("purple");
         let gradient_title = scope.get_unchecked_func("gradient_title");
         let menu_item = scope.get_unchecked_func("menu_item");
+
+        let boxed = Packed::new(
+            boxed().with_body(Some(
+                // heading(
+                text("Test")
+                    .pack()
+                    .labelled(foundations::Label::new("text")),
+                // )
+                // .pack()
+                // .labelled(foundations::Label::new("title")),
+            )),
+        )
+        .labelled(foundations::Label::new("test-label"));
+        // let a = boxed.0;
+        let frame = world
+            .scoped_engine(|engine| {
+                let locator = typst::introspection::Locator::root();
+                let styles = foundations::StyleChain::new(&world.library().styles);
+
+                typst::layout::layout_frame(
+                    engine,
+                    &boxed.pack(),
+                    locator,
+                    styles,
+                    layout::Region::new(
+                        layout::Axes::new(Abs::inf(), Abs::inf()),
+                        layout::Axes::new(false, false),
+                    ),
+                )
+                // boxed.layout(
+                //     engine,
+                //     locator,
+                //     styles,
+                //     layout::Axes::new(Abs::inf(), Abs::inf()),
+                // )
+            })
+            .unwrap();
+
+        println!("{:#?}", frame);
 
         // Create ui
         commands
@@ -61,7 +101,8 @@ fn init_ui(
                     writer.add_content(context(gradient_title.clone(), ["Typst"]));
                 });
 
-                let scene = typst_scene(writer, world);
+                // let scene = typst_scene(writer, world);
+                let scene = TypstScene::from_frame(frame).unwrap();
                 parent
                     .spawn(EmptyNodeBundle::from_typst(&scene))
                     .insert(vello_scene(scene));
@@ -141,7 +182,7 @@ fn init_ui(
     }
 }
 
-fn typst_scene(writer: impl DocWriter, world: &TypstWorldMeta) -> TypstScene {
+fn typst_scene(writer: impl DocWriter, world: &TypstWorld) -> TypstScene {
     let document = world.compile_content(writer.pack()).unwrap();
     TypstScene::from_document(&document, Abs::zero()).unwrap()
 }

@@ -7,8 +7,11 @@ use bevy_vello::{
     vello_svg::{self, usvg},
     VelloScene,
 };
-use typst::{layout::Abs, model::Document};
-use world::TypstWorldMeta;
+use typst::{
+    layout::{Abs, Frame, Page},
+    model::Document,
+};
+use world::TypstWorld;
 
 pub mod fonts;
 pub mod world;
@@ -17,15 +20,11 @@ mod download;
 mod package;
 
 #[derive(Resource)]
-pub struct TypstCompiler(pub Arc<TypstWorldMeta>);
+pub struct TypstCompiler(pub Arc<TypstWorld>);
 
 impl TypstCompiler {
-    pub fn world_meta(&self) -> &Arc<TypstWorldMeta> {
+    pub fn world(&self) -> &Arc<TypstWorld> {
         &self.0
-    }
-
-    pub fn world_meta_clone(&self) -> Arc<TypstWorldMeta> {
-        self.0.clone()
     }
 }
 
@@ -37,10 +36,69 @@ pub struct TypstScene {
 }
 
 impl TypstScene {
+    pub fn from_frame(frame: Frame) -> Result<Self, usvg::Error> {
+        let svg_str = typst_svg::svg(&Page {
+            frame,
+            fill: typst::foundations::Smart::Auto,
+            numbering: None,
+            number: 0,
+        });
+
+        let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
+        print_ids(0, tree.root());
+
+        fn print_ids(indent: usize, group: &usvg::Group) {
+            for node in group.children() {
+                for _ in 0..indent * 2 {
+                    print!(" ");
+                }
+
+                match node {
+                    usvg::Node::Group(group) => {
+                        println!("group: {}", group.id());
+                        print_ids(indent + 1, group);
+                    }
+                    usvg::Node::Path(path) => println!("path: {}", path.id()),
+                    usvg::Node::Image(image) => println!("image: {}", image.id()),
+                    usvg::Node::Text(text) => println!("text: {}", text.id()),
+                }
+            }
+        }
+
+        let scene = vello_svg::render_tree(&tree);
+        let size = tree.size();
+
+        Ok(Self {
+            scene,
+            width: size.width(),
+            height: size.height(),
+        })
+    }
+
     pub fn from_document(document: &Document, padding: Abs) -> Result<Self, usvg::Error> {
         let svg_str = typst_svg::svg_merged(document, padding);
 
         let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
+        print_ids(0, tree.root());
+
+        fn print_ids(indent: usize, group: &usvg::Group) {
+            for node in group.children() {
+                for _ in 0..indent * 2 {
+                    print!(" ");
+                }
+
+                match node {
+                    usvg::Node::Group(group) => {
+                        println!("group: {}", group.id());
+                        print_ids(indent + 1, group);
+                    }
+                    usvg::Node::Path(path) => println!("path: {}", path.id()),
+                    usvg::Node::Image(image) => println!("image: {}", image.id()),
+                    usvg::Node::Text(text) => println!("text: {}", text.id()),
+                }
+            }
+        }
+
         let scene = vello_svg::render_tree(&tree);
         let size = tree.size();
 

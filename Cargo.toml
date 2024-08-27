@@ -11,10 +11,12 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.14", default-features = false }
+bevy = { version = "0.14.1", default-features = false }
 bevy_vello_graphics = { version = "0.1.0", git = "https://github.com/voxell-tech/bevy_vello_graphics" }
+vello = "0.2.1"
 # Typst dependencies
-typst = "0.11"
+# typst = "0.11"
+typst = { path = "../typst/crates/typst" }
 comemo = "0.4" # in sync with typst
 unicode-math-class = "0.1" # in sync with typst
 
@@ -38,7 +40,8 @@ bevy = { workspace = true }
 bevy_vello = { version = "0.6", features = ["svg"] }
 bevy_vello_graphics = { workspace = true }
 typst = { workspace = true }
-typst-svg = "0.11"
+# typst-svg = "0.11"
+typst-svg = { path = "../typst/crates/typst-svg" }
 typst-assets = { version = "0.11", features = ["fonts"], optional = true }
 comemo = { workspace = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }

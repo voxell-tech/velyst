@@ -55,7 +55,7 @@ fn check_module(
                 .clone()
                 .content()
                 .query_first(typst::foundations::Selector::Label(Label::new(
-                    "typst_title",
+                    "title-label",
                 )));
         println!("typst_title: {typst_title:?}");
         commands.entity(entity).remove::<Handle<TypstModAsset>>();

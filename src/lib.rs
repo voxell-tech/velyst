@@ -2,7 +2,7 @@ pub use {typst, typst_element, typst_svg};
 
 use {
     asset::{typst_asset::TypstAssetPlugin, vello_asset::VelloAssetPlugin},
-    compiler::{world::TypstWorldMeta, TypstCompiler},
+    compiler::{world::TypstWorld, TypstCompiler},
     std::{path::PathBuf, sync::Arc},
 };
 
@@ -35,7 +35,7 @@ impl Plugin for TypstPlugin {
         // Using assets/ as the root path
         let mut assets_path = PathBuf::from(".");
         assets_path.push("assets");
-        let world_meta = Arc::new(TypstWorldMeta::new(assets_path, &self.font_paths));
+        let world_meta = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
 
         app.add_plugins(TypstAssetPlugin(world_meta.clone()))
             .add_plugins(VelloAssetPlugin)

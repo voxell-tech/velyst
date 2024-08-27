@@ -67,7 +67,8 @@ impl SimpleWriter {
         let page_elem = page(doc.pack())
             .with_width(Smart::Auto)
             .with_height(Smart::Auto)
-            .with_margin(layout::Margin::splat(Some(Abs::zero().smart_rel())));
+            .with_margin(layout::Margin::splat(Some(Abs::zero().smart_rel())))
+            .with_fill(Smart::Custom(None));
 
         self.add_content(page_elem.pack())
     }

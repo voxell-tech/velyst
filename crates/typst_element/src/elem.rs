@@ -3,7 +3,9 @@ use typst::{
     foundations::{self, Content, IntoValue, Label, Packed},
     layout,
     loading::Readable,
-    math, model, symbols, text, visualize,
+    math, model,
+    realize::StyleVec,
+    symbols, text, visualize,
 };
 use unicode_math_class::MathClass;
 
@@ -74,7 +76,7 @@ fn_elem!(rotate, layout::RotateElem);
 fn_elem!(hide, layout::HideElem);
 
 // Model
-fn_elem!(doc, model::DocumentElem, Vec<Content>);
+fn_elem_empty!(doc, model::DocumentElem);
 fn_elem!(reference, model::RefElem, Label);
 fn_elem!(
     link,
@@ -97,7 +99,7 @@ fn_elem!(
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
-fn_elem!(par, model::ParElem, Vec<Content>);
+fn_elem!(par, model::ParElem, StyleVec);
 fn_elem!(table, model::TableElem, Vec<model::TableChild>);
 fn_elem!(terms, model::TermsElem, Vec<Packed<model::TermItem>>);
 fn_elem!(emph, model::EmphElem);
@@ -116,7 +118,7 @@ fn_elem!(highlight, text::HighlightElem);
 fn_elem!(raw, text::RawElem, text::RawContent);
 
 // Symbols
-pub fn symbol(c: char) -> symbols::Symbol {
+pub fn symbol(c: symbols::SymChar) -> symbols::Symbol {
     symbols::Symbol::single(c)
 }
 
