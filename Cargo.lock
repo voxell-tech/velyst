@@ -902,6 +902,7 @@ dependencies = [
  "typst-assets 0.11.1",
  "typst-svg",
  "typst_element",
+ "typst_vello",
  "ureq",
 ]
 

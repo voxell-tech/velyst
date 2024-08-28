@@ -55,23 +55,106 @@ impl State {
     }
 }
 
-// #[derive(Default)]
-// pub enum GroupParent {
-//     #[default]
-//     Root,
-//     Parent(usize),
-// }
-
-// TODO: Add layers.
 /// Every group is layouted in a flat list.
 /// Each group will have a parent index associated with it.
 #[derive(Default)]
 pub struct TypstScene {
     pub groups: Vec<GroupPaths>,
+    pub group_scenes: Vec<vello::Scene>,
     pub group_map: HashMap<Label, Vec<usize>>,
 }
 
 impl TypstScene {
+    pub fn render(&self) -> vello::Scene {
+        let mut scene = vello::Scene::new();
+        let mut layer = 0;
+
+        for group in self.groups.iter() {
+            let mut pushed_clip = false;
+            if let Some(clip_path) = &group.clip_path {
+                scene.push_layer(
+                    peniko::BlendMode::new(peniko::Mix::Clip, peniko::Compose::SrcOver),
+                    1.0,
+                    group.transform,
+                    clip_path,
+                );
+                pushed_clip = true;
+            }
+
+            scene.append(
+                &group.render(),
+                (group.transform != kurbo::Affine::IDENTITY).then_some(group.transform),
+            );
+
+            if pushed_clip {
+                scene.pop_layer();
+            }
+        }
+
+        scene
+    }
+
+    pub fn from_frame(frame: &Frame) -> Self {
+        let mut typst_scene = TypstScene::default();
+
+        let mut group_paths = GroupPaths::default();
+        typst_scene.handle_frame(frame, State::default(), &mut group_paths);
+        typst_scene.append_group(group_paths);
+
+        typst_scene
+    }
+
+    /// Populate [`GroupPaths`] with items inside the [`Frame`] and recursively
+    /// populate the [`TypstScene`] itself if the frame contains any groups.
+    fn handle_frame(&mut self, frame: &Frame, state: State, group_paths: &mut GroupPaths) {
+        for (pos, item) in frame.items() {
+            let pos = *pos;
+
+            println!("{:?}", pos);
+
+            match item {
+                FrameItem::Group(group) => {
+                    self.handle_group(group_paths.layer, state.pre_translate(pos), group);
+                }
+                // FrameItem::Text(_) => println!("{:?}", item),
+                FrameItem::Shape(shape, _) => {
+                    group_paths.shapes.push(render_shape(
+                        state.pre_translate(pos),
+                        shape,
+                        Transform::translate(pos.x, pos.y),
+                    ));
+                }
+                // FrameItem::Image(_, _, _) => println!("{:?}", item),
+                // FrameItem::Link(_, _) => println!("{:?}", item),
+                // FrameItem::Tag(_) => println!("{:?}", item),
+                _ => {}
+            }
+        }
+    }
+
+    /// Convert [`GroupItem`] into [`GroupPaths`] and append it.
+    fn handle_group(&mut self, layer: usize, state: State, group: &GroupItem) {
+        let transform = convert_transform(group.transform.pre_concat(state.transform));
+        // Update state based on group frame.
+        let state = match group.frame.kind() {
+            FrameKind::Soft => state.pre_concat(group.transform),
+            FrameKind::Hard => state
+                .with_transform(Transform::identity())
+                .with_size(group.frame.size()),
+        };
+
+        // Generate GroupPaths for the underlying frame.
+        let mut group_paths = GroupPaths {
+            transform,
+            layer: layer + 1,
+            clip_path: group.clip_path.as_ref().map(convert_path),
+            label: group.label,
+            ..default()
+        };
+        self.handle_frame(&group.frame, state, &mut group_paths);
+        self.append_group(group_paths);
+    }
+
     pub fn append_group(&mut self, group: GroupPaths) {
         if let Some(label) = group.label {
             let index = self.groups.len();
@@ -86,69 +169,6 @@ impl TypstScene {
         }
         self.groups.push(group);
     }
-
-    pub fn from_frame(&mut self, frame: &Frame) {
-        self.from_frame_impl(0, State::default(), Transform::default(), frame);
-    }
-
-    fn from_frame_impl(&mut self, layer: usize, state: State, transform: Transform, frame: &Frame) {
-        for (pos, item) in frame.items() {
-            let pos = *pos;
-            match item {
-                FrameItem::Group(group) => {
-                    self.render_group(layer, state.pre_translate(pos), group);
-                }
-                FrameItem::Text(_) => todo!(),
-                FrameItem::Shape(shape, _) => {
-                    GroupPaths::from_shape_scene(render_shape(state.pre_translate(pos), shape));
-                }
-                FrameItem::Image(_, _, _) => todo!(),
-                FrameItem::Link(_, _) => todo!(),
-                FrameItem::Tag(_) => todo!(),
-            }
-        }
-    }
-
-    fn render_group(&mut self, layer: usize, state: State, group: &GroupItem) {
-        let state = match group.frame.kind() {
-            FrameKind::Soft => state.pre_concat(group.transform),
-            FrameKind::Hard => state
-                .with_transform(Transform::identity())
-                .with_size(group.frame.size()),
-        };
-
-        // group.
-
-        // GroupPaths {
-
-        // }
-
-        // GroupScene {
-        //     label: group.label,
-        //     clip_path: group.clip_path.as_ref().map(|path| convert_path(path)),
-        //     paths: render_frame(state, group.transform, &group.frame),
-        // }
-    }
-}
-
-pub fn render_frame(state: State, transform: Transform, frame: &Frame) {
-    let mut typst_scene = TypstScene::default();
-
-    for (pos, item) in frame.items() {
-        let pos = *pos;
-        match item {
-            FrameItem::Group(group) => {
-                render_group(state.pre_translate(pos), group);
-            }
-            FrameItem::Text(_) => todo!(),
-            FrameItem::Shape(shape, _) => {
-                GroupPaths::from_shape_scene(render_shape(state.pre_translate(pos), shape));
-            }
-            FrameItem::Image(_, _, _) => todo!(),
-            FrameItem::Link(_, _) => todo!(),
-            FrameItem::Tag(_) => todo!(),
-        }
-    }
 }
 
 #[derive(Default)]
@@ -162,9 +182,10 @@ pub struct GroupPaths {
 
 impl GroupPaths {
     /// Create [`GroupPaths`] from a single [`ShapeScene`].
-    pub fn from_shape_scene(shape_scene: ShapeScene) -> Self {
+    pub fn from_shape_scene(shape_scene: ShapeScene, layer: usize) -> Self {
         Self {
             shapes: vec![shape_scene],
+            layer,
             ..default()
         }
     }
@@ -231,22 +252,7 @@ impl ShapeScene {
     }
 }
 
-pub fn render_group(state: State, group: &GroupItem) {
-    let state = match group.frame.kind() {
-        FrameKind::Soft => state.pre_concat(group.transform),
-        FrameKind::Hard => state
-            .with_transform(Transform::identity())
-            .with_size(group.frame.size()),
-    };
-
-    // GroupScene {
-    //     label: group.label,
-    //     clip_path: group.clip_path.as_ref().map(|path| convert_path(path)),
-    //     paths: render_frame(state, group.transform, &group.frame),
-    // }
-}
-
-pub fn render_shape(state: State, shape: &viz::Shape) -> ShapeScene {
+pub fn render_shape(state: State, shape: &viz::Shape, transform: Transform) -> ShapeScene {
     ShapeScene {
         path: convert_geometry_to_path(&shape.geometry),
         fill: shape.fill.as_ref().map(|paint| {
@@ -267,11 +273,13 @@ pub fn render_shape(state: State, shape: &viz::Shape) -> ShapeScene {
             let size = shape_fill_size(state, &stroke.paint, shape);
             let brush = convert_paint_to_brush(&stroke.paint, size);
 
+            let width = stroke.thickness.to_pt();
             let join = match stroke.join {
                 viz::LineJoin::Miter => kurbo::Join::Miter,
                 viz::LineJoin::Round => kurbo::Join::Round,
                 viz::LineJoin::Bevel => kurbo::Join::Bevel,
             };
+            let miter_limit = stroke.miter_limit.get();
             let cap = match stroke.cap {
                 viz::LineCap::Butt => kurbo::Cap::Butt,
                 viz::LineCap::Round => kurbo::Cap::Round,
@@ -279,9 +287,9 @@ pub fn render_shape(state: State, shape: &viz::Shape) -> ShapeScene {
             };
 
             let mut kurbo_stroke = kurbo::Stroke {
-                width: stroke.thickness.to_pt(),
+                width,
                 join,
-                miter_limit: stroke.miter_limit.get(),
+                miter_limit,
                 start_cap: cap,
                 end_cap: cap,
                 ..default()
@@ -297,7 +305,7 @@ pub fn render_shape(state: State, shape: &viz::Shape) -> ShapeScene {
                 brush: Brush::from_brush(brush).with_transform(convert_transform(transform)),
             }
         }),
-        ..default()
+        transform: convert_transform(transform),
     }
 }
 
@@ -433,11 +441,11 @@ pub fn convert_geometry_to_path(geometry: &viz::Geometry) -> kurbo::BezPath {
     match geometry {
         viz::Geometry::Line(p) => kurbo::Shape::to_path(
             &kurbo::Line::new((0.0, 0.0), (p.x.to_pt(), p.y.to_pt())),
-            0.1,
+            0.01,
         ),
         viz::Geometry::Rect(rect) => kurbo::Shape::to_path(
             &kurbo::Rect::from_origin_size((0.0, 0.0), (rect.x.to_pt(), rect.y.to_pt())),
-            0.1,
+            0.01,
         ),
 
         viz::Geometry::Path(p) => convert_path(p),

@@ -36,6 +36,7 @@ readme.workspace = true
 
 [dependencies]
 typst_element = { version = "0.1.0", path = "crates/typst_element" }
+typst_vello = { version = "0.1.0", path = "crates/typst_vello" }
 bevy = { workspace = true }
 bevy_vello = { version = "0.6", features = ["svg"] }
 bevy_vello_graphics = { workspace = true }
