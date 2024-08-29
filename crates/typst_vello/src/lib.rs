@@ -67,7 +67,6 @@ pub struct TypstScene {
 impl TypstScene {
     pub fn render(&self) -> vello::Scene {
         let mut scene = vello::Scene::new();
-        let mut layer = 0;
 
         for group in self.groups.iter() {
             let mut pushed_clip = false;
@@ -110,8 +109,6 @@ impl TypstScene {
         for (pos, item) in frame.items() {
             let pos = *pos;
 
-            println!("{:?}", pos);
-
             match item {
                 FrameItem::Group(group) => {
                     self.handle_group(group_paths.layer, state.pre_translate(pos), group);
@@ -134,18 +131,20 @@ impl TypstScene {
 
     /// Convert [`GroupItem`] into [`GroupPaths`] and append it.
     fn handle_group(&mut self, layer: usize, state: State, group: &GroupItem) {
-        let transform = convert_transform(group.transform.pre_concat(state.transform));
         // Update state based on group frame.
         let state = match group.frame.kind() {
             FrameKind::Soft => state.pre_concat(group.transform),
             FrameKind::Hard => state
-                .with_transform(Transform::identity())
+                .pre_concat(group.transform)
                 .with_size(group.frame.size()),
+            // FrameKind::Hard => state
+            //     .with_transform(Transform::identity())
+            //     .with_size(group.frame.size()),
         };
 
         // Generate GroupPaths for the underlying frame.
         let mut group_paths = GroupPaths {
-            transform,
+            transform: convert_transform(state.transform),
             layer: layer + 1,
             clip_path: group.clip_path.as_ref().map(convert_path),
             label: group.label,
@@ -190,26 +189,11 @@ impl GroupPaths {
         }
     }
 
-    pub fn with_transform(mut self, transform: kurbo::Affine) -> Self {
-        self.transform = transform;
-        self
-    }
-
-    pub fn clipped(mut self, path: kurbo::BezPath) -> Self {
-        self.clip_path = Some(path);
-        self
-    }
-
-    pub fn labelled(mut self, label: Label) -> Self {
-        self.label = Some(label);
-        self
-    }
-
     pub fn render(&self) -> vello::Scene {
         let mut scene = vello::Scene::new();
 
         for shape in self.shapes.iter() {
-            scene.append(&shape.render(), None);
+            shape.render(&mut scene);
         }
 
         scene
@@ -225,9 +209,7 @@ pub struct ShapeScene {
 }
 
 impl ShapeScene {
-    pub fn render(&self) -> vello::Scene {
-        let mut scene = vello::Scene::new();
-
+    pub fn render(&self, scene: &mut vello::Scene) {
         if let Some(fill) = &self.fill {
             scene.fill(
                 fill.style,
@@ -247,8 +229,6 @@ impl ShapeScene {
                 &self.path,
             );
         }
-
-        scene
     }
 }
 
@@ -433,7 +413,7 @@ fn shape_fill_size(state: State, paint: &viz::Paint, shape: &viz::Shape) -> Size
 }
 
 pub fn convert_color(color: &viz::Color) -> peniko::Color {
-    let channels = color.to_vec4_u8();
+    let channels = color.to_rgb().to_vec4_u8();
     peniko::Color::rgba8(channels[0], channels[1], channels[2], channels[3])
 }
 
