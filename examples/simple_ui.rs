@@ -54,8 +54,7 @@ fn init_ui(
                 // .pack()
                 // .labelled(foundations::Label::new("title")),
             )),
-        )
-        .labelled(foundations::Label::new("test-label"));
+        );
         // let a = boxed.0;
         let frame = world
             .scoped_engine(|engine| {

@@ -4567,6 +4567,7 @@ version = "0.1.0"
 dependencies = [
  "bevy_utils",
  "bevy_vello_graphics",
+ "ttf-parser 0.21.1",
  "typst",
  "vello",
 ]

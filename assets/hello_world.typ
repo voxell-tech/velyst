@@ -1,3 +1,5 @@
+#import "monokai_pro.typ": *
+
 #set page(
   height: auto,
   width: auto,
@@ -6,35 +8,40 @@
 #set raw(theme: "Monokai Pro.tmTheme")
 #set text(size: 24pt, fill: rgb("#FCFCFA"))
 
-// #text(
-//   fill: gradient.linear(rgb("#13A8C1"), rgb("#21C0AA")),
-// )[= Typst]
+#text(
+  fill: gradient.linear(rgb("#13A8C1"), rgb("#21C0AA")),
+)[= Typst] <title-label>
 
 
-// #[
-//   #set text(fill: gradient.linear(red, blue))
-//   #let rainbow(content) = {
-//     set text(fill: gradient.linear(..color.map.rainbow))
-//     box(content)
-//   }
+#[
+  #set text(fill: gradient.linear(red, blue))
+  #let rainbow(content) = {
+    set text(fill: gradient.linear(..color.map.rainbow))
+    box(content)
+  }
 
-//   This is a gradient on text, but with a #rainbow[twist]!
-// ]
+  This is a gradient on text, but with a #rainbow[twist]!
+]
 
-// $
-//   7.32 beta +
-//   sum_(i=0)^nabla
-//   (Q_i (a_i - epsilon)) / 2
-// $ <math-label>
+#[
+  #set text(fill: gradient.linear(red, orange, yellow, green, blue, purple))
+  #box()[
+    $
+      7.32 beta +
+      sum_(i=0)^nabla
+      (Q_i (a_i - epsilon)) / 2
+    $
+  ] <math-label>
+]
 
-// ```rust
-// fn main() {
-//   println!("Hello, world!")
-// }
-// ``` <raw-label>
+```rust
+fn main() {
+  println!("Hello, world!")
+}
+``` <raw-label>
 
-// #box() <box-label>
-// #block() <block-label>
+#box() <box-label>
+#block() <block-label>
 
 // Luma
 #for x in range(250, step: 50) {

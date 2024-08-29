@@ -2,58 +2,19 @@
 //!
 //! A Vello scene drawer for Typst's frames.
 
-use std::f32::consts::TAU;
-
-use bevy_utils::{prelude::*, HashMap};
-use bevy_vello_graphics::{
-    bevy_vello::vello::{self, kurbo, peniko},
-    prelude::*,
-};
+use bevy_utils::{default, HashMap};
+use bevy_vello_graphics::bevy_vello::vello::{self, kurbo, peniko};
+use shape::{convert_path, render_shape, ShapeScene};
+use text::render_text;
 use typst::{
     foundations::Label,
-    layout::{
-        Abs, Frame, FrameItem, FrameKind, GroupItem, Point, Quadrant, Ratio, Size, Transform,
-    },
-    visualize as viz,
+    layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
 };
+use utils::convert_transform;
 
-/// Contextual information for rendering.
-#[derive(Default, Clone, Copy)]
-pub struct State {
-    /// The transform of the current item.
-    transform: Transform,
-    /// The size of the first hard frame in the hierarchy.
-    size: Size,
-}
-
-impl State {
-    fn new(size: Size, transform: Transform) -> Self {
-        Self { size, transform }
-    }
-
-    /// Pre translate the current item's transform.
-    fn pre_translate(self, pos: Point) -> Self {
-        self.pre_concat(Transform::translate(pos.x, pos.y))
-    }
-
-    /// Pre concat the current item's transform.
-    fn pre_concat(self, transform: Transform) -> Self {
-        Self {
-            transform: self.transform.pre_concat(transform),
-            ..self
-        }
-    }
-
-    /// Sets the size of the first hard frame in the hierarchy.
-    fn with_size(self, size: Size) -> Self {
-        Self { size, ..self }
-    }
-
-    /// Sets the current item's transform.
-    fn with_transform(self, transform: Transform) -> Self {
-        Self { transform, ..self }
-    }
-}
+pub mod shape;
+pub mod text;
+pub mod utils;
 
 /// Every group is layouted in a flat list.
 /// Each group will have a parent index associated with it.
@@ -67,8 +28,21 @@ pub struct TypstScene {
 impl TypstScene {
     pub fn render(&self) -> vello::Scene {
         let mut scene = vello::Scene::new();
+        let mut computed_transforms = Vec::with_capacity(self.groups.len());
 
         for group in self.groups.iter() {
+            let transform = match group.parent {
+                Some(parent_index) => {
+                    let transform = computed_transforms[parent_index] * group.transform;
+                    computed_transforms.push(transform);
+                    transform
+                }
+                None => {
+                    computed_transforms.push(group.transform);
+                    group.transform
+                }
+            };
+
             let mut pushed_clip = false;
             if let Some(clip_path) = &group.clip_path {
                 scene.push_layer(
@@ -82,7 +56,7 @@ impl TypstScene {
 
             scene.append(
                 &group.render(),
-                (group.transform != kurbo::Affine::IDENTITY).then_some(group.transform),
+                (transform != kurbo::Affine::IDENTITY).then_some(transform),
             );
 
             if pushed_clip {
@@ -96,29 +70,43 @@ impl TypstScene {
     pub fn from_frame(frame: &Frame) -> Self {
         let mut typst_scene = TypstScene::default();
 
-        let mut group_paths = GroupPaths::default();
-        typst_scene.handle_frame(frame, State::default(), &mut group_paths);
+        let group_paths = GroupPaths::default();
         typst_scene.append_group(group_paths);
+        typst_scene.handle_frame(
+            frame,
+            RenderState::new(frame.size(), Transform::identity()),
+            0,
+        );
 
         typst_scene
     }
 
     /// Populate [`GroupPaths`] with items inside the [`Frame`] and recursively
     /// populate the [`TypstScene`] itself if the frame contains any groups.
-    fn handle_frame(&mut self, frame: &Frame, state: State, group_paths: &mut GroupPaths) {
+    fn handle_frame(&mut self, frame: &Frame, state: RenderState, group_index: usize) {
         for (pos, item) in frame.items() {
             let pos = *pos;
+            let local_transform = Transform::translate(pos.x, pos.y);
 
             match item {
                 FrameItem::Group(group) => {
-                    self.handle_group(group_paths.layer, state.pre_translate(pos), group);
-                }
-                // FrameItem::Text(_) => println!("{:?}", item),
-                FrameItem::Shape(shape, _) => {
-                    group_paths.shapes.push(render_shape(
+                    self.handle_group(
+                        group,
                         state.pre_translate(pos),
+                        local_transform,
+                        Some(group_index),
+                    );
+                }
+                FrameItem::Text(text) => {
+                    let shapes = &mut self.groups[group_index].shapes;
+                    shapes.extend(render_text(text, state.pre_translate(pos), local_transform));
+                }
+                FrameItem::Shape(shape, _) => {
+                    let shapes = &mut self.groups[group_index].shapes;
+                    shapes.push(render_shape(
                         shape,
-                        Transform::translate(pos.x, pos.y),
+                        state.pre_translate(pos),
+                        local_transform,
                     ));
                 }
                 // FrameItem::Image(_, _, _) => println!("{:?}", item),
@@ -130,31 +118,37 @@ impl TypstScene {
     }
 
     /// Convert [`GroupItem`] into [`GroupPaths`] and append it.
-    fn handle_group(&mut self, layer: usize, state: State, group: &GroupItem) {
-        // Update state based on group frame.
-        let state = match group.frame.kind() {
-            FrameKind::Soft => state.pre_concat(group.transform),
-            FrameKind::Hard => state
-                .pre_concat(group.transform)
-                .with_size(group.frame.size()),
-            // FrameKind::Hard => state
-            //     .with_transform(Transform::identity())
-            //     .with_size(group.frame.size()),
-        };
-
+    fn handle_group(
+        &mut self,
+        group: &GroupItem,
+        state: RenderState,
+        local_transform: Transform,
+        parent: Option<usize>,
+    ) {
         // Generate GroupPaths for the underlying frame.
-        let mut group_paths = GroupPaths {
-            transform: convert_transform(state.transform),
-            layer: layer + 1,
+        let group_paths = GroupPaths {
+            transform: convert_transform(local_transform.pre_concat(group.transform)),
+            parent,
             clip_path: group.clip_path.as_ref().map(convert_path),
             label: group.label,
             ..default()
         };
-        self.handle_frame(&group.frame, state, &mut group_paths);
+
+        // Update state based on group frame.
+        let state = match group.frame.kind() {
+            FrameKind::Soft => state.pre_concat(group.transform),
+            FrameKind::Hard => state
+                .with_transform(Transform::identity())
+                .with_size(group.frame.size()),
+        };
+
+        let group_index = self.groups.len();
         self.append_group(group_paths);
+        self.handle_frame(&group.frame, state, group_index);
     }
 
-    pub fn append_group(&mut self, group: GroupPaths) {
+    /// Add a group to the [group list][Self::groups].
+    fn append_group(&mut self, group: GroupPaths) {
         if let Some(label) = group.label {
             let index = self.groups.len();
             match self.group_map.get_mut(&label) {
@@ -170,21 +164,21 @@ impl TypstScene {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GroupPaths {
     pub transform: kurbo::Affine,
     pub shapes: Vec<ShapeScene>,
-    pub layer: usize,
+    pub parent: Option<usize>,
     pub clip_path: Option<kurbo::BezPath>,
     pub label: Option<Label>,
 }
 
 impl GroupPaths {
     /// Create [`GroupPaths`] from a single [`ShapeScene`].
-    pub fn from_shape_scene(shape_scene: ShapeScene, layer: usize) -> Self {
+    pub fn from_shape_scene(shape_scene: ShapeScene, parent: Option<usize>) -> Self {
         Self {
             shapes: vec![shape_scene],
-            layer,
+            parent,
             ..default()
         }
     }
@@ -200,263 +194,40 @@ impl GroupPaths {
     }
 }
 
-#[derive(Default)]
-pub struct ShapeScene {
-    pub path: kurbo::BezPath,
-    pub transform: kurbo::Affine,
-    pub fill: Option<Fill>,
-    pub stroke: Option<Stroke>,
+/// Contextual information for rendering.
+#[derive(Default, Debug, Clone, Copy)]
+pub struct RenderState {
+    /// The transform of the current item.
+    transform: Transform,
+    /// The size of the first hard frame in the hierarchy.
+    size: Size,
 }
 
-impl ShapeScene {
-    pub fn render(&self, scene: &mut vello::Scene) {
-        if let Some(fill) = &self.fill {
-            scene.fill(
-                fill.style,
-                self.transform,
-                &fill.brush.value,
-                Some(fill.brush.transform),
-                &self.path,
-            );
-        }
+impl RenderState {
+    pub fn new(size: Size, transform: Transform) -> Self {
+        Self { size, transform }
+    }
 
-        if let Some(stroke) = &self.stroke {
-            scene.stroke(
-                &stroke.style,
-                self.transform,
-                &stroke.brush.value,
-                Some(stroke.brush.transform),
-                &self.path,
-            );
+    /// Pre translate the current item's transform.
+    pub fn pre_translate(self, pos: Point) -> Self {
+        self.pre_concat(Transform::translate(pos.x, pos.y))
+    }
+
+    /// Pre concat the current item's transform.
+    pub fn pre_concat(self, transform: Transform) -> Self {
+        Self {
+            transform: self.transform.pre_concat(transform),
+            ..self
         }
     }
-}
 
-pub fn render_shape(state: State, shape: &viz::Shape, transform: Transform) -> ShapeScene {
-    ShapeScene {
-        path: convert_geometry_to_path(&shape.geometry),
-        fill: shape.fill.as_ref().map(|paint| {
-            let transform = shape_paint_transform(state, paint, shape);
-            let size = shape_fill_size(state, paint, shape);
-            let brush = convert_paint_to_brush(paint, size);
-
-            Fill {
-                style: match shape.fill_rule {
-                    viz::FillRule::NonZero => peniko::Fill::NonZero,
-                    viz::FillRule::EvenOdd => peniko::Fill::EvenOdd,
-                },
-                brush: Brush::from_brush(brush).with_transform(convert_transform(transform)),
-            }
-        }),
-        stroke: shape.stroke.as_ref().map(|stroke| {
-            let transform = shape_paint_transform(state, &stroke.paint, shape);
-            let size = shape_fill_size(state, &stroke.paint, shape);
-            let brush = convert_paint_to_brush(&stroke.paint, size);
-
-            let width = stroke.thickness.to_pt();
-            let join = match stroke.join {
-                viz::LineJoin::Miter => kurbo::Join::Miter,
-                viz::LineJoin::Round => kurbo::Join::Round,
-                viz::LineJoin::Bevel => kurbo::Join::Bevel,
-            };
-            let miter_limit = stroke.miter_limit.get();
-            let cap = match stroke.cap {
-                viz::LineCap::Butt => kurbo::Cap::Butt,
-                viz::LineCap::Round => kurbo::Cap::Round,
-                viz::LineCap::Square => kurbo::Cap::Square,
-            };
-
-            let mut kurbo_stroke = kurbo::Stroke {
-                width,
-                join,
-                miter_limit,
-                start_cap: cap,
-                end_cap: cap,
-                ..default()
-            };
-
-            if let Some(dash) = &stroke.dash {
-                kurbo_stroke.dash_pattern = dash.array.iter().map(|dash| dash.to_pt()).collect();
-                kurbo_stroke.dash_offset = dash.phase.to_pt();
-            }
-
-            Stroke {
-                style: kurbo_stroke,
-                brush: Brush::from_brush(brush).with_transform(convert_transform(transform)),
-            }
-        }),
-        transform: convert_transform(transform),
-    }
-}
-
-pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
-    match paint {
-        viz::Paint::Solid(solid) => {
-            let channels = solid.to_vec4_u8();
-            peniko::Brush::Solid(peniko::Color::rgba8(
-                channels[0],
-                channels[1],
-                channels[2],
-                channels[3],
-            ))
-        }
-        viz::Paint::Gradient(gradient) => {
-            let ratio = size.aspect_ratio();
-
-            let stops = gradient
-                .stops_ref()
-                .iter()
-                .map(|(color, ratio)| peniko::ColorStop {
-                    offset: ratio.get() as f32,
-                    color: convert_color(color),
-                })
-                .collect::<Vec<_>>();
-
-            let gradient = match gradient {
-                viz::Gradient::Linear(linear) => {
-                    let angle = viz::Gradient::correct_aspect_ratio(linear.angle, ratio);
-                    let (sin, cos) = (angle.sin(), angle.cos());
-                    let length = sin.abs() + cos.abs();
-                    let (start, end) = match angle.quadrant() {
-                        Quadrant::First => ((0.0, 0.0), (cos * length, sin * length)),
-                        Quadrant::Second => ((1.0, 0.0), (cos * length + 1.0, sin * length)),
-                        Quadrant::Third => ((1.0, 1.0), (cos * length + 1.0, sin * length + 1.0)),
-                        Quadrant::Fourth => ((0.0, 1.0), (cos * length, sin * length + 1.0)),
-                    };
-                    peniko::Gradient::new_linear(start, end).with_stops(stops.as_slice())
-                }
-                viz::Gradient::Radial(radial) => {
-                    let start_center = (radial.focal_center.x.get(), radial.focal_center.y.get());
-                    let start_radius = radial.focal_radius.get() as f32;
-                    let end_center = (radial.center.x.get(), radial.center.y.get());
-                    let end_radius = radial.radius.get() as f32;
-
-                    peniko::Gradient::new_two_point_radial(
-                        start_center,
-                        start_radius,
-                        end_center,
-                        end_radius,
-                    )
-                    .with_stops(stops.as_slice())
-                }
-                viz::Gradient::Conic(conic) => {
-                    let angle: f32 = -(viz::Gradient::correct_aspect_ratio(conic.angle, ratio)
-                        .to_rad() as f32)
-                        .rem_euclid(TAU);
-                    let center = (conic.center.x.get(), conic.center.y.get());
-
-                    peniko::Gradient::new_sweep(center, angle, TAU - angle)
-                        .with_stops(stops.as_slice())
-                }
-            };
-            peniko::Brush::Gradient(gradient)
-        }
-        // TODO: Support pattern.
-        viz::Paint::Pattern(_) => peniko::Brush::Solid(peniko::Color::RED),
-    }
-}
-
-/// Calculate the transform of the shape's fill or stroke.
-pub fn shape_paint_transform(state: State, paint: &viz::Paint, shape: &viz::Shape) -> Transform {
-    let mut shape_size = shape.geometry.bbox_size();
-    // Edge cases for strokes.
-    if shape_size.x.to_pt() == 0.0 {
-        shape_size.x = Abs::pt(1.0);
+    /// Sets the size of the first hard frame in the hierarchy.
+    pub fn with_size(self, size: Size) -> Self {
+        Self { size, ..self }
     }
 
-    if shape_size.y.to_pt() == 0.0 {
-        shape_size.y = Abs::pt(1.0);
+    /// Sets the current item's transform.
+    pub fn with_transform(self, transform: Transform) -> Self {
+        Self { transform, ..self }
     }
-
-    if let viz::Paint::Gradient(gradient) = paint {
-        match gradient.unwrap_relative(false) {
-            viz::RelativeTo::Self_ => Transform::scale(
-                Ratio::new(shape_size.x.to_pt()),
-                Ratio::new(shape_size.y.to_pt()),
-            ),
-            viz::RelativeTo::Parent => Transform::scale(
-                Ratio::new(state.size.x.to_pt()),
-                Ratio::new(state.size.y.to_pt()),
-            )
-            .post_concat(state.transform.invert().unwrap()),
-        }
-    } else if let viz::Paint::Pattern(pattern) = paint {
-        match pattern.unwrap_relative(false) {
-            viz::RelativeTo::Self_ => Transform::identity(),
-            viz::RelativeTo::Parent => state.transform.invert().unwrap(),
-        }
-    } else {
-        Transform::identity()
-    }
-}
-
-/// Calculate the size of the shape's fill.
-fn shape_fill_size(state: State, paint: &viz::Paint, shape: &viz::Shape) -> Size {
-    let mut shape_size = shape.geometry.bbox_size();
-    // Edge cases for strokes.
-    if shape_size.x.to_pt() == 0.0 {
-        shape_size.x = Abs::pt(1.0);
-    }
-
-    if shape_size.y.to_pt() == 0.0 {
-        shape_size.y = Abs::pt(1.0);
-    }
-
-    if let viz::Paint::Gradient(gradient) = paint {
-        match gradient.unwrap_relative(false) {
-            viz::RelativeTo::Self_ => shape_size,
-            viz::RelativeTo::Parent => state.size,
-        }
-    } else {
-        shape_size
-    }
-}
-
-pub fn convert_color(color: &viz::Color) -> peniko::Color {
-    let channels = color.to_rgb().to_vec4_u8();
-    peniko::Color::rgba8(channels[0], channels[1], channels[2], channels[3])
-}
-
-pub fn convert_geometry_to_path(geometry: &viz::Geometry) -> kurbo::BezPath {
-    match geometry {
-        viz::Geometry::Line(p) => kurbo::Shape::to_path(
-            &kurbo::Line::new((0.0, 0.0), (p.x.to_pt(), p.y.to_pt())),
-            0.01,
-        ),
-        viz::Geometry::Rect(rect) => kurbo::Shape::to_path(
-            &kurbo::Rect::from_origin_size((0.0, 0.0), (rect.x.to_pt(), rect.y.to_pt())),
-            0.01,
-        ),
-
-        viz::Geometry::Path(p) => convert_path(p),
-    }
-}
-
-pub fn convert_path(path: &viz::Path) -> kurbo::BezPath {
-    let mut bezpath = kurbo::BezPath::new();
-
-    for item in &path.0 {
-        match item {
-            viz::PathItem::MoveTo(p) => bezpath.move_to((p.x.to_pt(), p.y.to_pt())),
-            viz::PathItem::LineTo(p) => bezpath.line_to((p.x.to_pt(), p.y.to_pt())),
-            viz::PathItem::CubicTo(p1, p2, p3) => bezpath.curve_to(
-                (p1.x.to_pt(), p1.y.to_pt()),
-                (p2.x.to_pt(), p2.y.to_pt()),
-                (p3.x.to_pt(), p3.y.to_pt()),
-            ),
-            viz::PathItem::ClosePath => bezpath.close_path(),
-        }
-    }
-    bezpath
-}
-
-pub fn convert_transform(transform: Transform) -> kurbo::Affine {
-    kurbo::Affine::new([
-        transform.sx.get(),
-        transform.ky.get(),
-        transform.kx.get(),
-        transform.sy.get(),
-        transform.tx.to_pt(),
-        transform.ty.to_pt(),
-    ])
 }

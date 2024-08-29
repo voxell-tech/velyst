@@ -50,14 +50,14 @@ fn check_module(
 
     if let Some(module) = typst_mod_assets.get(handle).map(|asset| asset.module()) {
         info!("Has module.");
-        let typst_title =
+        let title_label =
             module
                 .clone()
                 .content()
                 .query_first(typst::foundations::Selector::Label(Label::new(
                     "title-label",
                 )));
-        println!("typst_title: {typst_title:?}");
+        println!("title-label: {title_label:?}");
         commands.entity(entity).remove::<Handle<TypstModAsset>>();
     }
 }
