@@ -4,16 +4,17 @@
   height: auto,
   width: auto,
   fill: rgb("#19181A"),
+  margin: 40pt,
 )
 #set raw(theme: "Monokai Pro.tmTheme")
-#set text(size: 24pt, fill: rgb("#FCFCFA"))
+#set text(size: 18pt, fill: rgb("#FCFCFA"))
 
 #text(
-  fill: gradient.linear(rgb("#13A8C1"), rgb("#21C0AA")),
+  fill: gradient.linear(blue, green),
 )[= Typst] <title-label>
 
 
-#[
+#box()[
   #set text(fill: gradient.linear(red, blue))
   #let rainbow(content) = {
     set text(fill: gradient.linear(..color.map.rainbow))
@@ -23,25 +24,22 @@
   This is a gradient on text, but with a #rainbow[twist]!
 ]
 
-#[
+#box()[
   #set text(fill: gradient.linear(red, orange, yellow, green, blue, purple))
-  #box()[
-    $
-      7.32 beta +
-      sum_(i=0)^nabla
-      (Q_i (a_i - epsilon)) / 2
-    $
-  ] <math-label>
+  $
+    7.32 beta +
+    sum_(i=0)^nabla
+    (Q_i (a_i - epsilon)) / 2
+  $
 ]
 
-```rust
-fn main() {
-  println!("Hello, world!")
-}
-``` <raw-label>
-
-#box() <box-label>
-#block() <block-label>
+#box()[
+  ```rust
+  fn main() {
+    println!("Hello, world!")
+  }
+  ```
+]
 
 // Luma
 #for x in range(250, step: 50) {
@@ -98,4 +96,18 @@ fn main() {
 #circle(
   radius: 40pt,
   fill: gradient.radial(aqua, white).repeat(4),
+)
+
+// Image
+#stack(
+  dir: ltr,
+  spacing: 20pt,
+  figure(
+    image("images/voxell_logo.png", height: 100pt),
+    caption: [Voxell Logo Png],
+  ),
+  figure(
+    image("images/voxell_logo.svg", height: 100pt),
+    caption: [Voxell Logo Svg],
+  ),
 )

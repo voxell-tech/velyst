@@ -14,6 +14,7 @@ readme = "README.md"
 bevy = { version = "0.14.1", default-features = false }
 bevy_vello_graphics = { version = "0.1.0", git = "https://github.com/voxell-tech/bevy_vello_graphics" }
 vello = "0.2.1"
+vello_svg = "0.3.1"
 # Typst dependencies
 # typst = "0.11"
 typst = { path = "../typst/crates/typst" }
@@ -57,10 +58,14 @@ env_proxy = "0.4"
 thiserror = "1"
 
 [features]
-default = ["embed-fonts"]
+default = ["embed-fonts", "dev"]
 embed-fonts = ["dep:typst-assets"]
-svg = []
-vello = []
+dev = [
+    # Enable asset hot reloading for native dev builds.
+    "bevy/file_watcher",
+    # Enable embedded asset hot reloading for native dev builds.
+    # "bevy/embedded_watcher",
+]
 
 [lints]
 workspace = true

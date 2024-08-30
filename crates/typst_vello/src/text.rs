@@ -1,18 +1,13 @@
-use bevy_vello_graphics::{
-    bevy_vello::vello::{kurbo, peniko},
-    brush::Brush,
-    fill::Fill,
-    stroke::Stroke,
-};
 use ttf_parser::{GlyphId, OutlineBuilder};
 use typst::{
-    layout::{Abs, Point, Ratio, Size, Transform},
+    layout::{Abs, Ratio, Size, Transform},
     text::{Font, TextItem},
     visualize as viz,
 };
+use vello::{kurbo, peniko};
 
 use crate::{
-    shape::ShapeScene,
+    shape::{Fill, ShapeScene, Stroke},
     utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform},
     RenderState,
 };
@@ -75,7 +70,8 @@ fn render_outline_glyph(
 
             Some(Fill {
                 style: peniko::Fill::NonZero,
-                brush: Brush::from_brush(brush).with_transform(transform),
+                brush,
+                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
             })
         },
         stroke: text.stroke.as_ref().map(|stroke| {
@@ -84,7 +80,8 @@ fn render_outline_glyph(
 
             Stroke {
                 style: convert_fixed_stroke(stroke),
-                brush: Brush::from_brush(brush).with_transform(transform),
+                brush,
+                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
             }
         }),
     })

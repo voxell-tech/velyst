@@ -1,12 +1,9 @@
-use bevy_vello_graphics::{
-    bevy_vello::vello::{kurbo, peniko},
-    prelude::*,
-};
 use kurbo::Shape;
 use typst::{
     layout::{Abs, Ratio, Size, Transform},
     visualize as viz,
 };
+use vello::{kurbo, peniko};
 
 use crate::{utils::*, RenderState};
 
@@ -18,14 +15,28 @@ pub struct ShapeScene {
     pub stroke: Option<Stroke>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Fill {
+    pub style: peniko::Fill,
+    pub brush: peniko::Brush,
+    pub transform: Option<kurbo::Affine>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct Stroke {
+    pub style: kurbo::Stroke,
+    pub brush: peniko::Brush,
+    pub transform: Option<kurbo::Affine>,
+}
+
 impl ShapeScene {
     pub fn render(&self, scene: &mut vello::Scene) {
         if let Some(fill) = &self.fill {
             scene.fill(
                 fill.style,
                 self.transform,
-                &fill.brush.value,
-                Some(fill.brush.transform),
+                &fill.brush,
+                fill.transform,
                 &self.path,
             );
         }
@@ -34,8 +45,8 @@ impl ShapeScene {
             scene.stroke(
                 &stroke.style,
                 self.transform,
-                &stroke.brush.value,
-                Some(stroke.brush.transform),
+                &stroke.brush,
+                stroke.transform,
                 &self.path,
             );
         }
@@ -60,7 +71,8 @@ pub fn render_shape(
                     viz::FillRule::NonZero => peniko::Fill::NonZero,
                     viz::FillRule::EvenOdd => peniko::Fill::EvenOdd,
                 },
-                brush: Brush::from_brush(brush).with_transform(transform),
+                brush,
+                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
             }
         }),
         stroke: shape.stroke.as_ref().map(|stroke| {
@@ -70,7 +82,8 @@ pub fn render_shape(
 
             Stroke {
                 style: convert_fixed_stroke(stroke),
-                brush: Brush::from_brush(brush).with_transform(transform),
+                brush,
+                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
             }
         }),
     }

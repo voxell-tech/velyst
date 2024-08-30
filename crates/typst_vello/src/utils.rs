@@ -1,11 +1,11 @@
 use std::f32::consts::TAU;
 
 use bevy_utils::default;
-use bevy_vello_graphics::bevy_vello::vello::{kurbo, peniko};
 use typst::{
     layout::{Quadrant, Size, Transform},
     visualize as viz,
 };
+use vello::{kurbo, peniko};
 
 pub fn convert_fixed_stroke(stroke: &viz::FixedStroke) -> kurbo::Stroke {
     let width = stroke.thickness.to_pt();

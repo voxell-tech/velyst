@@ -3,7 +3,7 @@
 //! A Vello scene drawer for Typst's frames.
 
 use bevy_utils::{default, HashMap};
-use bevy_vello_graphics::bevy_vello::vello::{self, kurbo, peniko};
+use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
 use text::render_text;
 use typst::{
@@ -11,7 +11,9 @@ use typst::{
     layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
 };
 use utils::convert_transform;
+use vello::{kurbo, peniko};
 
+pub mod image;
 pub mod shape;
 pub mod text;
 pub mod utils;
@@ -20,7 +22,7 @@ pub mod utils;
 /// Each group will have a parent index associated with it.
 #[derive(Default)]
 pub struct TypstScene {
-    pub groups: Vec<GroupPaths>,
+    pub groups: Vec<TypstGroup>,
     pub group_scenes: Vec<vello::Scene>,
     pub group_map: HashMap<Label, Vec<usize>>,
 }
@@ -70,7 +72,7 @@ impl TypstScene {
     pub fn from_frame(frame: &Frame) -> Self {
         let mut typst_scene = TypstScene::default();
 
-        let group_paths = GroupPaths::default();
+        let group_paths = TypstGroup::default();
         typst_scene.append_group(group_paths);
         typst_scene.handle_frame(
             frame,
@@ -109,10 +111,19 @@ impl TypstScene {
                         local_transform,
                     ));
                 }
-                // FrameItem::Image(_, _, _) => println!("{:?}", item),
-                // FrameItem::Link(_, _) => println!("{:?}", item),
-                // FrameItem::Tag(_) => println!("{:?}", item),
-                _ => {}
+                FrameItem::Image(image, size, _) => {
+                    if size.any(|p| p.to_pt() == 0.0) {
+                        // Image size invalid!
+                        continue;
+                    }
+
+                    let images = &mut self.groups[group_index].images;
+                    let image = render_image(image, *size, local_transform);
+                    images.push(image);
+                }
+                // TODO: Support links
+                FrameItem::Link(_, _) => {}
+                FrameItem::Tag(_) => {}
             }
         }
     }
@@ -126,7 +137,7 @@ impl TypstScene {
         parent: Option<usize>,
     ) {
         // Generate GroupPaths for the underlying frame.
-        let group_paths = GroupPaths {
+        let group_paths = TypstGroup {
             transform: convert_transform(local_transform.pre_concat(group.transform)),
             parent,
             clip_path: group.clip_path.as_ref().map(convert_path),
@@ -148,7 +159,7 @@ impl TypstScene {
     }
 
     /// Add a group to the [group list][Self::groups].
-    fn append_group(&mut self, group: GroupPaths) {
+    fn append_group(&mut self, group: TypstGroup) {
         if let Some(label) = group.label {
             let index = self.groups.len();
             match self.group_map.get_mut(&label) {
@@ -165,15 +176,16 @@ impl TypstScene {
 }
 
 #[derive(Default, Debug)]
-pub struct GroupPaths {
+pub struct TypstGroup {
     pub transform: kurbo::Affine,
     pub shapes: Vec<ShapeScene>,
+    pub images: Vec<ImageScene>,
     pub parent: Option<usize>,
     pub clip_path: Option<kurbo::BezPath>,
     pub label: Option<Label>,
 }
 
-impl GroupPaths {
+impl TypstGroup {
     /// Create [`GroupPaths`] from a single [`ShapeScene`].
     pub fn from_shape_scene(shape_scene: ShapeScene, parent: Option<usize>) -> Self {
         Self {
@@ -188,6 +200,13 @@ impl GroupPaths {
 
         for shape in self.shapes.iter() {
             shape.render(&mut scene);
+        }
+
+        for fixed_scene in self.images.iter() {
+            scene.append(
+                &fixed_scene.scene,
+                (fixed_scene.transform != kurbo::Affine::IDENTITY).then_some(fixed_scene.transform),
+            )
         }
 
         scene

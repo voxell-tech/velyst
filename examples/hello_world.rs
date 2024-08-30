@@ -1,6 +1,10 @@
-use bevy::prelude::*;
+use bevy::{
+    input::mouse::{MouseScrollUnit, MouseWheel},
+    prelude::*,
+    window::PrimaryWindow,
+};
 use bevy_typst::prelude::*;
-use bevy_vello::{VelloAssetBundle, VelloPlugin};
+use bevy_vello::{integrations::VelloAsset, VelloAssetBundle, VelloPlugin};
 use typst::foundations::Label;
 
 fn main() {
@@ -8,7 +12,7 @@ fn main() {
         .add_plugins((DefaultPlugins, VelloPlugin::default()))
         .add_plugins(TypstPlugin::default())
         .add_systems(Startup, setup)
-        .add_systems(Update, (check_document, check_module))
+        .add_systems(Update, (check_document, check_module, pan_and_zoom))
         .run();
 }
 
@@ -59,5 +63,48 @@ fn check_module(
                 )));
         println!("title-label: {title_label:?}");
         commands.entity(entity).remove::<Handle<TypstModAsset>>();
+    }
+}
+
+fn pan_and_zoom(
+    window: Query<&Window, With<PrimaryWindow>>,
+    mut vello_asset: Query<&mut Transform, With<Handle<VelloAsset>>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut start_translation: Local<Vec2>,
+    mut start_cursor: Local<Vec2>,
+    mut evr_scroll: EventReader<MouseWheel>,
+) {
+    let Ok(mut vello_transform) = vello_asset.get_single_mut() else {
+        return;
+    };
+    let Ok(Some(cursor_position)) = window.get_single().map(|w| w.cursor_position()) else {
+        return;
+    };
+
+    if mouse.just_pressed(MouseButton::Left) {
+        *start_translation = vello_transform.translation.xy();
+        *start_cursor = cursor_position;
+    }
+
+    // Pan as long as mouse left is being pressed
+    if mouse.pressed(MouseButton::Left) {
+        let mut offset = cursor_position - *start_cursor;
+        offset.y = -offset.y;
+        let translation = *start_translation + offset;
+
+        vello_transform.translation.x = translation.x;
+        vello_transform.translation.y = translation.y;
+    }
+
+    const SCALE_FACTOR: f32 = 0.12;
+    for ev in evr_scroll.read() {
+        match ev.unit {
+            MouseScrollUnit::Line => {
+                vello_transform.scale += Vec3::splat(SCALE_FACTOR * ev.y * 10.0);
+            }
+            MouseScrollUnit::Pixel => {
+                vello_transform.scale += Vec3::splat(SCALE_FACTOR * ev.y);
+            }
+        }
     }
 }
