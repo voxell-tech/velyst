@@ -45,25 +45,25 @@ impl TypstScene {
         });
 
         let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
-        print_ids(0, tree.root());
+        // print_ids(0, tree.root());
 
-        fn print_ids(indent: usize, group: &usvg::Group) {
-            for node in group.children() {
-                for _ in 0..indent * 2 {
-                    print!(" ");
-                }
+        // fn print_ids(indent: usize, group: &usvg::Group) {
+        //     for node in group.children() {
+        //         for _ in 0..indent * 2 {
+        //             print!(" ");
+        //         }
 
-                match node {
-                    usvg::Node::Group(group) => {
-                        println!("group: {}", group.id());
-                        print_ids(indent + 1, group);
-                    }
-                    usvg::Node::Path(path) => println!("path: {}", path.id()),
-                    usvg::Node::Image(image) => println!("image: {}", image.id()),
-                    usvg::Node::Text(text) => println!("text: {}", text.id()),
-                }
-            }
-        }
+        //         match node {
+        //             usvg::Node::Group(group) => {
+        //                 println!("group: {}", group.id());
+        //                 print_ids(indent + 1, group);
+        //             }
+        //             usvg::Node::Path(path) => println!("path: {}", path.id()),
+        //             usvg::Node::Image(image) => println!("image: {}", image.id()),
+        //             usvg::Node::Text(text) => println!("text: {}", text.id()),
+        //         }
+        //     }
+        // }
 
         let scene = vello_svg::render_tree(&tree);
         let size = tree.size();
@@ -78,26 +78,27 @@ impl TypstScene {
     pub fn from_document(document: &Document, padding: Abs) -> Result<Self, usvg::Error> {
         let svg_str = typst_svg::svg_merged(document, padding);
 
+        println!("{}", svg_str);
         let tree = usvg::Tree::from_str(&svg_str, &usvg::Options::default())?;
-        print_ids(0, tree.root());
+        // print_ids(0, tree.root());
 
-        fn print_ids(indent: usize, group: &usvg::Group) {
-            for node in group.children() {
-                for _ in 0..indent * 2 {
-                    print!(" ");
-                }
+        // fn print_ids(indent: usize, group: &usvg::Group) {
+        //     for node in group.children() {
+        //         for _ in 0..indent * 2 {
+        //             print!(" ");
+        //         }
 
-                match node {
-                    usvg::Node::Group(group) => {
-                        println!("group: {}", group.id());
-                        print_ids(indent + 1, group);
-                    }
-                    usvg::Node::Path(path) => println!("path: {}", path.id()),
-                    usvg::Node::Image(image) => println!("image: {}", image.id()),
-                    usvg::Node::Text(text) => println!("text: {}", text.id()),
-                }
-            }
-        }
+        //         match node {
+        //             usvg::Node::Group(group) => {
+        //                 println!("group: {}", group.id());
+        //                 print_ids(indent + 1, group);
+        //             }
+        //             usvg::Node::Path(path) => println!("path: {}", path.id()),
+        //             usvg::Node::Image(image) => println!("image: {}", image.id()),
+        //             usvg::Node::Text(text) => println!("text: {}", text.id()),
+        //         }
+        //     }
+        // }
 
         let scene = vello_svg::render_tree(&tree);
         let size = tree.size();

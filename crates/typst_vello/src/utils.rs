@@ -72,6 +72,7 @@ pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
                         Quadrant::Third => ((1.0, 1.0), (cos * length + 1.0, sin * length + 1.0)),
                         Quadrant::Fourth => ((0.0, 1.0), (cos * length, sin * length + 1.0)),
                     };
+
                     peniko::Gradient::new_linear(start, end).with_stops(stops.as_slice())
                 }
                 viz::Gradient::Radial(radial) => {
@@ -89,8 +90,8 @@ pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
                     .with_stops(stops.as_slice())
                 }
                 viz::Gradient::Conic(conic) => {
-                    let angle: f32 = -(viz::Gradient::correct_aspect_ratio(conic.angle, ratio)
-                        .to_rad() as f32)
+                    let angle = -(viz::Gradient::correct_aspect_ratio(conic.angle, ratio).to_rad()
+                        as f32)
                         .rem_euclid(TAU);
                     let center = (conic.center.x.get(), conic.center.y.get());
 

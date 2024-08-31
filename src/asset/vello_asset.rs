@@ -33,7 +33,6 @@ impl AssetLoader for VelloAssetLoader {
         settings: &'a Self::Settings,
         load_context: &'a mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
-        println!("loading vello asset");
         let asset_path = load_context.asset_path().clone();
         let direct_loader = load_context.loader().direct();
 

@@ -5,7 +5,7 @@
 use bevy_utils::{default, HashMap};
 use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
-use text::render_text;
+use text::{render_text, TextScene};
 use typst::{
     foundations::Label,
     layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
@@ -100,16 +100,20 @@ impl TypstScene {
                     );
                 }
                 FrameItem::Text(text) => {
-                    let shapes = &mut self.groups[group_index].shapes;
-                    shapes.extend(render_text(text, state.pre_translate(pos), local_transform));
+                    let scenes = &mut self.groups[group_index].scenes;
+                    scenes.push(SceneKind::Text(render_text(
+                        text,
+                        state.pre_translate(pos),
+                        (local_transform.is_identity() == false).then_some(local_transform),
+                    )));
                 }
                 FrameItem::Shape(shape, _) => {
-                    let shapes = &mut self.groups[group_index].shapes;
-                    shapes.push(render_shape(
+                    let scenes = &mut self.groups[group_index].scenes;
+                    scenes.push(SceneKind::Shape(render_shape(
                         shape,
                         state.pre_translate(pos),
                         local_transform,
-                    ));
+                    )));
                 }
                 FrameItem::Image(image, size, _) => {
                     if size.any(|p| p.to_pt() == 0.0) {
@@ -117,9 +121,12 @@ impl TypstScene {
                         continue;
                     }
 
-                    let images = &mut self.groups[group_index].images;
-                    let image = render_image(image, *size, local_transform);
-                    images.push(image);
+                    let scenes = &mut self.groups[group_index].scenes;
+                    scenes.push(SceneKind::Image(render_image(
+                        image,
+                        *size,
+                        local_transform,
+                    )));
                 }
                 // TODO: Support links
                 FrameItem::Link(_, _) => {}
@@ -178,18 +185,17 @@ impl TypstScene {
 #[derive(Default, Debug)]
 pub struct TypstGroup {
     pub transform: kurbo::Affine,
-    pub shapes: Vec<ShapeScene>,
-    pub images: Vec<ImageScene>,
+    pub scenes: Vec<SceneKind>,
     pub parent: Option<usize>,
     pub clip_path: Option<kurbo::BezPath>,
     pub label: Option<Label>,
 }
 
 impl TypstGroup {
-    /// Create [`GroupPaths`] from a single [`ShapeScene`].
-    pub fn from_shape_scene(shape_scene: ShapeScene, parent: Option<usize>) -> Self {
+    /// Create [`TypstGroup`] from a single [`SceneKind`].
+    pub fn from_scene(scene: SceneKind, parent: Option<usize>) -> Self {
         Self {
-            shapes: vec![shape_scene],
+            scenes: vec![scene],
             parent,
             ..default()
         }
@@ -198,18 +204,28 @@ impl TypstGroup {
     pub fn render(&self) -> vello::Scene {
         let mut scene = vello::Scene::new();
 
-        for shape in self.shapes.iter() {
+        for shape in self.scenes.iter() {
             shape.render(&mut scene);
         }
 
-        for fixed_scene in self.images.iter() {
-            scene.append(
-                &fixed_scene.scene,
-                (fixed_scene.transform != kurbo::Affine::IDENTITY).then_some(fixed_scene.transform),
-            )
-        }
-
         scene
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum SceneKind {
+    Shape(ShapeScene),
+    Text(TextScene),
+    Image(ImageScene),
+}
+
+impl SceneKind {
+    pub fn render(&self, scene: &mut vello::Scene) {
+        match self {
+            SceneKind::Shape(shape) => shape.render(scene),
+            SceneKind::Text(text) => text.render(scene),
+            SceneKind::Image(image) => image.render(scene),
+        };
     }
 }
 

@@ -7,7 +7,7 @@ use vello::{kurbo, peniko};
 
 use crate::{utils::*, RenderState};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ShapeScene {
     pub transform: kurbo::Affine,
     pub path: kurbo::BezPath,
@@ -62,7 +62,7 @@ pub fn render_shape(
         transform: convert_transform(local_transform),
         path: convert_geometry_to_path(&shape.geometry),
         fill: shape.fill.as_ref().map(|paint| {
-            let transform = convert_transform(shape_paint_transform(state, paint, shape));
+            let transform = shape_paint_transform(state, paint, shape);
             let size = shape_fill_size(state, paint, shape);
             let brush = convert_paint_to_brush(paint, size);
 
@@ -72,18 +72,20 @@ pub fn render_shape(
                     viz::FillRule::EvenOdd => peniko::Fill::EvenOdd,
                 },
                 brush,
-                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
+                transform: (transform.is_identity() == false)
+                    .then_some(convert_transform(transform)),
             }
         }),
         stroke: shape.stroke.as_ref().map(|stroke| {
-            let transform = convert_transform(shape_paint_transform(state, &stroke.paint, shape));
+            let transform = shape_paint_transform(state, &stroke.paint, shape);
             let size = shape_fill_size(state, &stroke.paint, shape);
             let brush = convert_paint_to_brush(&stroke.paint, size);
 
             Stroke {
                 style: convert_fixed_stroke(stroke),
                 brush,
-                transform: (transform != kurbo::Affine::IDENTITY).then_some(transform),
+                transform: (transform.is_identity() == false)
+                    .then_some(convert_transform(transform)),
             }
         }),
     }

@@ -8,6 +8,18 @@ use vello::{kurbo, peniko};
 
 use crate::utils::convert_transform;
 
+#[derive(Default, Clone)]
+pub struct ImageScene {
+    pub transform: kurbo::Affine,
+    pub scene: vello::Scene,
+}
+
+impl ImageScene {
+    pub fn render(&self, scene: &mut vello::Scene) {
+        scene.append(&self.scene, Some(self.transform));
+    }
+}
+
 pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) -> ImageScene {
     // Size cannot be 0.
     debug_assert!(size.all(|p| p.to_pt() != 0.0));
@@ -43,12 +55,6 @@ pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) 
             ImageScene { transform, scene }
         }
     }
-}
-
-#[derive(Default, Clone)]
-pub struct ImageScene {
-    pub transform: kurbo::Affine,
-    pub scene: vello::Scene,
 }
 
 impl std::fmt::Debug for ImageScene {
