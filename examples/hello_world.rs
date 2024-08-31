@@ -4,7 +4,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_typst::prelude::*;
-use bevy_vello::{integrations::VelloAsset, VelloAssetBundle, VelloPlugin};
+use bevy_vello::{VelloAssetBundle, VelloPlugin};
 use typst::foundations::Label;
 
 fn main() {
@@ -67,44 +67,42 @@ fn check_module(
 }
 
 fn pan_and_zoom(
-    window: Query<&Window, With<PrimaryWindow>>,
-    mut vello_asset: Query<&mut Transform, With<Handle<VelloAsset>>>,
+    q_window: Query<&Window, With<PrimaryWindow>>,
+    mut q_camera: Query<(&mut OrthographicProjection, &mut Transform), With<Camera2d>>,
     mouse: Res<ButtonInput<MouseButton>>,
     mut start_translation: Local<Vec2>,
     mut start_cursor: Local<Vec2>,
     mut evr_scroll: EventReader<MouseWheel>,
 ) {
-    let Ok(mut vello_transform) = vello_asset.get_single_mut() else {
+    let Ok((mut projection, mut transform)) = q_camera.get_single_mut() else {
         return;
     };
-    let Ok(Some(cursor_position)) = window.get_single().map(|w| w.cursor_position()) else {
+    let Ok(Some(cursor_position)) = q_window.get_single().map(|w| w.cursor_position()) else {
         return;
     };
 
     if mouse.just_pressed(MouseButton::Left) {
-        *start_translation = vello_transform.translation.xy();
+        *start_translation = transform.translation.xy();
         *start_cursor = cursor_position;
     }
 
     // Pan as long as mouse left is being pressed
     if mouse.pressed(MouseButton::Left) {
         let mut offset = cursor_position - *start_cursor;
-        offset.y = -offset.y;
-        let translation = *start_translation + offset;
+        offset.x = -offset.x;
+        let translation = *start_translation + offset * projection.scale;
 
-        vello_transform.translation.x = translation.x;
-        vello_transform.translation.y = translation.y;
+        transform.translation.x = translation.x;
+        transform.translation.y = translation.y;
     }
 
-    const SCALE_FACTOR: f32 = 0.12;
+    const SCALE_FACTOR: f32 = 0.012;
     for ev in evr_scroll.read() {
-        match ev.unit {
-            MouseScrollUnit::Line => {
-                vello_transform.scale += Vec3::splat(SCALE_FACTOR * ev.y * 10.0);
-            }
-            MouseScrollUnit::Pixel => {
-                vello_transform.scale += Vec3::splat(SCALE_FACTOR * ev.y);
-            }
-        }
+        let scale_offset = match ev.unit {
+            MouseScrollUnit::Line => SCALE_FACTOR * ev.y * 10.0,
+            MouseScrollUnit::Pixel => SCALE_FACTOR * ev.y,
+        };
+
+        projection.scale -= projection.scale * scale_offset;
     }
 }
