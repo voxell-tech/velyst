@@ -35,11 +35,11 @@ impl Plugin for TypstPlugin {
         // Using assets/ as the root path
         let mut assets_path = PathBuf::from(".");
         assets_path.push("assets");
-        let world_meta = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
+        let world = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
 
-        app.add_plugins(TypstAssetPlugin(world_meta.clone()))
+        app.add_plugins(TypstAssetPlugin(world.clone()))
             .add_plugins(VelloAssetPlugin)
-            .insert_resource(TypstCompiler(world_meta));
+            .insert_resource(TypstCompiler::new(world));
     }
 }
 

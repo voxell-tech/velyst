@@ -22,7 +22,7 @@ use typst::{
 use super::fonts::{FontSearcher, FontSlot};
 use super::package;
 
-/// Metadata for [`TypstWorldRef`].
+/// World for compiling Typst's [`Content`].
 pub struct TypstWorld {
     /// The root relative to which absolute paths are resolved.
     root: PathBuf,

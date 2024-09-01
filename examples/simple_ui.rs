@@ -25,14 +25,13 @@ fn init_ui(
     mut commands: Commands,
     q_simple_ui: Query<&Handle<TypstModAsset>>,
     typst_mod_assets: Res<Assets<TypstModAsset>>,
-    compiler: Res<TypstCompiler>,
+    world: Res<TypstCompiler>,
     mut initialized: Local<bool>,
 ) {
     if *initialized {
         return;
     }
 
-    let world = compiler.world();
     let Ok(simple_ui) = q_simple_ui.get_single() else {
         return;
     };
@@ -131,7 +130,7 @@ fn init_ui(
                             writer.blank_page(|writer| {
                                 writer.add_content(context(menu_item.clone(), [title, body]));
                             });
-                            typst_scene(writer, world)
+                            typst_scene(writer, &world)
                         };
 
                         // First item

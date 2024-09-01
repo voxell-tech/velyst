@@ -19,12 +19,12 @@ pub mod world;
 mod download;
 mod package;
 
-#[derive(Resource)]
-pub struct TypstCompiler(pub Arc<TypstWorld>);
+#[derive(Resource, Deref, DerefMut)]
+pub struct TypstCompiler(Arc<TypstWorld>);
 
 impl TypstCompiler {
-    pub fn world(&self) -> &Arc<TypstWorld> {
-        &self.0
+    pub fn new(world: Arc<TypstWorld>) -> Self {
+        Self(world)
     }
 }
 
