@@ -172,18 +172,18 @@ fn_elem!(
 fn_elem!(path, visualize::PathElem, Vec<visualize::PathVertex>);
 
 /// [visualize::Paint::Solid]
-pub fn solid(color: visualize::Color) -> visualize::Paint {
-    visualize::Paint::Solid(color)
+pub fn solid(color: impl Into<visualize::Color>) -> visualize::Paint {
+    visualize::Paint::Solid(color.into())
 }
 
 /// [visualize::Paint::Gradient]
-pub fn gradient(gradient: visualize::Gradient) -> visualize::Paint {
-    visualize::Paint::Gradient(gradient)
+pub fn gradient(gradient: impl Into<visualize::Gradient>) -> visualize::Paint {
+    visualize::Paint::Gradient(gradient.into())
 }
 
 /// [visualize::Paint::Pattern]
-pub fn pattern(pattern: visualize::Pattern) -> visualize::Paint {
-    visualize::Paint::Pattern(pattern)
+pub fn pattern(pattern: impl Into<visualize::Pattern>) -> visualize::Paint {
+    visualize::Paint::Pattern(pattern.into())
 }
 
 /// [visualize::Stroke]

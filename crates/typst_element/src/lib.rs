@@ -4,9 +4,9 @@ use prelude::*;
 pub mod prelude {
     pub use typst::{
         diag::EcoString,
-        foundations::{self, Content, Label, NativeElement, Packed, Smart},
+        foundations::{self, Content, Label as TypLabel, NativeElement, Packed, Smart},
         layout::{self, Abs, Em, Length, Ratio, Rel},
-        math, model, text, visualize,
+        math, model, text, visualize as viz,
     };
 
     pub use crate::extensions::{ScopeExt, UnitExt};
