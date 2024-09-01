@@ -38,7 +38,7 @@ pub trait DocWriter: Sized {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SimpleWriter(pub Vec<Content>);
 
 impl DocWriter for SimpleWriter {
