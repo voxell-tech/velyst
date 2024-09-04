@@ -181,7 +181,7 @@ fn init_ui(
 }
 
 fn typst_scene(writer: impl DocWriter, world: &TypstWorld) -> TypstScene {
-    let document = world.compile_content(writer.pack()).unwrap();
+    let document = world.compile_content(&writer.pack()).unwrap();
     TypstScene::from_document(&document, Abs::zero()).unwrap()
 }
 

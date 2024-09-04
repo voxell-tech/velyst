@@ -5,7 +5,9 @@ use typst::{
     loading::Readable,
     math, model,
     realize::StyleVec,
-    symbols, text, visualize,
+    symbols,
+    syntax::{Span, Spanned},
+    text, visualize,
 };
 use unicode_math_class::MathClass;
 
@@ -47,12 +49,42 @@ macro_rules! sequence {
 }
 
 /// [foundations::ContextElem]
-pub fn context<T: IntoValue>(
+pub fn context(
     func: foundations::Func,
-    args: impl IntoIterator<Item = T>,
+    apply_args: impl Fn(&mut SpannedArgs),
 ) -> foundations::ContextElem {
-    let mut args = foundations::Args::new(func.span(), args);
-    foundations::ContextElem::new(func.with(&mut args))
+    let mut spanned_args = SpannedArgs::new(func.span());
+    apply_args(&mut spanned_args);
+    foundations::ContextElem::new(func.with(&mut spanned_args.args))
+}
+
+pub struct SpannedArgs {
+    span: Span,
+    args: foundations::Args,
+}
+
+impl SpannedArgs {
+    pub fn new(span: Span) -> Self {
+        Self {
+            span,
+            args: foundations::Args {
+                span,
+                items: [].into(),
+            },
+        }
+    }
+
+    pub fn push<T>(&mut self, value: impl IntoValue) {
+        self.args.push(self.span, value.into_value());
+    }
+
+    pub fn push_named(&mut self, name: &str, value: impl IntoValue) {
+        self.args.items.push(foundations::Arg {
+            span: self.span,
+            name: Some(name.into()),
+            value: Spanned::new(value.into_value(), self.span),
+        })
+    }
 }
 
 // Layout

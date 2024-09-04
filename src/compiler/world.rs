@@ -113,7 +113,7 @@ impl TypstWorld {
     // Referenced from: https://github.com/typst/typst/blob/88325d7d019fd65c5177a92df4347ae9a287fc19/crates/typst/src/lib.rs#L106-L178
     // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
     /// Compile [`Content`] into a [`Document`].
-    pub fn compile_content(&self, content: Content) -> SourceResult<Document> {
+    pub fn compile_content(&self, content: &Content) -> SourceResult<Document> {
         let world: &dyn World = self;
         let style_chain = StyleChain::new(&world.library().styles);
 
@@ -140,7 +140,7 @@ impl TypstWorld {
             };
 
             // Layout!
-            document = typst::layout::layout_document(&mut engine, &content, style_chain)?;
+            document = typst::layout::layout_document(&mut engine, content, style_chain)?;
             document.introspector.rebuild(&document.pages);
             iter += 1;
 
