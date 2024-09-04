@@ -29,15 +29,15 @@
       #move(dx: 2%)[
         #set text(size: 32pt, fill: base7)
         #text(fill: green)[= Play]
+        = #text(fill: purple)[Luminators]
+        = Tutorial
         = Watch #text(fill: green, size: 20pt)[
           #emoji.triangle.r 4152 Live Now
         ]
-        = Luminators
-        = Tutorial
 
         #linebreak()
 
-        #set text(size: 18pt, fill: red.mix((base0, 30%)))
+        #set text(size: 18pt, fill: red.transparentize(40%))
         = Exit Game
       ]
     ]
@@ -79,7 +79,14 @@
 
       #align(left)[
         = Performance Metrics
-        FPS: #fps\
+        FPS: #box()[#text(fill: gradient.linear(
+            red,
+            orange,
+            yellow,
+            green,
+            blue,
+            purple
+        ))[#fps]]\
         Elapsed Time: #elapsed_time\
       ]
     ]

@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{color::palettes::css, prelude::*, window::PrimaryWindow};
 use bevy_typst::{prelude::*, TypstPlugin};
 use bevy_vello::{prelude::*, VelloPlugin};
-use typst::{syntax::Span, World};
+use typst::World;
 use typst_element::prelude::*;
 use typst_vello::TypstScene;
 
@@ -26,6 +26,30 @@ fn setup(mut commands: Commands) {
         coordinate_space: CoordinateSpace::ScreenSpace,
         ..default()
     });
+
+    // commands
+    //     .spawn(ButtonBundle {
+    //         style: Style {
+    //             position_type: PositionType::Absolute,
+    //             width: Val::Px(100.0),
+    //             height: Val::Px(100.0),
+    //             ..default()
+    //         },
+    //         background_color: css::RED.into(),
+    //         ..default()
+    //     })
+    //     .with_children(|builder| {
+    //         builder.spawn(ButtonBundle {
+    //             style: Style {
+    //                 position_type: PositionType::Absolute,
+    //                 width: Val::Px(50.0),
+    //                 height: Val::Px(50.0),
+    //                 ..default()
+    //             },
+    //             background_color: css::BLUE.into(),
+    //             ..default()
+    //         });
+    //     });
 }
 
 fn perf_metrics(
@@ -97,8 +121,8 @@ impl<T: Default> UiContext<T> {
         &self.module
     }
 
-    // pub fn on_hover(label: TypLabel) {}
-    // pub fn on_click(label: TypLabel) {}
+    pub fn on_hover(&mut self, label: TypLabel, func: impl FnOnce()) {}
+    pub fn on_click(&mut self, label: TypLabel) {}
 }
 
 #[derive(Default)]
