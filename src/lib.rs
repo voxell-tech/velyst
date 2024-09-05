@@ -1,7 +1,7 @@
 pub use {typst, typst_element, typst_svg};
 
 use {
-    asset::{typst_asset::TypstAssetPlugin, vello_asset::VelloAssetPlugin},
+    asset::typst_asset::TypstAssetPlugin,
     compiler::{world::TypstWorld, TypstCompiler},
     std::{path::PathBuf, sync::Arc},
 };
@@ -10,7 +10,7 @@ use bevy::prelude::*;
 
 pub mod prelude {
     pub use crate::{
-        asset::typst_asset::{TypstDocAsset, TypstModAsset},
+        asset::typst_asset::TypstAsset,
         compiler::{TypstCompiler, TypstScene},
         typst_template, TypstPlugin,
     };
@@ -38,7 +38,6 @@ impl Plugin for TypstPlugin {
         let world = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
 
         app.add_plugins(TypstAssetPlugin(world.clone()))
-            .add_plugins(VelloAssetPlugin)
             .insert_resource(TypstCompiler::new(world));
     }
 }

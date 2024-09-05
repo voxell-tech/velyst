@@ -1,4 +1,6 @@
+use paste::paste;
 use typst::{
+    diag::HintedString,
     foundations::{
         Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module,
         Plugin, Scope, Smart, Str, Styles, Type, Version,
@@ -41,14 +43,26 @@ impl UnitExt for Em {
     }
 }
 
-macro_rules! fn_get_unchecked {
-    ($fn_name:ident, $get_ty:ty) => {
-        /// Clone a variable and cast it into the final value _unchecked_.
-        ///
-        /// See [ScopeExt::get_unchecked()].
-        fn $fn_name(&self, var: &str) -> $get_ty {
-            self.get_unchecked(var)
-        }
+/// Implement [ScopeExt::get_value()] and [ScopeExt::get_value_unchecked()] function for given values.
+macro_rules! fn_get_value {
+    ($(($fn_name:ident, $get_ty:ty),)+) => {
+        $(
+            paste! {
+                /// Clone a variable and cast it into the final value.
+                ///
+                /// See [ScopeExt::get_value()].
+                fn $fn_name(&self, var: &str) -> Result<$get_ty, ScopeError> {
+                    self.get_value(var)
+                }
+
+                /// Clone a variable and cast it into the final value _unchecked_.
+                ///
+                /// See [ScopeExt::get_value_unchecked()].
+                fn [<$fn_name _unchecked>](&self, var: &str) -> $get_ty {
+                    self.get_value_unchecked(var)
+                }
+            }
+        )+
     };
 }
 
@@ -59,39 +73,60 @@ pub trait ScopeExt {
     ///
     /// - Variable does not exists.
     /// - Variable type does not match the desired value type.
-    fn get_unchecked<T: FromValue>(&self, var: &str) -> T;
+    fn get_value_unchecked<T: FromValue>(&self, var: &str) -> T;
 
-    fn_get_unchecked!(get_unchecked_bool, bool);
-    fn_get_unchecked!(get_unchecked_int, i64);
-    fn_get_unchecked!(get_unchecked_float, f64);
-    fn_get_unchecked!(get_unchecked_len, Length);
-    fn_get_unchecked!(get_unchecked_angle, Angle);
-    fn_get_unchecked!(get_unchecked_ratio, Ratio);
-    fn_get_unchecked!(get_unchecked_relative, Rel<Length>);
-    fn_get_unchecked!(get_unchecked_fraction, Fr);
-    fn_get_unchecked!(get_unchecked_color, Color);
-    fn_get_unchecked!(get_unchecked_gradient, Gradient);
-    fn_get_unchecked!(get_unchecked_pattern, Pattern);
-    fn_get_unchecked!(get_unchecked_symbol, Symbol);
-    fn_get_unchecked!(get_unchecked_version, Version);
-    fn_get_unchecked!(get_unchecked_str, Str);
-    fn_get_unchecked!(get_unchecked_bytes, Bytes);
-    fn_get_unchecked!(get_unchecked_label, Label);
-    fn_get_unchecked!(get_unchecked_datetime, Datetime);
-    fn_get_unchecked!(get_unchecked_duration, Duration);
-    fn_get_unchecked!(get_unchecked_content, Content);
-    fn_get_unchecked!(get_unchecked_styles, Styles);
-    fn_get_unchecked!(get_unchecked_array, Array);
-    fn_get_unchecked!(get_unchecked_dict, Dict);
-    fn_get_unchecked!(get_unchecked_func, Func);
-    fn_get_unchecked!(get_unchecked_args, Args);
-    fn_get_unchecked!(get_unchecked_type, Type);
-    fn_get_unchecked!(get_unchecked_module, Module);
-    fn_get_unchecked!(get_unchecked_plugin, Plugin);
+    fn get_value<T: FromValue>(&self, var: &str) -> Result<T, ScopeError>;
+
+    fn_get_value!(
+        (get_bool, bool),
+        (get_int, i64),
+        (get_float, f64),
+        (get_len, Length),
+        (get_angle, Angle),
+        (get_ratio, Ratio),
+        (get_relative, Rel<Length>),
+        (get_fraction, Fr),
+        (get_color, Color),
+        (get_gradient, Gradient),
+        (get_pattern, Pattern),
+        (get_symbol, Symbol),
+        (get_version, Version),
+        (get_str, Str),
+        (get_bytes, Bytes),
+        (get_label, Label),
+        (get_datetime, Datetime),
+        (get_duration, Duration),
+        (get_content, Content),
+        (get_styles, Styles),
+        (get_array, Array),
+        (get_dict, Dict),
+        (get_func, Func),
+        (get_args, Args),
+        (get_type, Type),
+        (get_module, Module),
+        (get_plugin, Plugin),
+    );
 }
 
 impl ScopeExt for Scope {
-    fn get_unchecked<T: FromValue>(&self, var: &str) -> T {
+    fn get_value_unchecked<T: FromValue>(&self, var: &str) -> T {
         self.get(var).cloned().unwrap().cast::<T>().unwrap()
     }
+
+    fn get_value<T: FromValue>(&self, var: &str) -> Result<T, ScopeError> {
+        self.get(var)
+            .ok_or(ScopeError::VariableNotFound)
+            .and_then(|value| {
+                value
+                    .clone()
+                    .cast::<T>()
+                    .map_err(ScopeError::ValueCastFailed)
+            })
+    }
+}
+
+#[derive(Debug)]
+pub enum ScopeError {
+    VariableNotFound,
+    ValueCastFailed(HintedString),
 }

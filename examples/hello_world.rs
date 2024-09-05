@@ -20,7 +20,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
     commands.spawn((
         asset_server.load::<TypstDocAsset>("hello_world.typ"),
-        asset_server.load::<TypstModAsset>("hello_world.typ"),
+        asset_server.load::<TypstAsset>("hello_world.typ"),
         VelloAssetBundle {
             asset: asset_server.load("hello_world.typ"),
             ..default()
@@ -45,8 +45,8 @@ fn check_document(
 
 fn check_module(
     mut commands: Commands,
-    q_typst_asset: Query<(Entity, &Handle<TypstModAsset>)>,
-    typst_mod_assets: Res<Assets<TypstModAsset>>,
+    q_typst_asset: Query<(Entity, &Handle<TypstAsset>)>,
+    typst_mod_assets: Res<Assets<TypstAsset>>,
 ) {
     let Ok((entity, handle)) = q_typst_asset.get_single() else {
         return;
@@ -62,7 +62,7 @@ fn check_module(
                     "title-label",
                 )));
         println!("title-label: {title_label:?}");
-        commands.entity(entity).remove::<Handle<TypstModAsset>>();
+        commands.entity(entity).remove::<Handle<TypstAsset>>();
     }
 }
 

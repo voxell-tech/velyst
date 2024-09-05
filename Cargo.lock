@@ -4667,6 +4667,7 @@ dependencies = [
 name = "typst_element"
 version = "0.1.0"
 dependencies = [
+ "paste",
  "typst",
  "unicode-math-class",
 ]

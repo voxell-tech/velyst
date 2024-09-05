@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use bevy::{color::palettes::css, prelude::*, window::PrimaryWindow};
 use bevy_typst::{prelude::*, TypstPlugin};
 use bevy_vello::{prelude::*, VelloPlugin};
-use typst::World;
+use typst::{diag::SourceResult, World};
 use typst_element::prelude::*;
 use typst_vello::TypstScene;
 
@@ -57,7 +57,7 @@ fn perf_metrics(
     mut q_scene: Query<&mut VelloScene>,
     root_ui: Res<UiContext<RootUi>>,
     world: Res<TypstCompiler>,
-    mod_assets: Res<Assets<TypstModAsset>>,
+    mod_assets: Res<Assets<TypstAsset>>,
     time: Res<Time>,
 ) {
     let Ok(window_size) = q_window.get_single().map(|w| w.size()) else {
@@ -102,22 +102,92 @@ fn perf_metrics(
     *scene = VelloScene::from(typst_scene.render());
 }
 
+pub struct TypstContextPlugin<T>(PhantomData<T>);
+
+impl<T: Send + Sync + 'static> Plugin for TypstContextPlugin<T> {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            Update,
+            render_typst_context::<T>.run_if(resource_changed::<TypstContext<T>>),
+        );
+    }
+}
+
+fn render_typst_context<T: Send + Sync + 'static>(
+    mut commands: Commands,
+    mut q_scenes: Query<&mut VelloScene>,
+    mut context: ResMut<TypstContext<T>>,
+    typst_assets: Res<Assets<TypstAsset>>,
+) {
+    let Some(typst_asset) = typst_assets.get(&context.handle) else {
+        return;
+    };
+
+    let new_scene = VelloScene::new();
+
+    let scene = context
+        .scene_entity
+        .and_then(|entity| q_scenes.get_mut(entity).ok());
+
+    match scene {
+        Some(mut scene) => *scene = new_scene,
+        None => {
+            context.scene_entity = Some(
+                commands
+                    .spawn(VelloSceneBundle {
+                        scene: new_scene,
+                        ..default()
+                    })
+                    .id(),
+            );
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct TypstContext<T> {
+    pub handle: Handle<TypstAsset>,
+    pub content: Content,
+    scene_entity: Option<Entity>,
+    phantom: PhantomData<T>,
+}
+
+impl<T> TypstContext<T> {
+    pub fn render(&self, world: &TypstCompiler) -> SourceResult<layout::Frame> {
+        world.scoped_engine(|engine| {
+            let locator = typst::introspection::Locator::root();
+            let styles = foundations::StyleChain::new(&world.library().styles);
+
+            typst::layout::layout_frame(
+                engine,
+                &self.content,
+                locator,
+                styles,
+                layout::Region::new(
+                    layout::Axes::new(Abs::inf(), Abs::inf()),
+                    layout::Axes::new(false, false),
+                ),
+            )
+        })
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct UiContext<T> {
     // scene: TypstScene,
-    module: Handle<TypstModAsset>,
+    module: Handle<TypstAsset>,
     phantom: PhantomData<T>,
 }
 
 impl<T: Default> UiContext<T> {
-    pub fn new(module: Handle<TypstModAsset>) -> Self {
+    pub fn new(module: Handle<TypstAsset>) -> Self {
         Self {
             module,
             ..default()
         }
     }
 
-    pub fn module(&self) -> &Handle<TypstModAsset> {
+    pub fn module(&self) -> &Handle<TypstAsset> {
         &self.module
     }
 

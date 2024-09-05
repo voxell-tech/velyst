@@ -18,13 +18,13 @@ fn main() {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
-    commands.spawn(asset_server.load::<TypstModAsset>("simple_ui.typ"));
+    commands.spawn(asset_server.load::<TypstAsset>("simple_ui.typ"));
 }
 
 fn init_ui(
     mut commands: Commands,
-    q_simple_ui: Query<&Handle<TypstModAsset>>,
-    typst_mod_assets: Res<Assets<TypstModAsset>>,
+    q_simple_ui: Query<&Handle<TypstAsset>>,
+    typst_mod_assets: Res<Assets<TypstAsset>>,
     world: Res<TypstCompiler>,
     mut initialized: Local<bool>,
 ) {
