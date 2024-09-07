@@ -57,7 +57,7 @@
           dir: ltr,
           rect(fill: blue, width: size, height: size),
           box(
-            width: 400pt,
+            width: 300pt,
             height: size,
             fill: base6.transparentize(80%),
             inset: 20pt,
@@ -80,12 +80,25 @@
 }
 
 #let perf_metrics(fps, elapsed_time) = {
-  set text(size: 18pt)
+  set text(size: 12pt)
 
-  align(left)[
-    = Performance Metrics
-    FPS: #fps\
-    Elapsed Time: #elapsed_time\
+  box(fill: base0.transparentize(60%), outset: 15pt, radius: 4pt)[
+    #align(left)[
+      #box(inset: (bottom: 8pt))[
+        #text(
+          fill: gradient.linear(
+            red,
+            orange,
+            yellow,
+            green,
+            blue,
+            purple,
+          ),
+        )[= Performance Metrics]
+      ]\
+      FPS: #fps\
+      Elapsed Time: #elapsed_time\
+    ]
   ]
 }
 

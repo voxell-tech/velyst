@@ -9,10 +9,16 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, VelloPlugin::default()))
         .add_plugins(TypstPlugin::default())
-        .add_plugins(TypstRenderPlugin::<GameUi, MainFunc>::default())
+        .register_typst_asset::<GameUi>()
+        .register_typst_func::<GameUi, MainFunc>()
+        .register_typst_func::<GameUi, PerfMetricsFunc>()
+        .render_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
         .add_systems(Startup, load_typst_asset::<GameUi>)
-        .add_systems(Update, main_func.run_if(resource_exists::<PerfMetricsFunc>))
+        .add_systems(
+            Update,
+            main_func.run_if(resource_exists_and_changed::<TypstContent<PerfMetricsFunc>>),
+        )
         .add_systems(Startup, perf_metrics)
         .run();
 }
@@ -31,22 +37,17 @@ impl TypstPath for GameUi {
 
 fn main_func(
     mut commands: Commands,
-    context: TypstContext<GameUi>,
     q_window: Query<&Window, With<PrimaryWindow>>,
-    perf_metrics: Res<PerfMetricsFunc>,
+    perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
 ) {
     let Ok(window) = q_window.get_single() else {
-        return;
-    };
-
-    let Some(scope) = context.get_scope() else {
         return;
     };
 
     commands.insert_resource(MainFunc {
         width: Abs::pt(window.width() as f64),
         height: Abs::pt(window.height() as f64),
-        perf_metrics: perf_metrics.call_func(scope),
+        perf_metrics: perf_metrics.clone(),
     });
 }
 
@@ -99,42 +100,77 @@ impl TypstFunc for PerfMetricsFunc {
     }
 }
 
+pub trait TypstCommandExt {
+    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
+
+    fn register_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
+
+    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
+}
+
+impl TypstCommandExt for App {
+    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
+        self.add_systems(PreStartup, load_typst_asset::<P>)
+            .add_systems(Update, asset_change_detection::<P>)
+    }
+
+    fn register_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
+        self.add_systems(
+            Update,
+            update_typst_content::<P, F>.run_if(
+                // Asset and function needs to exists first.
+                resource_exists::<TypstAssetHandle<P>>
+                    .and_then(resource_exists::<F>)
+                    .and_then(
+                        // Any changes to the asset or the function will cause a content update.
+                        resource_changed::<TypstAssetHandle<P>>.or_else(resource_changed::<F>),
+                    ),
+            ),
+        )
+    }
+
+    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
+        self.init_resource::<TypstSceneRef<F>>().add_systems(
+            Update,
+            (
+                layout_typst_content::<F>.run_if(resource_exists_and_changed::<TypstContent<F>>),
+                render_typst_scene::<F>.run_if(resource_exists_and_changed::<TypstSceneRef<F>>),
+            ),
+        )
+    }
+}
+
+pub fn update_typst_content<P: TypstPath, F: TypstFunc>(
+    mut commands: Commands,
+    context: TypstContext<P>,
+    func: Res<F>,
+) {
+    if let Some(scope) = context.get_scope() {
+        let content = func.call_func(scope);
+        commands.insert_resource(TypstContent::<F>::new(content));
+    } else if context.is_loaded() {
+        error!("Unable to get scope for #{}().", func.func_name());
+    }
+}
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct TypstContent<F: TypstFunc>(#[deref] Content, PhantomData<F>);
+
+impl<F: TypstFunc> TypstContent<F> {
+    pub fn new(content: Content) -> Self {
+        Self(content, PhantomData)
+    }
+}
+
+impl<F: TypstFunc> Default for TypstContent<F> {
+    fn default() -> Self {
+        Self(Content::default(), PhantomData)
+    }
+}
+
 pub fn load_typst_asset<P: TypstPath>(mut commands: Commands, asset_server: Res<AssetServer>) {
     let typst_handle = TypstAssetHandle::<P>::new(asset_server.load(P::path()));
     commands.insert_resource(typst_handle);
-}
-
-pub struct TypstRenderPlugin<P: TypstPath, F: TypstFunc>(PhantomData<P>, PhantomData<F>);
-
-impl<P: TypstPath, F: TypstFunc> Default for TypstRenderPlugin<P, F> {
-    fn default() -> Self {
-        Self(PhantomData, PhantomData)
-    }
-}
-
-impl<P, F> Plugin for TypstRenderPlugin<P, F>
-where
-    P: TypstPath,
-    F: TypstFunc,
-{
-    fn build(&self, app: &mut App) {
-        app.init_resource::<TypstSceneRef<F>>().add_systems(
-            Update,
-            (
-                asset_change_detection::<P>.run_if(resource_exists::<TypstAssetHandle<P>>),
-                layout_typst_func::<P, F>.run_if(
-                    resource_exists::<F>
-                        .and_then(resource_exists::<TypstAssetHandle<P>>)
-                        .and_then(
-                            // Any changes to the asset or the function  will cause a relayout.
-                            resource_changed::<TypstAssetHandle<P>>.or_else(resource_changed::<F>),
-                        ),
-                ),
-                render_typst_scene::<F>.run_if(resource_exists_and_changed::<TypstSceneRef<F>>),
-            )
-                .chain(),
-        );
-    }
 }
 
 fn asset_change_detection<P: TypstPath>(
@@ -155,22 +191,17 @@ fn asset_change_detection<P: TypstPath>(
 }
 
 /// System implementation for layouting [`TypstFunc`] into [`TypstSceneRef`].
-fn layout_typst_func<P: TypstPath, F: TypstFunc>(
-    context: TypstContext<P>,
-    content: Res<F>,
+fn layout_typst_content<F: TypstFunc>(
+    content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
     mut scene: ResMut<TypstSceneRef<F>>,
 ) {
-    if let Some(scope) = context.get_scope() {
-        match content.layout_frame(&world, scope) {
-            Ok(frame) => {
-                let new_scene = TypstScene::from_frame(&frame);
-                **scene = new_scene;
-            }
-            Err(err) => error!("{err:#?}"),
+    match world.layout_frame(&content) {
+        Ok(frame) => {
+            let new_scene = TypstScene::from_frame(&frame);
+            **scene = new_scene;
         }
-    } else {
-        error!("Unable to get scope for #{}().", content.func_name());
+        Err(err) => error!("{err:#?}"),
     }
 }
 
@@ -181,6 +212,8 @@ fn render_typst_scene<F: TypstFunc>(
     mut typst_scene: ResMut<TypstSceneRef<F>>,
 ) {
     let typst_scene = typst_scene.bypass_change_detection();
+
+    println!("render");
 
     if let Some(mut scene) = typst_scene.entity.and_then(|e| q_scenes.get_mut(e).ok()) {
         **scene = typst_scene.render();
@@ -197,7 +230,7 @@ fn render_typst_scene<F: TypstFunc>(
     }
 }
 
-// Construct the interaction tree
+/// Construct the interaction tree using bevy ui nodes.
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
     typst_scene: Res<TypstSceneRef<F>>,
@@ -217,7 +250,6 @@ fn construct_interaction_tree<F: TypstFunc>(
         let coeffs = group.transform.as_coeffs();
         let translation = Vec2::new(coeffs[4] as f32, coeffs[5] as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
-        // let rotation = group.transform.then_rotate()
 
         let entity = commands
             .spawn(NodeBundle {
@@ -246,6 +278,10 @@ pub struct TypstContext<'w, P: TypstPath> {
 }
 
 impl<P: TypstPath> TypstContext<'_, P> {
+    pub fn is_loaded(&self) -> bool {
+        self.assets.contains(&**self.handle)
+    }
+
     pub fn get_scope(&self) -> Option<&foundations::Scope> {
         self.assets
             .get(&**self.handle)

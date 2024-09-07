@@ -67,5 +67,8 @@ dev = [
     # "bevy/embedded_watcher",
 ]
 
+[dev-dependencies]
+bevy = "0.14.1"
+
 [lints]
 workspace = true
