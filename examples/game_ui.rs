@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, utils::HashMap, window::PrimaryWindow};
 use bevy_typst::{prelude::*, typst_element::prelude::*, TypstPlugin};
 use bevy_vello::{prelude::*, VelloPlugin};
 use typst_vello::TypstScene;
@@ -195,17 +195,47 @@ fn render_typst_scene<F: TypstFunc>(
                 .id(),
         );
     }
+}
 
-    // SAFETY: Typst scene should be created by the code above.
-    let builder = commands.entity(
-        typst_scene
-            .entity
-            .expect("Typst scene should be created above."),
-    );
+// Construct the interaction tree
+fn construct_interaction_tree<F: TypstFunc>(
+    mut commands: Commands,
+    typst_scene: Res<TypstSceneRef<F>>,
+) {
+    let Some(root_entity) = typst_scene.entity else {
+        return;
+    };
 
-    // Construct the interaction tree
+    let mut entities = Vec::with_capacity(typst_scene.groups_len());
+
     for group in typst_scene.iter_groups() {
-        // builder.push_children(|b|)
+        let parent_entity = match group.parent {
+            Some(index) => entities[index],
+            None => root_entity,
+        };
+
+        let coeffs = group.transform.as_coeffs();
+        let translation = Vec2::new(coeffs[4] as f32, coeffs[5] as f32);
+        let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
+        // let rotation = group.transform.then_rotate()
+
+        let entity = commands
+            .spawn(NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    width: Val::Px(group.size.x as f32),
+                    height: Val::Px(group.size.y as f32),
+                    left: Val::Px(translation.x),
+                    top: Val::Px(translation.y),
+                    ..default()
+                },
+                transform: Transform::from_scale(scale),
+                ..default()
+            })
+            .set_parent(parent_entity)
+            .id();
+
+        entities.push(entity);
     }
 }
 
@@ -240,6 +270,7 @@ pub struct TypstSceneRef<F> {
     scene: TypstScene,
     /// Entity that contains [`VelloSceneBundle`] for rendering the typst scene.
     entity: Option<Entity>,
+    // node_overrides: HashMap<TypLabel, >
     phantom: PhantomData<F>,
 }
 

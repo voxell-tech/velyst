@@ -24,7 +24,7 @@ pub mod utils;
 /// Each group will have a parent index associated with it.
 #[derive(Default)]
 pub struct TypstScene {
-    pub size: kurbo::Vec2,
+    size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
     group_map: HashMap<Label, Vec<usize>>,
 }
@@ -43,12 +43,6 @@ impl TypstScene {
         );
 
         typst_scene
-    }
-
-    pub fn iter_groups(&self) -> impl Iterator<Item = &TypstGroup> {
-        self.group_scenes
-            .iter()
-            .map(|group_scene| &group_scene.group)
     }
 
     /// Render [`TypstScene`] into a [`vello::Scene`].
@@ -215,6 +209,28 @@ impl TypstScene {
     pub fn get_group_mut(&mut self, index: usize) -> &mut TypstGroup {
         self.group_scenes[index].updated = false;
         &mut self.group_scenes[index].group
+    }
+
+    pub fn iter_groups(&self) -> impl Iterator<Item = &TypstGroup> {
+        self.group_scenes
+            .iter()
+            .map(|group_scene| &group_scene.group)
+    }
+
+    pub fn iter_groups_mut(&mut self) -> impl Iterator<Item = &mut TypstGroup> {
+        self.group_scenes
+            .iter_mut()
+            .map(|group_scene| &mut group_scene.group)
+    }
+
+    /// Number of groups in the scene.
+    pub fn groups_len(&self) -> usize {
+        self.group_scenes.len()
+    }
+
+    /// Width and height of the entire scene.
+    pub fn size(&self) -> kurbo::Vec2 {
+        self.size
     }
 }
 
