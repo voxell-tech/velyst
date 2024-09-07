@@ -1,6 +1,6 @@
 use bevy::{prelude::*, ui::FocusPolicy};
 use bevy_typst::{
-    compiler::{world::TypstWorld, TypstCompiler, TypstScene},
+    compiler::{world::TypstWorld, TypstScene, TypstWorldRef},
     prelude::*,
 };
 use bevy_vello::{prelude::*, VelloPlugin};
@@ -25,7 +25,7 @@ fn init_ui(
     mut commands: Commands,
     q_simple_ui: Query<&Handle<TypstAsset>>,
     typst_mod_assets: Res<Assets<TypstAsset>>,
-    world: Res<TypstCompiler>,
+    world: Res<TypstWorld>,
     mut initialized: Local<bool>,
 ) {
     if *initialized {

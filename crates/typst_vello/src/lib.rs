@@ -24,11 +24,33 @@ pub mod utils;
 /// Each group will have a parent index associated with it.
 #[derive(Default)]
 pub struct TypstScene {
+    pub size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
     group_map: HashMap<Label, Vec<usize>>,
 }
 
 impl TypstScene {
+    pub fn from_frame(frame: &Frame) -> Self {
+        let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
+        let mut typst_scene = TypstScene { size, ..default() };
+
+        let group_paths = TypstGroup { size, ..default() };
+        typst_scene.append_group(group_paths);
+        typst_scene.handle_frame(
+            frame,
+            RenderState::new(frame.size(), Transform::identity()),
+            0,
+        );
+
+        typst_scene
+    }
+
+    pub fn iter_groups(&self) -> impl Iterator<Item = &TypstGroup> {
+        self.group_scenes
+            .iter()
+            .map(|group_scene| &group_scene.group)
+    }
+
     /// Render [`TypstScene`] into a [`vello::Scene`].
     pub fn render(&mut self) -> vello::Scene {
         let mut scene = vello::Scene::new();
@@ -81,24 +103,7 @@ impl TypstScene {
         scene
     }
 
-    pub fn from_frame(frame: &Frame) -> Self {
-        let mut typst_scene = TypstScene::default();
-
-        let group_paths = TypstGroup {
-            size: kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt()),
-            ..default()
-        };
-        typst_scene.append_group(group_paths);
-        typst_scene.handle_frame(
-            frame,
-            RenderState::new(frame.size(), Transform::identity()),
-            0,
-        );
-
-        typst_scene
-    }
-
-    /// Populate [`GroupPaths`] with items inside the [`Frame`] and recursively
+    /// Populate [`TypstGroup`] with items inside the [`Frame`] and recursively
     /// populate the [`TypstScene`] itself if the frame contains any groups.
     fn handle_frame(&mut self, frame: &Frame, state: RenderState, group_index: usize) {
         for (pos, item) in frame.items() {
@@ -150,7 +155,7 @@ impl TypstScene {
         }
     }
 
-    /// Convert [`GroupItem`] into [`GroupPaths`] and append it.
+    /// Convert [`GroupItem`] into [`TypstGroup`] and append it.
     fn handle_group(
         &mut self,
         group: &GroupItem,
@@ -158,7 +163,7 @@ impl TypstScene {
         local_transform: Transform,
         parent: Option<usize>,
     ) {
-        // Generate GroupPaths for the underlying frame.
+        // Generate TypstGroup for the underlying frame.
         let group_paths = TypstGroup {
             size: kurbo::Vec2::new(group.frame.size().x.to_pt(), group.frame.size().y.to_pt()),
             transform: convert_transform(local_transform.pre_concat(group.transform)),
@@ -181,7 +186,7 @@ impl TypstScene {
         self.handle_frame(&group.frame, state, group_index);
     }
 
-    /// Add a group to the [group list][Self::groups].
+    /// Add a group to the [group list][Self::group_scenes].
     fn append_group(&mut self, group: TypstGroup) {
         if let Some(label) = group.label {
             let index = self.group_scenes.len();

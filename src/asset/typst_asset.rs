@@ -8,14 +8,14 @@ use ecow::EcoVec;
 use thiserror::Error;
 use typst::{diag::SourceDiagnostic, foundations::Module};
 
-use crate::compiler::world::TypstWorld;
+use crate::world::TypstWorld;
 
 pub struct TypstAssetPlugin(pub Arc<TypstWorld>);
 
 impl Plugin for TypstAssetPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<TypstAsset>()
-            .register_asset_loader(TypstModAssetLoader(self.0.clone()));
+            .register_asset_loader(TypstAssetLoader(self.0.clone()));
     }
 }
 
@@ -28,9 +28,9 @@ impl TypstAsset {
     }
 }
 
-pub struct TypstModAssetLoader(Arc<TypstWorld>);
+pub struct TypstAssetLoader(Arc<TypstWorld>);
 
-impl AssetLoader for TypstModAssetLoader {
+impl AssetLoader for TypstAssetLoader {
     type Asset = TypstAsset;
 
     type Settings = ();
@@ -41,12 +41,15 @@ impl AssetLoader for TypstModAssetLoader {
         &'a self,
         reader: &'a mut Reader<'_>,
         _settings: &'a Self::Settings,
-        _load_context: &'a mut LoadContext<'_>,
+        load_context: &'a mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         let mut text = String::new();
         reader.read_to_string(&mut text).await?;
 
-        let module = self.0.eval_str(&text).map_err(SourceDiagnosticError)?;
+        let module = self
+            .0
+            .eval_file(&load_context.asset_path().to_string(), &text)
+            .map_err(SourceDiagnosticError)?;
         Ok(TypstAsset(module))
     }
 
@@ -55,7 +58,7 @@ impl AssetLoader for TypstModAssetLoader {
     }
 }
 
-/// Possible errors that can be produced by [`TypstDocAssetLoader`] and [`TypstModAssetLoader`].
+/// Possible errors that can be produced by [`TypstAssetLoader`].
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum TypstAssetLoaderError {

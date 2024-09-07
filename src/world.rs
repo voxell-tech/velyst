@@ -1,7 +1,7 @@
 use std::{
     fs, mem,
     path::{Path, PathBuf},
-    sync::{Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use bevy::{prelude::*, utils::HashMap};
@@ -12,15 +12,30 @@ use typst::{
     engine::{Engine, Route, Sink, Traced},
     foundations::{Bytes, Content, Datetime, Module, StyleChain},
     introspection::Introspector,
+    layout::{Abs, Axes, Frame, Region},
     model::Document,
-    syntax::{FileId, Source, Span},
+    syntax::{FileId, Source, Span, VirtualPath},
     text::{Font, FontBook},
     utils::LazyHash,
     Library, World,
 };
 
-use super::fonts::{FontSearcher, FontSlot};
-use super::package;
+use fonts::{FontSearcher, FontSlot};
+
+pub mod fonts;
+
+mod download;
+mod package;
+
+/// Resource reference to the underlying [`TypstWorld`].
+#[derive(Resource, Deref, DerefMut)]
+pub struct TypstWorldRef(Arc<TypstWorld>);
+
+impl TypstWorldRef {
+    pub fn new(world: Arc<TypstWorld>) -> Self {
+        Self(world)
+    }
+}
 
 /// World for compiling Typst's [`Content`].
 pub struct TypstWorld {
@@ -59,8 +74,8 @@ impl TypstWorld {
         }
     }
 
-    pub fn eval_str(&self, text: impl Into<String>) -> SourceResult<Module> {
-        self.insert_slot(Source::detached(text));
+    pub fn eval_file(&self, path: &str, text: impl Into<String>) -> SourceResult<Module> {
+        let source = Source::new(FileId::new(None, VirtualPath::new(path)), text.into());
         // Typst world
         let world: &dyn World = self;
 
@@ -70,44 +85,72 @@ impl TypstWorld {
             Traced::default().track(),
             Sink::new().track_mut(),
             Route::default().track(),
-            &world.source(world.main()).unwrap(),
+            &source,
         )
-    }
-
-    pub fn compile_str(&self, text: impl Into<String>) -> SourceResult<Document> {
-        self.insert_slot(Source::detached(text));
-
-        // Compile document
-        let warned = typst::compile(&self);
-        let document = warned.output?;
-
-        // Logs out typst warnings
-        let warnings = warned.warnings;
-        if warnings.is_empty() == false {
-            warn!("[Typst compilation warning]: {:#?}", warnings);
-        }
-
-        Ok(document)
     }
 
     /// Create a temporary [`Engine`] from the world for Typst evalulation.
     pub fn scoped_engine<T>(&self, f: impl FnOnce(&mut Engine) -> T) -> T {
         let world: &dyn World = self;
 
-        let document = Document::default();
+        let introspector = Introspector::default();
         let constraint = <Introspector as Validate>::Constraint::new();
         let traced = Traced::default();
         let mut sink = Sink::new();
 
         let mut engine = Engine {
             world: world.track(),
-            introspector: document.introspector.track_with(&constraint),
+            introspector: introspector.track_with(&constraint),
             traced: traced.track(),
             sink: sink.track_mut(),
             route: Route::default(),
         };
 
         f(&mut engine)
+    }
+
+    pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
+        let world: &dyn World = self;
+        let styles = StyleChain::new(&world.library().styles);
+
+        let introspector = Introspector::default();
+        let constraint = <Introspector as Validate>::Constraint::new();
+        let traced = Traced::default();
+        let mut sink = Sink::new();
+
+        // Relayout until all introspections stabilize.
+        // If that doesn't happen within five attempts, we give up.
+        let frame = {
+            // Clear delayed errors.
+            sink.delayed();
+
+            let mut engine = Engine {
+                world: world.track(),
+                introspector: introspector.track_with(&constraint),
+                traced: traced.track(),
+                sink: sink.track_mut(),
+                route: Route::default(),
+            };
+
+            let locator = typst::introspection::Locator::root();
+
+            // Layout!
+            typst::layout::layout_frame(
+                &mut engine,
+                content,
+                locator,
+                styles,
+                Region::new(Axes::new(Abs::inf(), Abs::inf()), Axes::new(false, false)),
+            )?
+        };
+
+        // Promote delayed errors.
+        let delayed = sink.delayed();
+        if !delayed.is_empty() {
+            return Err(delayed);
+        }
+
+        Ok(frame)
     }
 
     // Referenced from: https://github.com/typst/typst/blob/88325d7d019fd65c5177a92df4347ae9a287fc19/crates/typst/src/lib.rs#L106-L178
@@ -168,12 +211,6 @@ impl TypstWorld {
 }
 
 impl TypstWorld {
-    /// Insert a new [`Source`].
-    fn insert_slot(&self, source: Source) {
-        let mut map = self.slots.lock().unwrap();
-        map.insert(source.id(), FileSlot::new_with_source(source));
-    }
-
     /// Access the canonical slot for the given file id.
     fn slot<F, T>(&self, id: FileId, f: F) -> T
     where
@@ -194,7 +231,7 @@ impl World for TypstWorld {
     }
 
     fn main(&self) -> FileId {
-        Source::detached("").id()
+        unreachable!("There shouldn't be a main file.")
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {

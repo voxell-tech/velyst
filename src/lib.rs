@@ -1,23 +1,21 @@
-pub use {typst, typst_element, typst_svg};
+pub use {typst, typst_element};
 
 use {
     asset::typst_asset::TypstAssetPlugin,
-    compiler::{world::TypstWorld, TypstCompiler},
     std::{path::PathBuf, sync::Arc},
+    world::{TypstWorld, TypstWorldRef},
 };
 
 use bevy::prelude::*;
 
 pub mod prelude {
-    pub use crate::{
-        asset::typst_asset::TypstAsset,
-        compiler::{TypstCompiler, TypstScene},
-        typst_template, TypstPlugin,
-    };
+    pub use crate::asset::typst_asset::TypstAsset;
+    pub use crate::typst_template;
+    pub use crate::world::{TypstWorld, TypstWorldRef};
 }
 
 pub mod asset;
-pub mod compiler;
+pub mod world;
 
 #[derive(Default)]
 pub struct TypstPlugin {
@@ -38,7 +36,7 @@ impl Plugin for TypstPlugin {
         let world = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
 
         app.add_plugins(TypstAssetPlugin(world.clone()))
-            .insert_resource(TypstCompiler::new(world));
+            .insert_resource(TypstWorldRef::new(world));
     }
 }
 
@@ -69,9 +67,9 @@ impl Plugin for TypstPlugin {
 /// fn load_ui_template(
 ///     mut commands: Commands,
 ///     ui_asset: Res<UiAsset>,
-///     typst_mods: Res<Assets<TypstModAsset>>,
+///     typst_assets: Res<Assets<TypstAsset>>,
 /// ) {
-///     let Some(asset) = typst_mods.get(&ui_asset.0) else {
+///     let Some(asset) = typst_assets.get(&ui_asset.0) else {
 ///         return;
 ///     };
 ///
@@ -80,7 +78,7 @@ impl Plugin for TypstPlugin {
 /// }
 ///
 /// #[derive(Resource)]
-/// pub struct UiAsset(Handle<TypstModAsset>);
+/// pub struct UiAsset(Handle<TypstAsset>);
 /// ```
 ///
 /// [Scope]: typst::foundations::Scope

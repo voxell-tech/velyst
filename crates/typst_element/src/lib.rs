@@ -2,14 +2,12 @@ use foundations::{SequenceElem, Style};
 use prelude::*;
 
 pub mod prelude {
-    pub use typst::{
-        diag::EcoString,
-        foundations::{self, Content, Label as TypLabel, NativeElement, Packed, Smart},
-        layout::{self, Abs, Em, Length, Ratio, Rel},
-        math, model, text, visualize as viz,
-    };
+    pub use typst::diag::{EcoString, SourceResult};
+    pub use typst::foundations::{Content, Label as TypLabel, NativeElement, Packed, Smart};
+    pub use typst::layout::{Abs, Em, Length, Ratio, Rel};
+    pub use typst::{foundations, layout, math, model, text, visualize as viz};
 
-    pub use crate::extensions::{ScopeExt, UnitExt};
+    pub use crate::extensions::{ScopeError, ScopeExt, UnitExt};
     pub use crate::{elem::*, sequence};
     pub use crate::{DocWriter, SimpleWriter};
 }

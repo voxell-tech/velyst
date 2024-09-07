@@ -8,25 +8,24 @@
 )
 
 #let main(
-  main_width: 1280pt,
-  main_height: 720pt,
-  fps: 60.0,
-  elapsed_time: 1.32,
+  width,
+  height,
+  perf_metrics,
 ) = {
   set text(fill: base8)
 
   box(
-    width: main_width,
-    height: main_height,
-    inset: (x: main_width * 6%, y: main_height * 6%),
+    width: width,
+    height: height,
+    inset: (x: width * 6%, y: height * 6%),
   )[
     #place(left + horizon)[
       #set text(size: 48pt)
-      #text(fill: yellow)[= Side Effects]
+      #text(fill: yellow)[= Lumina]
 
       #linebreak()
 
-      #move(dx: 2%)[
+      #move(dx: 2%, dy: -50pt)[
         #set text(size: 32pt, fill: base7)
         #text(fill: green)[= Play]
         = #text(fill: purple)[Luminators]
@@ -38,7 +37,7 @@
         #linebreak()
 
         #set text(size: 18pt, fill: red.transparentize(40%))
-        = Exit Game
+        #box()[= Exit Game] <btn:exit-game>
       ]
     ]
 
@@ -50,9 +49,9 @@
     #let player_name = "Nixon"
 
     #place(right + top)[
-      #set text(size: 24pt, font: "Inter")
+      #set text(size: 18pt)
 
-      #let size = 80pt
+      #let size = 60pt
       #align(horizon)[
         #stack(
           dir: ltr,
@@ -75,23 +74,19 @@
     ]
 
     #place(right + bottom)[
-      #set text(size: 18pt)
-
-      #align(left)[
-        = Performance Metrics
-        FPS: #box()[#text(fill: gradient.linear(
-            red,
-            orange,
-            yellow,
-            green,
-            blue,
-            purple
-        ))[#fps]]\
-        Elapsed Time: #elapsed_time\
-      ]
+      #perf_metrics
     ]
-
   ]
 }
 
-#main()
+#let perf_metrics(fps, elapsed_time) = {
+  set text(size: 18pt)
+
+  align(left)[
+    = Performance Metrics
+    FPS: #fps\
+    Elapsed Time: #elapsed_time\
+  ]
+}
+
+#main(1280pt, 720pt, perf_metrics(60, 1.23))

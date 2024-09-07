@@ -74,7 +74,7 @@ impl SpannedArgs {
         }
     }
 
-    pub fn push<T>(&mut self, value: impl IntoValue) {
+    pub fn push(&mut self, value: impl IntoValue) {
         self.args.push(self.span, value.into_value());
     }
 
