@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::{prelude::*, utils::HashMap, window::PrimaryWindow};
+use bevy::{color::palettes::css, prelude::*, utils::HashMap, window::PrimaryWindow};
 use bevy_typst::{prelude::*, typst_element::prelude::*, TypstPlugin};
 use bevy_vello::{prelude::*, VelloPlugin};
 use typst_vello::TypstScene;
@@ -17,7 +17,7 @@ fn main() {
         .add_systems(Startup, load_typst_asset::<GameUi>)
         .add_systems(
             Update,
-            main_func.run_if(resource_exists_and_changed::<TypstContent<PerfMetricsFunc>>),
+            main_func.run_if(resource_exists::<TypstContent<PerfMetricsFunc>>),
         )
         .add_systems(Startup, perf_metrics)
         .run();
@@ -37,25 +37,44 @@ impl TypstPath for GameUi {
 
 fn main_func(
     mut commands: Commands,
-    q_window: Query<&Window, With<PrimaryWindow>>,
+    q_window: Query<Ref<Window>, With<PrimaryWindow>>,
+    q_interactions: Query<(&Interaction, &Name)>,
     perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
 ) {
     let Ok(window) = q_window.get_single() else {
         return;
     };
 
-    commands.insert_resource(MainFunc {
-        width: Abs::pt(window.width() as f64),
-        height: Abs::pt(window.height() as f64),
-        perf_metrics: perf_metrics.clone(),
-    });
+    let mut btn_highlight = String::new();
+
+    for (interaction, name) in q_interactions.iter() {
+        match interaction {
+            Interaction::Pressed => println!("pressed {name}"),
+            Interaction::Hovered => println!("hovered {name}"),
+            Interaction::None => {}
+        }
+        if *interaction == Interaction::Hovered {
+            btn_highlight = name.to_string();
+
+            break;
+        }
+    }
+
+    if window.is_changed() || perf_metrics.is_changed() {
+        commands.insert_resource(MainFunc {
+            width: Abs::pt(window.width() as f64),
+            height: Abs::pt(window.height() as f64),
+            perf_metrics: perf_metrics.clone(),
+            btn_highlight,
+        });
+    }
 }
 
 fn perf_metrics(mut commands: Commands, time: Res<Time>) {
-    commands.insert_resource(PerfMetricsFunc {
-        fps: 1.0 / time.delta_seconds_f64(),
-        elapsed_time: time.elapsed_seconds_f64(),
-    });
+    let fps = (1.0 / time.delta_seconds_f64() * 100.0).round() / 100.0;
+    let elapsed_time = (time.elapsed_seconds_f64() * 100.0).round() / 100.0;
+
+    commands.insert_resource(PerfMetricsFunc { fps, elapsed_time });
 }
 
 #[derive(Resource)]
@@ -63,6 +82,7 @@ pub struct MainFunc {
     width: Abs,
     height: Abs,
     perf_metrics: Content,
+    btn_highlight: String,
 }
 
 impl TypstFunc for MainFunc {
@@ -75,6 +95,7 @@ impl TypstFunc for MainFunc {
             args.push(self.width);
             args.push(self.height);
             args.push(self.perf_metrics.clone());
+            args.push_named("btn_highlight", self.btn_highlight.clone());
         })
         .pack()
     }
@@ -135,6 +156,8 @@ impl TypstCommandExt for App {
             (
                 layout_typst_content::<F>.run_if(resource_exists_and_changed::<TypstContent<F>>),
                 render_typst_scene::<F>.run_if(resource_exists_and_changed::<TypstSceneRef<F>>),
+                construct_interaction_tree::<F>
+                    .run_if(resource_exists_and_changed::<TypstSceneRef<F>>),
             ),
         )
     }
@@ -213,8 +236,6 @@ fn render_typst_scene<F: TypstFunc>(
 ) {
     let typst_scene = typst_scene.bypass_change_detection();
 
-    println!("render");
-
     if let Some(mut scene) = typst_scene.entity.and_then(|e| q_scenes.get_mut(e).ok()) {
         **scene = typst_scene.render();
     } else {
@@ -225,6 +246,7 @@ fn render_typst_scene<F: TypstFunc>(
                     coordinate_space: CoordinateSpace::ScreenSpace,
                     ..default()
                 })
+                .insert(NodeBundle::default())
                 .id(),
         );
     }
@@ -238,6 +260,8 @@ fn construct_interaction_tree<F: TypstFunc>(
     let Some(root_entity) = typst_scene.entity else {
         return;
     };
+
+    commands.entity(root_entity).despawn_descendants();
 
     let mut entities = Vec::with_capacity(typst_scene.groups_len());
 
@@ -262,10 +286,18 @@ fn construct_interaction_tree<F: TypstFunc>(
                     ..default()
                 },
                 transform: Transform::from_scale(scale),
+                // background_color: css::RED.with_alpha(0.2).into(),
                 ..default()
             })
             .set_parent(parent_entity)
             .id();
+
+        if let Some(label) = group.label() {
+            commands
+                .entity(entity)
+                .insert(Interaction::None)
+                .insert(Name::new(label.as_str()));
+        }
 
         entities.push(entity);
     }

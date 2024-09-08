@@ -7,12 +7,25 @@
   margin: 0pt,
 )
 
+#let button(body, lbl: label) = {
+  [#box(inset: 16pt)[#body] #lbl]
+}
+
 #let main(
   width,
   height,
   perf_metrics,
+  btn_highlight: "",
 ) = {
   set text(fill: base8)
+  show label(btn_highlight): body => [
+    #let text_fill = text.fill
+    #set text(fill: base0)
+    #box(
+      radius: 10pt,
+      fill: text_fill,
+    )[#body]
+  ]
 
   box(
     width: width,
@@ -26,18 +39,23 @@
       #linebreak()
 
       #move(dx: 2%, dy: -50pt)[
-        #set text(size: 32pt, fill: base7)
-        #text(fill: green)[= Play]
-        = #text(fill: purple)[Luminators]
-        = Tutorial
-        = Watch #text(fill: green, size: 20pt)[
-          #emoji.triangle.r 4152 Live Now
-        ]
+        #set text(size: 28pt, fill: base7)
+        #button(lbl: <btn:play>)[= Play]\
+        #button(lbl: <btn:luminators>)[= Luminators]\
+        #button(lbl: <btn:tutorial>)[= Tutorial]\
+        #stack(
+          dir: ltr,
+          spacing: 10pt,
+          button(lbl: <btn:watch>)[= Watch],
+          text(fill: green, size: 16pt)[
+            #emoji.triangle.r 4152 Live Now
+          ],
+        )
 
-        #linebreak()
+        // #linebreak()
 
-        #set text(size: 18pt, fill: red.transparentize(40%))
-        #box()[= Exit Game] <btn:exit-game>
+        #set text(size: 16pt, fill: red.transparentize(40%))
+        #button(lbl: <btn:exit-game>)[= Exit Game]
       ]
     ]
 
