@@ -19,7 +19,7 @@ fn main() {
             Update,
             main_func.run_if(resource_exists::<TypstContent<PerfMetricsFunc>>),
         )
-        .add_systems(Startup, perf_metrics)
+        .add_systems(Update, perf_metrics)
         .run();
 }
 
@@ -48,11 +48,11 @@ fn main_func(
     let mut btn_highlight = String::new();
 
     for (interaction, name) in q_interactions.iter() {
-        match interaction {
-            Interaction::Pressed => println!("pressed {name}"),
-            Interaction::Hovered => println!("hovered {name}"),
-            Interaction::None => {}
-        }
+        // match interaction {
+        //     Interaction::Pressed => println!("pressed {name}"),
+        //     Interaction::Hovered => println!("hovered {name}"),
+        //     Interaction::None => {}
+        // }
         if *interaction == Interaction::Hovered {
             btn_highlight = name.to_string();
 

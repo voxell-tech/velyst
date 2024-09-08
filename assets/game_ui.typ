@@ -40,13 +40,13 @@
 
       #move(dx: 2%, dy: -50pt)[
         #set text(size: 28pt, fill: base7)
-        #button(lbl: <btn:play>)[= Play]\
-        #button(lbl: <btn:luminators>)[= Luminators]\
+        #text(fill: blue)[#button(lbl: <btn:play>)[= Play]]\
+        #text(fill: purple)[#button(lbl: <btn:luminators>)[= Luminators]]\
         #button(lbl: <btn:tutorial>)[= Tutorial]\
         #stack(
           dir: ltr,
           spacing: 10pt,
-          button(lbl: <btn:watch>)[= Watch],
+          text(fill: green)[#button(lbl: <btn:watch>)[= Watch]],
           text(fill: green, size: 16pt)[
             #emoji.triangle.r 4152 Live Now
           ],
