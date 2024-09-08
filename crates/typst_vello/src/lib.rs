@@ -285,6 +285,10 @@ impl TypstGroup {
 
         scene
     }
+
+    pub fn label(&self) -> Option<Label> {
+        self.label
+    }
 }
 
 #[derive(Debug, Clone)]

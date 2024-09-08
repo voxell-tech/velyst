@@ -40,15 +40,7 @@ pub fn convert_fixed_stroke(stroke: &viz::FixedStroke) -> kurbo::Stroke {
 
 pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
     match paint {
-        viz::Paint::Solid(solid) => {
-            let channels = solid.to_vec4_u8();
-            peniko::Brush::Solid(peniko::Color::rgba8(
-                channels[0],
-                channels[1],
-                channels[2],
-                channels[3],
-            ))
-        }
+        viz::Paint::Solid(solid) => peniko::Brush::Solid(convert_color(solid)),
         viz::Paint::Gradient(gradient) => {
             let ratio = size.aspect_ratio();
 
