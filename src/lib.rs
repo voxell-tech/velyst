@@ -2,6 +2,7 @@ pub use {typst, typst_element};
 
 use {
     asset::typst_asset::TypstAssetPlugin,
+    renderer::VelystRendererPlugin,
     std::{path::PathBuf, sync::Arc},
     world::{TypstWorld, TypstWorldRef},
 };
@@ -10,25 +11,29 @@ use bevy::prelude::*;
 
 pub mod prelude {
     pub use crate::asset::typst_asset::TypstAsset;
+    pub use crate::renderer::{
+        TypstCommandExt, TypstContent, TypstContext, TypstFunc, TypstPath, VelystSet,
+    };
     pub use crate::typst_template;
     pub use crate::world::{TypstWorld, TypstWorldRef};
 }
 
 pub mod asset;
+pub mod renderer;
 pub mod world;
 
 #[derive(Default)]
-pub struct TypstPlugin {
+pub struct VelystPlugin {
     font_paths: Vec<PathBuf>,
 }
 
-impl TypstPlugin {
+impl VelystPlugin {
     pub fn new(font_paths: Vec<PathBuf>) -> Self {
         Self { font_paths }
     }
 }
 
-impl Plugin for TypstPlugin {
+impl Plugin for VelystPlugin {
     fn build(&self, app: &mut App) {
         // Using assets/ as the root path
         let mut assets_path = PathBuf::from(".");
@@ -36,6 +41,7 @@ impl Plugin for TypstPlugin {
         let world = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
 
         app.add_plugins(TypstAssetPlugin(world.clone()))
+            .add_plugins(VelystRendererPlugin)
             .insert_resource(TypstWorldRef::new(world));
     }
 }

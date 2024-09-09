@@ -21,10 +21,7 @@
   show label(btn_highlight): body => [
     #let text_fill = text.fill
     #set text(fill: base0)
-    #box(
-      radius: 10pt,
-      fill: text_fill,
-    )[#body]
+    #box(fill: text_fill, radius: 10pt)[#body]
   ]
 
   box(
