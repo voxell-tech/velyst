@@ -13,7 +13,7 @@ use bevy::prelude::*;
 pub mod prelude {
     pub use crate::asset::typst_asset::TypstAsset;
     pub use crate::renderer::{
-        TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath, VelystCommandExt, VelystSet,
+        TypstCommandExt, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath, VelystSet,
     };
     pub use crate::typst_template;
     pub use crate::world::{TypstWorld, TypstWorldRef};
