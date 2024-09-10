@@ -7,8 +7,8 @@ fn main() {
         .add_plugins((DefaultPlugins, VelloPlugin::default()))
         .add_plugins(VelystPlugin::default())
         .register_typst_asset::<GameUi>()
-        .register_typst_func::<GameUi, MainFunc>()
-        .register_typst_func::<GameUi, PerfMetricsFunc>()
+        .compile_typst_func::<GameUi, MainFunc>()
+        .compile_typst_func::<GameUi, PerfMetricsFunc>()
         .render_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
         .add_systems(
@@ -34,7 +34,7 @@ impl TypstPath for GameUi {
 fn main_func(
     mut commands: Commands,
     q_window: Query<Ref<Window>, With<PrimaryWindow>>,
-    q_interactions: Query<(&Interaction, &Name)>,
+    q_interactions: Query<(&Interaction, &TypstLabel)>,
     perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
 ) {
     let Ok(window) = q_window.get_single() else {
@@ -43,14 +43,9 @@ fn main_func(
 
     let mut btn_highlight = String::new();
 
-    for (interaction, name) in q_interactions.iter() {
-        // match interaction {
-        //     Interaction::Pressed => println!("pressed {name}"),
-        //     Interaction::Hovered => println!("hovered {name}"),
-        //     Interaction::None => {}
-        // }
+    for (interaction, label) in q_interactions.iter() {
         if *interaction == Interaction::Hovered {
-            btn_highlight = name.to_string();
+            btn_highlight = label.as_str().to_owned();
 
             break;
         }
@@ -58,8 +53,8 @@ fn main_func(
 
     if window.is_changed() || perf_metrics.is_changed() {
         commands.insert_resource(MainFunc {
-            width: Abs::pt(window.width() as f64),
-            height: Abs::pt(window.height() as f64),
+            width: window.width() as f64,
+            height: window.height() as f64,
             perf_metrics: perf_metrics.clone(),
             btn_highlight,
         });
@@ -75,8 +70,8 @@ fn perf_metrics(mut commands: Commands, time: Res<Time>) {
 
 #[derive(Resource)]
 pub struct MainFunc {
-    width: Abs,
-    height: Abs,
+    width: f64,
+    height: f64,
     perf_metrics: Content,
     btn_highlight: String,
 }

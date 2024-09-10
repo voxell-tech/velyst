@@ -24,6 +24,9 @@
     #box(fill: text_fill, radius: 10pt)[#body]
   ]
 
+  let width = (width * 1pt)
+  let height = (height * 1pt)
+
   box(
     width: width,
     height: height,
@@ -117,4 +120,4 @@
   ]
 }
 
-#main(1280pt, 720pt, perf_metrics(60, 1.23))
+#main(1280, 720, perf_metrics(60, 1.23))

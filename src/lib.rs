@@ -1,3 +1,4 @@
+// TODO: Rename project to Velyst.
 pub use {typst, typst_element};
 
 use {
@@ -12,7 +13,7 @@ use bevy::prelude::*;
 pub mod prelude {
     pub use crate::asset::typst_asset::TypstAsset;
     pub use crate::renderer::{
-        TypstCommandExt, TypstContent, TypstContext, TypstFunc, TypstPath, VelystSet,
+        TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath, VelystCommandExt, VelystSet,
     };
     pub use crate::typst_template;
     pub use crate::world::{TypstWorld, TypstWorldRef};

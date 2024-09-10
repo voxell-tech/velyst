@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{prelude::*, typst_element::prelude::*};
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_vello::prelude::*;
 use typst_vello::TypstScene;
 
@@ -36,10 +36,13 @@ pub enum VelystSet {
 }
 
 pub trait TypstCommandExt {
+    /// Load [`TypstAsset`] using [`TypstPath::path()`] and detect changes made towards the asset.
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
 
-    fn register_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
+    /// Compile [`TypstFunc`] into [`TypstContent`].
+    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
 
+    /// Layout [`TypstContent`] into [`TypstSceneRef`] and render it into a [`VelloScene`].
     fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
 }
 
@@ -55,7 +58,7 @@ impl TypstCommandExt for App {
         )
     }
 
-    fn register_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
+    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
         self.add_systems(
             Update,
             compile_typst_func::<P, F>
@@ -128,12 +131,12 @@ fn asset_change_detection<P: TypstPath>(
 fn layout_typst_content<F: TypstFunc>(
     content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
-    mut scene: ResMut<TypstSceneRef<F>>,
+    mut typst_scene: ResMut<TypstSceneRef<F>>,
 ) {
     match world.layout_frame(&content) {
         Ok(frame) => {
             let new_scene = TypstScene::from_frame(&frame);
-            **scene = new_scene;
+            typst_scene.set_scene(new_scene);
         }
         Err(err) => error!("{err:#?}"),
     }
@@ -142,13 +145,17 @@ fn layout_typst_content<F: TypstFunc>(
 /// System implementation for rendering [`TypstSceneRef`] into [`VelloScene`].
 fn render_typst_scene<F: TypstFunc>(
     mut commands: Commands,
-    mut q_scenes: Query<&mut VelloScene>,
+    mut q_scenes: Query<(&mut VelloScene, &mut Style)>,
     mut typst_scene: ResMut<TypstSceneRef<F>>,
 ) {
     let typst_scene = typst_scene.bypass_change_detection();
 
-    if let Some(mut scene) = typst_scene.entity.and_then(|e| q_scenes.get_mut(e).ok()) {
+    if let Some((mut scene, mut style)) = typst_scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
+    {
         **scene = typst_scene.render();
+        let size = typst_scene.size();
+        style.width = Val::Px(size.x as f32);
+        style.height = Val::Px(size.y as f32);
     } else {
         typst_scene.entity = Some(
             commands
@@ -166,51 +173,94 @@ fn render_typst_scene<F: TypstFunc>(
 /// Construct the interaction tree using bevy ui nodes.
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
-    typst_scene: Res<TypstSceneRef<F>>,
+    mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex)>,
+    mut typst_scene: ResMut<TypstSceneRef<F>>,
 ) {
     let Some(root_entity) = typst_scene.entity else {
         return;
     };
 
-    commands.entity(root_entity).despawn_descendants();
+    typst_scene.reset_cached_entities_to_unused();
+    let mut computed_transforms = Vec::with_capacity(typst_scene.groups_len());
 
-    let mut entities = Vec::with_capacity(typst_scene.groups_len());
+    for i in 0..typst_scene.groups_len() {
+        let group = typst_scene.get_group(i);
 
-    for group in typst_scene.iter_groups() {
-        let parent_entity = match group.parent {
-            Some(index) => entities[index],
-            None => root_entity,
+        // Calculate accumulated transform from the group hierarchy.
+        let transform = match group.parent {
+            Some(parent_index) => {
+                let transform = computed_transforms[parent_index] * group.transform;
+                computed_transforms.push(transform);
+                transform
+            }
+            None => {
+                computed_transforms.push(group.transform);
+                group.transform
+            }
         };
 
-        let coeffs = group.transform.as_coeffs();
-        let translation = Vec2::new(coeffs[4] as f32, coeffs[5] as f32);
+        let Some(label) = group.label() else {
+            continue;
+        };
+
+        let coeffs = transform.as_coeffs();
+        let left = Val::Px(coeffs[4] as f32);
+        let top = Val::Px(coeffs[5] as f32);
+        let width = Val::Px(group.size.x as f32);
+        let height = Val::Px(group.size.y as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
-        let entity = commands
-            .spawn(NodeBundle {
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    width: Val::Px(group.size.x as f32),
-                    height: Val::Px(group.size.y as f32),
-                    left: Val::Px(translation.x),
-                    top: Val::Px(translation.y),
-                    ..default()
-                },
-                transform: Transform::from_scale(scale),
-                // background_color: css::RED.with_alpha(0.2).into(),
-                ..default()
+        if let Some((mut style, mut transform, mut z_index)) = typst_scene
+            .cached_entities
+            .get_mut(&label)
+            .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
+            .and_then(|(entity, used)| {
+                *used = true;
+                q_nodes.get_mut(*entity).ok()
             })
-            .set_parent(parent_entity)
-            .id();
+        {
+            // Style
+            style.left = left;
+            style.top = top;
+            style.width = width;
+            style.height = height;
+            // Scale
+            transform.scale = scale;
+            // ZIndex
+            *z_index = ZIndex::Local(i as i32);
+        } else {
+            let new_entity = commands
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            left,
+                            top,
+                            width,
+                            height,
+                            ..default()
+                        },
+                        transform: Transform::from_scale(scale),
+                        z_index: ZIndex::Local(i as i32),
+                        ..default()
+                    },
+                    Interaction::default(),
+                    TypstLabel(label),
+                ))
+                .set_parent(root_entity)
+                .id();
 
-        if let Some(label) = group.label() {
-            commands
-                .entity(entity)
-                .insert(Interaction::None)
-                .insert(Name::new(label.as_str()));
+            match typst_scene.cached_entities.get_mut(&label) {
+                Some(entities) => {
+                    entities.push((new_entity, true));
+                }
+                None => {
+                    typst_scene
+                        .cached_entities
+                        .insert(label, vec![(new_entity, true)]);
+                }
+            }
         }
-
-        entities.push(entity);
     }
 }
 
@@ -264,26 +314,43 @@ pub struct TypstSceneRef<F> {
     scene: TypstScene,
     /// Entity that contains [`VelloSceneBundle`] for rendering the typst scene.
     entity: Option<Entity>,
-    // node_overrides: HashMap<TypLabel, >
+    /// Cached entities mapped by [`TypLabel`].
+    ///
+    /// - First element stores the cached entity itself.
+    /// - Second element denotes whether it's used up or not.
+    cached_entities: HashMap<TypLabel, Vec<(Entity, bool)>>, // TODO: Use SmallVec
     phantom: PhantomData<F>,
 }
+
+#[derive(Component, Deref, DerefMut)]
+pub struct TypstLabel(TypLabel);
 
 impl<F> Default for TypstSceneRef<F> {
     fn default() -> Self {
         Self {
-            scene: TypstScene::default(),
+            scene: default(),
             entity: None,
+            cached_entities: default(),
             phantom: PhantomData,
         }
     }
 }
 
 impl<F> TypstSceneRef<F> {
-    pub fn new(typst_scene: TypstScene) -> Self {
-        Self {
-            scene: typst_scene,
-            entity: None,
-            phantom: PhantomData,
+    pub fn new(scene: TypstScene) -> Self {
+        Self { scene, ..default() }
+    }
+
+    pub fn set_scene(&mut self, scene: TypstScene) {
+        self.scene = scene;
+    }
+
+    /// Resets all cached entities to unused.
+    fn reset_cached_entities_to_unused(&mut self) {
+        for entities in self.cached_entities.values_mut() {
+            for (_, used) in entities.iter_mut() {
+                *used = false;
+            }
         }
     }
 }
