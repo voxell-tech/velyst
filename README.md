@@ -1,10 +1,12 @@
-# Bevy Typst
+# Velyst
 
-A [Typst](https://typst.app) integration for [Bevy](https://bevyengine.org). Bevy Typst supports compiling raw Typst text into a SVG tree, which can then be used to generate [Vello](https://github.com/linebender/vello) scenes for rendering in Bevy.
+A [Typst](https://typst.app) integration for [Vello](https://github.com/linebender/vello) and [Bevy](https://bevyengine.org) for creating interactable content.
 
 ![hello world](./.github/assets/hello_world.png)
 
 *Associated example [here](./examples/hello_world.rs)!*
+
+<!-- ## Quickstart -->
 
 ## Join the community!
 
@@ -12,7 +14,7 @@ You can join us on the [Voxell discord server](https://discord.gg/Mhnyp6VYEQ).
 
 ## License
 
-`bevy_typst` is dual-licensed under either:
+`velyst` is dual-licensed under either:
 
 - MIT License ([LICENSE-MIT](LICENSE-MIT) or [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT))
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))

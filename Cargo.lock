@@ -1034,30 +1034,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_typst"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_vello",
- "bevy_vello_graphics",
- "chrono",
- "comemo",
- "dirs",
- "ecow",
- "env_proxy",
- "flate2",
- "serde",
- "tar",
- "thiserror",
- "typst",
- "typst-assets 0.11.1",
- "typst-svg",
- "typst_element",
- "typst_vello",
- "ureq",
-]
-
-[[package]]
 name = "bevy_ui"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5444,6 +5420,30 @@ dependencies = [
  "thiserror",
  "usvg",
  "vello",
+]
+
+[[package]]
+name = "velyst"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_vello",
+ "bevy_vello_graphics",
+ "chrono",
+ "comemo",
+ "dirs",
+ "ecow",
+ "env_proxy",
+ "flate2",
+ "serde",
+ "tar",
+ "thiserror",
+ "typst",
+ "typst-assets 0.11.1",
+ "typst-svg",
+ "typst_element",
+ "typst_vello",
+ "ureq",
 ]
 
 [[package]]

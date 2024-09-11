@@ -1,6 +1,6 @@
 use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_typst::{prelude::*, typst_element::prelude::*, VelystPlugin};
 use bevy_vello::VelloPlugin;
+use velyst::{prelude::*, typst_element::prelude::*, VelystPlugin};
 
 fn main() {
     App::new()
@@ -11,9 +11,11 @@ fn main() {
         .compile_typst_func::<GameUi, PerfMetricsFunc>()
         .render_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
+        .init_resource::<MainFunc>()
+        .init_resource::<PerfMetricsFunc>()
         .add_systems(
             Update,
-            main_func.run_if(resource_exists::<TypstContent<PerfMetricsFunc>>),
+            (main_func_window, main_func_interactions, main_func_metrics),
         )
         .add_systems(Update, perf_metrics)
         .run();
@@ -31,33 +33,39 @@ impl TypstPath for GameUi {
     }
 }
 
-fn main_func(
-    mut commands: Commands,
-    q_window: Query<Ref<Window>, With<PrimaryWindow>>,
-    q_interactions: Query<(&Interaction, &TypstLabel)>,
-    perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
+fn main_func_window(
+    q_window: Query<Ref<Window>, (With<PrimaryWindow>, Changed<Window>)>,
+    mut main_func: ResMut<MainFunc>,
 ) {
     let Ok(window) = q_window.get_single() else {
         return;
     };
 
-    let mut btn_highlight = String::new();
+    main_func.width = window.width() as f64;
+    main_func.height = window.height() as f64;
+}
 
+fn main_func_metrics(
+    perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
+    mut main_func: ResMut<MainFunc>,
+) {
+    if perf_metrics.is_changed() {
+        main_func.perf_metrics = perf_metrics.clone();
+    }
+}
+
+fn main_func_interactions(
+    q_interactions: Query<(&Interaction, &TypstLabel), Changed<Interaction>>,
+    mut main_func: ResMut<MainFunc>,
+) {
     for (interaction, label) in q_interactions.iter() {
         if *interaction == Interaction::Hovered {
-            btn_highlight = label.as_str().to_owned();
-
-            break;
+            main_func.btn_highlight = label.as_str().to_owned();
+        } else {
+            main_func.btn_highlight.clear();
         }
-    }
 
-    if window.is_changed() || perf_metrics.is_changed() {
-        commands.insert_resource(MainFunc {
-            width: window.width() as f64,
-            height: window.height() as f64,
-            perf_metrics: perf_metrics.clone(),
-            btn_highlight,
-        });
+        break;
     }
 }
 
@@ -68,7 +76,7 @@ fn perf_metrics(mut commands: Commands, time: Res<Time>) {
     commands.insert_resource(PerfMetricsFunc { fps, elapsed_time });
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct MainFunc {
     width: f64,
     height: f64,
@@ -92,7 +100,7 @@ impl TypstFunc for MainFunc {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct PerfMetricsFunc {
     fps: f64,
     elapsed_time: f64,

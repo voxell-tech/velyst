@@ -6,7 +6,7 @@ members = ["crates/*", ]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/nixon-voxell/bevy_typst"
+repository = "https://github.com/voxell-tech/velyst"
 readme = "README.md"
 
 [workspace.dependencies]
@@ -27,8 +27,8 @@ redundant_type_annotations = "warn"
 bool_comparison = "allow"
 
 [package]
-name = "bevy_typst"
-description = "Typst integration in Bevy."
+name = "velyst"
+description = "A Typst integration for Vello and Bevy."
 exclude = ["/assets/", "/.github/", "/examples/"]
 version.workspace = true
 edition.workspace = true

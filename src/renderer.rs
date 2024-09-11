@@ -29,24 +29,24 @@ pub enum VelystSet {
     AssetLoading,
     /// Compile [`TypstFunc`] into a [`TypstContent`].
     Compile,
-    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`TypstSceneRef`].
+    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
     Layout,
     /// Render [`TypstScene`] into a [`VelloScene`].
     Render,
 }
 
-pub trait TypstCommandExt {
+pub trait VelystCommandExt {
     /// Load [`TypstAsset`] using [`TypstPath::path()`] and detect changes made towards the asset.
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
 
     /// Compile [`TypstFunc`] into [`TypstContent`].
     fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
 
-    /// Layout [`TypstContent`] into [`TypstSceneRef`] and render it into a [`VelloScene`].
+    /// Layout [`TypstContent`] into [`VelystScene`] and render it into a [`VelloScene`].
     fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
 }
 
-impl TypstCommandExt for App {
+impl VelystCommandExt for App {
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
         self.add_systems(
             PreStartup,
@@ -59,7 +59,7 @@ impl TypstCommandExt for App {
     }
 
     fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
-        self.add_systems(
+        self.init_resource::<TypstContent<F>>().add_systems(
             Update,
             compile_typst_func::<P, F>
                 .run_if(
@@ -76,7 +76,7 @@ impl TypstCommandExt for App {
     }
 
     fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
-        self.init_resource::<TypstSceneRef<F>>().add_systems(
+        self.init_resource::<VelystScene<F>>().add_systems(
             Update,
             (
                 // Layout
@@ -84,8 +84,8 @@ impl TypstCommandExt for App {
                     .run_if(resource_exists_and_changed::<TypstContent<F>>)
                     .in_set(VelystSet::Layout),
                 // Render
-                (render_typst_scene::<F>, construct_interaction_tree::<F>)
-                    .run_if(resource_exists_and_changed::<TypstSceneRef<F>>)
+                (render_velyst_scene::<F>, construct_interaction_tree::<F>)
+                    .run_if(resource_exists_and_changed::<VelystScene<F>>)
                     .in_set(VelystSet::Render),
             ),
         )
@@ -103,7 +103,7 @@ fn compile_typst_func<P: TypstPath, F: TypstFunc>(
     func: Res<F>,
 ) {
     if let Some(scope) = context.get_scope() {
-        let content = func.call_func(scope);
+        let content = func.compile(scope);
         commands.insert_resource(TypstContent::<F>::new(content));
     } else if context.is_loaded() {
         error!("Unable to get scope for #{}().", func.func_name());
@@ -127,26 +127,26 @@ fn asset_change_detection<P: TypstPath>(
     }
 }
 
-/// System implementation for layouting [`TypstFunc`] into [`TypstSceneRef`].
+/// System implementation for layouting [`TypstFunc`] into [`VelystScene`].
 fn layout_typst_content<F: TypstFunc>(
     content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
-    mut typst_scene: ResMut<TypstSceneRef<F>>,
+    mut typst_scene: ResMut<VelystScene<F>>,
 ) {
     match world.layout_frame(&content) {
         Ok(frame) => {
             let new_scene = TypstScene::from_frame(&frame);
-            typst_scene.set_scene(new_scene);
+            **typst_scene = new_scene;
         }
         Err(err) => error!("{err:#?}"),
     }
 }
 
-/// System implementation for rendering [`TypstSceneRef`] into [`VelloScene`].
-fn render_typst_scene<F: TypstFunc>(
+/// System implementation for rendering [`VelystScene`] into [`VelloScene`].
+fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
     mut q_scenes: Query<(&mut VelloScene, &mut Style)>,
-    mut typst_scene: ResMut<TypstSceneRef<F>>,
+    mut typst_scene: ResMut<VelystScene<F>>,
 ) {
     let typst_scene = typst_scene.bypass_change_detection();
 
@@ -174,7 +174,7 @@ fn render_typst_scene<F: TypstFunc>(
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
     mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex)>,
-    mut typst_scene: ResMut<TypstSceneRef<F>>,
+    mut typst_scene: ResMut<VelystScene<F>>,
 ) {
     let Some(root_entity) = typst_scene.entity else {
         return;
@@ -306,9 +306,10 @@ impl<F: TypstFunc> Default for TypstContent<F> {
     }
 }
 
-/// Reference storage of a [`TypstScene`] in a resource.
+/// Storage of a [`TypstScene`] in a resource as well as
+/// caching the render and interaction entities.
 #[derive(Resource, Deref, DerefMut)]
-pub struct TypstSceneRef<F> {
+pub struct VelystScene<F> {
     #[deref]
     /// Underlying [`TypstScene`] data.
     scene: TypstScene,
@@ -322,10 +323,7 @@ pub struct TypstSceneRef<F> {
     phantom: PhantomData<F>,
 }
 
-#[derive(Component, Deref, DerefMut)]
-pub struct TypstLabel(TypLabel);
-
-impl<F> Default for TypstSceneRef<F> {
+impl<F> Default for VelystScene<F> {
     fn default() -> Self {
         Self {
             scene: default(),
@@ -336,13 +334,9 @@ impl<F> Default for TypstSceneRef<F> {
     }
 }
 
-impl<F> TypstSceneRef<F> {
+impl<F> VelystScene<F> {
     pub fn new(scene: TypstScene) -> Self {
         Self { scene, ..default() }
-    }
-
-    pub fn set_scene(&mut self, scene: TypstScene) {
-        self.scene = scene;
     }
 
     /// Resets all cached entities to unused.
@@ -355,12 +349,15 @@ impl<F> TypstSceneRef<F> {
     }
 }
 
+#[derive(Component, Deref, DerefMut)]
+pub struct TypstLabel(TypLabel);
+
 pub trait TypstFunc: Resource {
     fn func_name(&self) -> &str;
 
     fn content(&self, func: foundations::Func) -> Content;
 
-    fn call_func(&self, scope: &foundations::Scope) -> Content {
+    fn compile(&self, scope: &foundations::Scope) -> Content {
         match scope.get_func(self.func_name()) {
             Ok(func) => self.content(func),
             Err(err) => {
@@ -368,14 +365,6 @@ pub trait TypstFunc: Resource {
                 Content::empty()
             }
         }
-    }
-
-    fn layout_frame(
-        &self,
-        world: &TypstWorld,
-        scope: &foundations::Scope,
-    ) -> SourceResult<layout::Frame> {
-        world.layout_frame(&self.call_func(scope))
     }
 }
 
