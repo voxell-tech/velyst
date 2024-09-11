@@ -50,7 +50,9 @@ pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) 
         viz::ImageKind::Svg(svg) => {
             let transform = convert_transform(local_transform)
                 .pre_scale_non_uniform(size.x.to_pt() / svg.width(), size.y.to_pt() / svg.height());
-            let scene = vello_svg::render_tree(svg.tree());
+            // TODO: Waiting for vello_svg to support latest version of usvg
+            // let scene = vello_svg::render_tree(svg.tree());
+            let scene = vello::Scene::new();
 
             ImageScene { transform, scene }
         }

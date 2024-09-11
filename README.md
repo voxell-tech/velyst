@@ -1,6 +1,6 @@
 # Velyst
 
-A [Typst](https://typst.app) integration for [Vello](https://github.com/linebender/vello) and [Bevy](https://bevyengine.org) for creating interactable content.
+Interactive [Typst](https://typst.app) content creator using [Vello](https://github.com/linebender/vello) and [Bevy](https://bevyengine.org).
 
 ![hello world](./.github/assets/hello_world.png)
 

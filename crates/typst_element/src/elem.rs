@@ -3,11 +3,13 @@ use typst::{
     foundations::{self, Content, IntoValue, Label, Packed},
     layout,
     loading::Readable,
-    math, model,
-    realize::StyleVec,
+    math,
+    model,
+    // realize::StyleVec,
     symbols,
     syntax::{Span, Spanned},
-    text, visualize,
+    text,
+    visualize,
 };
 use unicode_math_class::MathClass;
 
@@ -88,7 +90,7 @@ impl SpannedArgs {
 }
 
 // Layout
-fn_elem!(page, layout::PageElem);
+fn_elem_empty!(page, layout::PageElem);
 fn_elem_empty!(pagebreak, layout::PagebreakElem);
 fn_elem!(vertical, layout::VElem, layout::Spacing);
 fn_elem!(horizontal, layout::HElem, layout::Spacing);
@@ -131,7 +133,7 @@ fn_elem!(
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
-fn_elem!(par, model::ParElem, StyleVec);
+fn_elem!(par, model::ParElem, foundations::StyleVec);
 fn_elem!(table, model::TableElem, Vec<model::TableChild>);
 fn_elem!(terms, model::TermsElem, Vec<Packed<model::TermItem>>);
 fn_elem!(emph, model::EmphElem);

@@ -12,10 +12,10 @@ impl Plugin for VelystRendererPlugin {
         app.configure_sets(
             Update,
             (
-                VelystSet::AssetLoading,
-                VelystSet::Compile,
                 VelystSet::Layout,
                 VelystSet::Render,
+                VelystSet::AssetLoading,
+                VelystSet::Compile,
             )
                 .chain(),
         );
@@ -25,14 +25,14 @@ impl Plugin for VelystRendererPlugin {
 /// Velyst rendering pipeline.
 #[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum VelystSet {
-    /// Loading and reloading of [`TypstAsset`].
-    AssetLoading,
-    /// Compile [`TypstFunc`] into a [`TypstContent`].
-    Compile,
     /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
     Layout,
     /// Render [`TypstScene`] into a [`VelloScene`].
     Render,
+    /// Loading and reloading of [`TypstAsset`].
+    AssetLoading,
+    /// Compile [`TypstFunc`] into a [`TypstContent`].
+    Compile,
 }
 
 pub trait VelystCommandExt {
@@ -97,19 +97,6 @@ fn load_typst_asset<P: TypstPath>(mut commands: Commands, asset_server: Res<Asse
     commands.insert_resource(typst_handle);
 }
 
-fn compile_typst_func<P: TypstPath, F: TypstFunc>(
-    mut commands: Commands,
-    context: TypstContext<P>,
-    func: Res<F>,
-) {
-    if let Some(scope) = context.get_scope() {
-        let content = func.compile(scope);
-        commands.insert_resource(TypstContent::<F>::new(content));
-    } else if context.is_loaded() {
-        error!("Unable to get scope for #{}().", func.func_name());
-    }
-}
-
 fn asset_change_detection<P: TypstPath>(
     mut asset_evr: EventReader<AssetEvent<TypstAsset>>,
     mut typst_handle: ResMut<TypstAssetHandle<P>>,
@@ -127,16 +114,30 @@ fn asset_change_detection<P: TypstPath>(
     }
 }
 
+/// System implementation for layouting [`TypstFunc`] into [`TypstContent`].
+fn compile_typst_func<P: TypstPath, F: TypstFunc>(
+    context: TypstContext<P>,
+    mut content: ResMut<TypstContent<F>>,
+    func: Res<F>,
+) {
+    if let Some(scope) = context.get_scope() {
+        let new_content = func.compile(scope);
+        **content = new_content;
+    } else if context.is_loaded() {
+        error!("Unable to get scope for #{}().", func.func_name());
+    }
+}
+
 /// System implementation for layouting [`TypstFunc`] into [`VelystScene`].
 fn layout_typst_content<F: TypstFunc>(
     content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
-    mut typst_scene: ResMut<VelystScene<F>>,
+    mut scene: ResMut<VelystScene<F>>,
 ) {
     match world.layout_frame(&content) {
         Ok(frame) => {
             let new_scene = TypstScene::from_frame(&frame);
-            **typst_scene = new_scene;
+            **scene = new_scene;
         }
         Err(err) => error!("{err:#?}"),
     }
@@ -146,21 +147,21 @@ fn layout_typst_content<F: TypstFunc>(
 fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
     mut q_scenes: Query<(&mut VelloScene, &mut Style)>,
-    mut typst_scene: ResMut<VelystScene<F>>,
+    mut scene: ResMut<VelystScene<F>>,
 ) {
-    let typst_scene = typst_scene.bypass_change_detection();
+    let scene = scene.bypass_change_detection();
 
-    if let Some((mut scene, mut style)) = typst_scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
+    if let Some((mut vello_scene, mut style)) = scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
     {
-        **scene = typst_scene.render();
-        let size = typst_scene.size();
+        **vello_scene = scene.render();
+        let size = scene.size();
         style.width = Val::Px(size.x as f32);
         style.height = Val::Px(size.y as f32);
     } else {
-        typst_scene.entity = Some(
+        scene.entity = Some(
             commands
                 .spawn(VelloSceneBundle {
-                    scene: typst_scene.render().into(),
+                    scene: scene.render().into(),
                     coordinate_space: CoordinateSpace::ScreenSpace,
                     ..default()
                 })
@@ -187,15 +188,15 @@ fn construct_interaction_tree<F: TypstFunc>(
         let group = typst_scene.get_group(i);
 
         // Calculate accumulated transform from the group hierarchy.
-        let transform = match group.parent {
+        let transform = match group.parent() {
             Some(parent_index) => {
-                let transform = computed_transforms[parent_index] * group.transform;
+                let transform = computed_transforms[parent_index] * group.transform();
                 computed_transforms.push(transform);
                 transform
             }
             None => {
-                computed_transforms.push(group.transform);
-                group.transform
+                computed_transforms.push(group.transform());
+                group.transform()
             }
         };
 
@@ -206,8 +207,8 @@ fn construct_interaction_tree<F: TypstFunc>(
         let coeffs = transform.as_coeffs();
         let left = Val::Px(coeffs[4] as f32);
         let top = Val::Px(coeffs[5] as f32);
-        let width = Val::Px(group.size.x as f32);
-        let height = Val::Px(group.size.y as f32);
+        let width = Val::Px(group.size().x as f32);
+        let height = Val::Px(group.size().y as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
         if let Some((mut style, mut transform, mut z_index)) = typst_scene
@@ -264,6 +265,15 @@ fn construct_interaction_tree<F: TypstFunc>(
     }
 }
 
+#[derive(Resource, Deref, DerefMut)]
+pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstAsset>, PhantomData<P>);
+
+impl<P: TypstPath> TypstAssetHandle<P> {
+    pub fn new(handle: Handle<TypstAsset>) -> Self {
+        Self(handle, PhantomData)
+    }
+}
+
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct TypstContext<'w, P: TypstPath> {
     pub handle: Res<'w, TypstAssetHandle<P>>,
@@ -279,15 +289,6 @@ impl<P: TypstPath> TypstContext<'_, P> {
         self.assets
             .get(&**self.handle)
             .map(|asset| asset.module().scope())
-    }
-}
-
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstAsset>, PhantomData<P>);
-
-impl<P: TypstPath> TypstAssetHandle<P> {
-    pub fn new(handle: Handle<TypstAsset>) -> Self {
-        Self(handle, PhantomData)
     }
 }
 

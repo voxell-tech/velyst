@@ -1,8 +1,7 @@
-// TODO: Rename project to Velyst.
-pub use {typst, typst_element};
+pub use {typst, typst_element, typst_vello};
 
 use {
-    asset::typst_asset::TypstAssetPlugin,
+    asset::TypstAssetPlugin,
     renderer::VelystRendererPlugin,
     std::{path::PathBuf, sync::Arc},
     world::{TypstWorld, TypstWorldRef},
@@ -11,12 +10,11 @@ use {
 use bevy::prelude::*;
 
 pub mod prelude {
-    pub use crate::asset::typst_asset::TypstAsset;
+    pub use crate::asset::TypstAsset;
     pub use crate::renderer::{
         TypstAssetHandle, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath,
         VelystCommandExt, VelystScene, VelystSet,
     };
-    pub use crate::typst_template;
     pub use crate::world::{TypstWorld, TypstWorldRef};
 }
 
@@ -24,6 +22,7 @@ pub mod asset;
 pub mod renderer;
 pub mod world;
 
+/// Plugin for loading and rendering [Typst][typst] content.
 #[derive(Default)]
 pub struct VelystPlugin {
     font_paths: Vec<PathBuf>,
@@ -46,81 +45,4 @@ impl Plugin for VelystPlugin {
             .add_plugins(VelystRendererPlugin)
             .insert_resource(TypstWorldRef::new(world));
     }
-}
-
-/// Create a template struct easily.
-///
-/// This macro will also help you construct a `new(scope: &Scope)` method that
-/// initialize the template with a given [`Scope`][Scope].
-///
-/// # Example
-///
-/// ```
-/// use bevy::prelude::*;
-/// use bevy_typst::prelude::*;
-/// use bevy_typst::typst_element::prelude::*;
-///
-/// typst_template! {
-///     #[derive(Resource)]
-///     pub struct UiTemplate {
-///         foundations::Func => (
-///             parent,
-///             frame,
-///             important_frame,
-///             danger_frame,
-///         ),
-///     }
-/// }
-///
-/// fn load_ui_template(
-///     mut commands: Commands,
-///     ui_asset: Res<UiAsset>,
-///     typst_assets: Res<Assets<TypstAsset>>,
-/// ) {
-///     let Some(asset) = typst_assets.get(&ui_asset.0) else {
-///         return;
-///     };
-///
-///     let ui_template = UiTemplate::new(asset.module().scope());
-///     commands.insert_resource(ui_template);
-/// }
-///
-/// #[derive(Resource)]
-/// pub struct UiAsset(Handle<TypstAsset>);
-/// ```
-///
-/// [Scope]: typst::foundations::Scope
-#[macro_export]
-macro_rules! typst_template {
-    {
-        $(#[$outer:meta])*
-        $vis:vis struct $struct_name:ident {
-            $(
-                $typst_ty:ty => (
-                    $($field:ident,)*
-                ),
-            )*
-        }
-    } => {
-        $(#[$outer])*
-        $vis struct $struct_name {
-            $($(pub $field: $typst_ty,)*)*
-        }
-
-        impl $struct_name {
-            /// Populate the template with a given scope.
-            ///
-            /// # Panic
-            ///
-            /// Will panic if any of the fields in the template does not exists
-            /// or does not match the type from the given scope.
-            pub fn new(scope: &$crate::typst::foundations::Scope) -> Self {
-                Self {
-                    $($($field: $crate::typst_element::extensions::ScopeExt::get_unchecked(
-                        scope, stringify!($field)
-                    ),)*)*
-                }
-            }
-        }
-    };
 }

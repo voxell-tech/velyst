@@ -8,13 +8,12 @@ use bevy::{prelude::*, utils::HashMap};
 use chrono::{DateTime, Datelike, Local};
 use comemo::{Track, Validate};
 use typst::{
-    diag::{warning, FileError, FileResult, SourceResult},
+    diag::{FileError, FileResult, SourceResult},
     engine::{Engine, Route, Sink, Traced},
     foundations::{Bytes, Content, Datetime, Module, StyleChain},
     introspection::Introspector,
     layout::{Abs, Axes, Frame, Region},
-    model::Document,
-    syntax::{FileId, Source, Span, VirtualPath},
+    syntax::{FileId, Source, VirtualPath},
     text::{Font, FontBook},
     utils::LazyHash,
     Library, World,
@@ -23,9 +22,6 @@ use typst::{
 use fonts::{FontSearcher, FontSlot};
 
 pub mod fonts;
-
-mod download;
-mod package;
 
 /// Resource reference to the underlying [`TypstWorld`].
 #[derive(Resource, Deref, DerefMut)]
@@ -59,17 +55,12 @@ impl TypstWorld {
         let mut searcher = FontSearcher::default();
         searcher.search(font_paths);
 
-        let main = Source::detached("");
-
-        let mut slots = HashMap::new();
-        slots.insert(main.id(), FileSlot::new_with_source(main));
-
         Self {
             root,
             library: LazyHash::new(Library::default()),
             book: LazyHash::new(searcher.book),
             fonts: searcher.fonts,
-            slots: Mutex::new(slots),
+            slots: Mutex::new(HashMap::new()),
             now: OnceLock::new(),
         }
     }
@@ -87,26 +78,6 @@ impl TypstWorld {
             Route::default().track(),
             &source,
         )
-    }
-
-    /// Create a temporary [`Engine`] from the world for Typst evalulation.
-    pub fn scoped_engine<T>(&self, f: impl FnOnce(&mut Engine) -> T) -> T {
-        let world: &dyn World = self;
-
-        let introspector = Introspector::default();
-        let constraint = <Introspector as Validate>::Constraint::new();
-        let traced = Traced::default();
-        let mut sink = Sink::new();
-
-        let mut engine = Engine {
-            world: world.track(),
-            introspector: introspector.track_with(&constraint),
-            traced: traced.track(),
-            sink: sink.track_mut(),
-            route: Route::default(),
-        };
-
-        f(&mut engine)
     }
 
     pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
@@ -151,62 +122,6 @@ impl TypstWorld {
         }
 
         Ok(frame)
-    }
-
-    // Referenced from: https://github.com/typst/typst/blob/88325d7d019fd65c5177a92df4347ae9a287fc19/crates/typst/src/lib.rs#L106-L178
-    // TODO: This should be implemented upstreamed (or at least exposed as pub fn)
-    /// Compile [`Content`] into a [`Document`].
-    pub fn compile_content(&self, content: &Content) -> SourceResult<Document> {
-        let world: &dyn World = self;
-        let style_chain = StyleChain::new(&world.library().styles);
-
-        let mut document = Document::default();
-        let traced = Traced::default();
-        let mut sink = Sink::new();
-
-        let mut iter = 0;
-
-        // Relayout until all introspections stabilize.
-        // If that doesn't happen within five attempts, we give up.
-        loop {
-            // Clear delayed errors.
-            sink.delayed();
-
-            let constraint = <Introspector as Validate>::Constraint::new();
-
-            let mut engine = Engine {
-                world: world.track(),
-                introspector: document.introspector.track_with(&constraint),
-                traced: traced.track(),
-                sink: sink.track_mut(),
-                route: Route::default(),
-            };
-
-            // Layout!
-            document = typst::layout::layout_document(&mut engine, content, style_chain)?;
-            document.introspector.rebuild(&document.pages);
-            iter += 1;
-
-            if document.introspector.validate(&constraint) {
-                break;
-            }
-
-            if iter >= 5 {
-                sink.warn(warning!(
-                    Span::detached(), "layout did not converge within 5 attempts";
-                    hint: "check if any states or queries are updating themselves"
-                ));
-                break;
-            }
-        }
-
-        // Promote delayed errors.
-        let delayed = sink.delayed();
-        if !delayed.is_empty() {
-            return Err(delayed);
-        }
-
-        Ok(document)
     }
 }
 
@@ -284,15 +199,6 @@ impl FileSlot {
         }
     }
 
-    /// Create a new path slot with source data.
-    fn new_with_source(source: Source) -> Self {
-        Self {
-            id: source.id(),
-            source: SlotCell::new_with_data(source),
-            file: SlotCell::new(),
-        }
-    }
-
     /// Retrieve the source for this file.
     fn source(&mut self, project_root: &Path) -> FileResult<Source> {
         self.source.get_or_init(
@@ -338,15 +244,6 @@ impl<T: Clone> SlotCell<T> {
         }
     }
 
-    /// Creates a new cell with data.
-    fn new_with_data(data: T) -> Self {
-        Self {
-            data: Some(Ok(data)),
-            fingerprint: 0,
-            accessed: true,
-        }
-    }
-
     /// Gets the contents of the cell or initialize them.
     fn get_or_init(
         &mut self,
@@ -384,16 +281,15 @@ impl<T: Clone> SlotCell<T> {
 fn system_path(project_root: &Path, id: FileId) -> FileResult<PathBuf> {
     // Determine the root path relative to which the file path
     // will be resolved.
-    let buf;
-    let mut root = project_root;
-    if let Some(spec) = id.package() {
-        buf = package::prepare_package(spec)?;
-        root = &buf;
+    if id.package().is_some() {
+        return Err(FileError::Package(typst::diag::PackageError::Other(Some("Package (online) imports is not supported, please download manually and reference them via file paths.".into()))));
     }
 
     // Join the path to the root. If it tries to escape, deny
     // access. Note: It can still escape via symlinks.
-    id.vpath().resolve(root).ok_or(FileError::AccessDenied)
+    id.vpath()
+        .resolve(project_root)
+        .ok_or(FileError::AccessDenied)
 }
 
 /// Read a file.

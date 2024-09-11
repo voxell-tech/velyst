@@ -1,4 +1,4 @@
-#import "monokai_pro.typ": *
+#import "styles/monokai_pro.typ": *
 
 #set page(
   width: auto,
@@ -51,8 +51,6 @@
             #emoji.triangle.r 4152 Live Now
           ],
         )
-
-        // #linebreak()
 
         #set text(size: 16pt, fill: red.transparentize(40%))
         #button(lbl: <btn:exit-game>)[= Exit Game]

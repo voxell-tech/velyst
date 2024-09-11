@@ -236,9 +236,9 @@ impl TypstScene {
 
 #[derive(Default)]
 pub struct TypstGroupScene {
-    pub group: TypstGroup,
-    pub scene: vello::Scene,
-    pub updated: bool,
+    group: TypstGroup,
+    scene: vello::Scene,
+    updated: bool,
 }
 
 impl TypstGroupScene {
@@ -258,11 +258,11 @@ impl std::fmt::Debug for TypstGroupScene {
 
 #[derive(Default, Debug)]
 pub struct TypstGroup {
-    pub size: kurbo::Vec2,
-    pub transform: kurbo::Affine,
-    pub scenes: Vec<SceneKind>,
-    pub parent: Option<usize>,
-    pub clip_path: Option<kurbo::BezPath>,
+    size: kurbo::Vec2,
+    transform: kurbo::Affine,
+    scenes: Vec<SceneKind>,
+    parent: Option<usize>,
+    clip_path: Option<kurbo::BezPath>,
     label: Option<Label>,
 }
 
@@ -284,6 +284,22 @@ impl TypstGroup {
         }
 
         scene
+    }
+
+    pub fn size(&self) -> kurbo::Vec2 {
+        self.size
+    }
+
+    pub fn transform(&self) -> kurbo::Affine {
+        self.transform
+    }
+
+    pub fn parent(&self) -> Option<usize> {
+        self.parent
+    }
+
+    pub fn clip_path(&self) -> Option<&kurbo::BezPath> {
+        self.clip_path.as_ref()
     }
 
     pub fn label(&self) -> Option<Label> {

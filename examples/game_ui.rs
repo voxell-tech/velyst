@@ -29,7 +29,7 @@ struct GameUi;
 
 impl TypstPath for GameUi {
     fn path() -> &'static str {
-        "game_ui.typ"
+        "typst/game_ui.typ"
     }
 }
 
@@ -64,16 +64,15 @@ fn main_func_interactions(
         } else {
             main_func.btn_highlight.clear();
         }
-
-        break;
     }
 }
 
-fn perf_metrics(mut commands: Commands, time: Res<Time>) {
+fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
     let fps = (1.0 / time.delta_seconds_f64() * 100.0).round() / 100.0;
     let elapsed_time = (time.elapsed_seconds_f64() * 100.0).round() / 100.0;
 
-    commands.insert_resource(PerfMetricsFunc { fps, elapsed_time });
+    perf_metrics.fps = fps;
+    perf_metrics.elapsed_time = elapsed_time;
 }
 
 #[derive(Resource, Default)]
@@ -90,7 +89,7 @@ impl TypstFunc for MainFunc {
     }
 
     fn content(&self, func: foundations::Func) -> Content {
-        context(func, |args| {
+        elem::context(func, |args| {
             args.push(self.width);
             args.push(self.height);
             args.push(self.perf_metrics.clone());
@@ -112,7 +111,7 @@ impl TypstFunc for PerfMetricsFunc {
     }
 
     fn content(&self, func: foundations::Func) -> Content {
-        context(func, |args| {
+        elem::context(func, |args| {
             args.push(self.fps);
             args.push(self.elapsed_time);
         })
