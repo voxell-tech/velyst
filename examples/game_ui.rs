@@ -25,14 +25,6 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-struct GameUi;
-
-impl TypstPath for GameUi {
-    fn path() -> &'static str {
-        "typst/game_ui.typ"
-    }
-}
-
 fn main_func_window(
     q_window: Query<Ref<Window>, (With<PrimaryWindow>, Changed<Window>)>,
     mut main_func: ResMut<MainFunc>,
@@ -57,14 +49,20 @@ fn main_func_metrics(
 fn main_func_interactions(
     q_interactions: Query<(&Interaction, &TypstLabel), Changed<Interaction>>,
     mut main_func: ResMut<MainFunc>,
+    time: Res<Time>,
 ) {
     for (interaction, label) in q_interactions.iter() {
         if *interaction == Interaction::Hovered {
             main_func.btn_highlight = label.as_str().to_owned();
+            main_func.animate = 0.0;
         } else {
             main_func.btn_highlight.clear();
         }
     }
+
+    // Clamp below 1.0
+    const SPEED: f64 = 8.0;
+    main_func.animate = f64::min(main_func.animate + time.delta_seconds_f64() * SPEED, 1.0);
 }
 
 fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
@@ -75,12 +73,21 @@ fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
     perf_metrics.elapsed_time = elapsed_time;
 }
 
+struct GameUi;
+
+impl TypstPath for GameUi {
+    fn path() -> &'static str {
+        "typst/game_ui.typ"
+    }
+}
+
 #[derive(Resource, Default)]
 pub struct MainFunc {
     width: f64,
     height: f64,
     perf_metrics: Content,
     btn_highlight: String,
+    animate: f64,
 }
 
 impl TypstFunc for MainFunc {
@@ -94,6 +101,7 @@ impl TypstFunc for MainFunc {
             args.push(self.height);
             args.push(self.perf_metrics.clone());
             args.push_named("btn_highlight", self.btn_highlight.clone());
+            args.push_named("animate", self.animate);
         })
         .pack()
     }

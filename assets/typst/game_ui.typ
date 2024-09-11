@@ -16,12 +16,18 @@
   height,
   perf_metrics,
   btn_highlight: "",
+  animate: 0.0,
 ) = {
   set text(fill: base8)
   show label(btn_highlight): body => [
-    #let text_fill = text.fill
-    #set text(fill: base0)
-    #box(fill: text_fill, radius: 10pt)[#body]
+    #let box_fill = text.fill.transparentize(((1.0 - animate) * 100%))
+    #set text(
+      fill: color.mix(
+        (text.fill, ((1.0 - animate) * 100%)),
+        (base0, animate * 100%),
+      ),
+    )
+    #box(fill: box_fill, radius: 10pt, outset: (animate * 6pt))[#body]
   ]
 
   let width = (width * 1pt)

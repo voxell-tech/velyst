@@ -356,6 +356,7 @@ pub struct TypstLabel(TypLabel);
 pub trait TypstFunc: Resource {
     fn func_name(&self) -> &str;
 
+    // TODO: Create macro to automatically generate the content function.
     fn content(&self, func: foundations::Func) -> Content;
 
     fn compile(&self, scope: &foundations::Scope) -> Content {
@@ -369,6 +370,7 @@ pub trait TypstFunc: Resource {
     }
 }
 
+// TODO: Create macro to easily set the path.
 pub trait TypstPath: Send + Sync + 'static {
     fn path() -> &'static str;
 }
