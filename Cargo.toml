@@ -6,25 +6,31 @@ members = ["crates/*", ]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/nixon-voxell/bevy_typst"
+repository = "https://github.com/voxell-tech/velyst"
 readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.14", default-features = false }
-bevy_vello_graphics = { version = "0.1.0", git = "https://github.com/voxell-tech/bevy_vello_graphics" }
+bevy = { version = "0.14.1", default-features = false }
+bevy_vello = "0.6.1"
+vello = "0.2.1"
+vello_svg = "0.3.1"
 # Typst dependencies
-typst = "0.11"
+typst = { git = "https://github.com/typst/typst", rev = "8501a655" }
+typst-assets = { version = "0.11", features = ["fonts"] }
 comemo = "0.4" # in sync with typst
 unicode-math-class = "0.1" # in sync with typst
+# Common dependencies
+ecow = { version = "0.2", features = ["serde"] }
+thiserror = "1"
 
 [workspace.lints.clippy]
 redundant_type_annotations = "warn"
 bool_comparison = "allow"
 
 [package]
-name = "bevy_typst"
-description = "Typst integration in Bevy."
+name = "velyst"
+description = "A Typst integration for Vello and Bevy."
 exclude = ["/assets/", "/.github/", "/examples/"]
 version.workspace = true
 edition.workspace = true
@@ -34,29 +40,22 @@ readme.workspace = true
 
 [dependencies]
 typst_element = { version = "0.1.0", path = "crates/typst_element" }
+typst_vello = { version = "0.1.0", path = "crates/typst_vello" }
 bevy = { workspace = true }
-bevy_vello = { version = "0.5", features = ["svg"] }
-bevy_vello_graphics = { workspace = true }
+bevy_vello = { workspace = true }
 typst = { workspace = true }
-typst-svg = "0.11"
-typst-assets = { version = "0.11", features = ["fonts"], optional = true }
+typst-assets = { workspace = true, optional = true }
 comemo = { workspace = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
-
-serde = "1"
-ureq = "2"
-dirs = "5"
-tar = "0.4"
-flate2 = "1"
-ecow = { version = "0.2", features = ["serde"] }
-env_proxy = "0.4"
-thiserror = "1"
+ecow = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
 default = ["embed-fonts"]
 embed-fonts = ["dep:typst-assets"]
-svg = []
-vello = []
+
+[dev-dependencies]
+bevy = { version = "0.14.1", features = ["file_watcher"] }
 
 [lints]
 workspace = true

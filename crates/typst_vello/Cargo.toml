@@ -7,6 +7,11 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
+typst = { workspace = true }
+vello = { workspace = true }
+vello_svg = { workspace = true }
+bevy_utils = "0.14.1"
+ttf-parser = "0.24.1"
 
 [lints]
 workspace = true

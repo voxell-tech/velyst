@@ -3,7 +3,13 @@ use typst::{
     foundations::{self, Content, IntoValue, Label, Packed},
     layout,
     loading::Readable,
-    math, model, symbols, text, visualize,
+    math,
+    model,
+    // realize::StyleVec,
+    symbols,
+    syntax::{Span, Spanned},
+    text,
+    visualize,
 };
 use unicode_math_class::MathClass;
 
@@ -45,16 +51,46 @@ macro_rules! sequence {
 }
 
 /// [foundations::ContextElem]
-pub fn context<T: IntoValue>(
+pub fn context(
     func: foundations::Func,
-    args: impl IntoIterator<Item = T>,
+    apply_args: impl Fn(&mut SpannedArgs),
 ) -> foundations::ContextElem {
-    let mut args = foundations::Args::new(func.span(), args);
-    foundations::ContextElem::new(func.with(&mut args))
+    let mut spanned_args = SpannedArgs::new(func.span());
+    apply_args(&mut spanned_args);
+    foundations::ContextElem::new(func.with(&mut spanned_args.args))
+}
+
+pub struct SpannedArgs {
+    span: Span,
+    args: foundations::Args,
+}
+
+impl SpannedArgs {
+    pub fn new(span: Span) -> Self {
+        Self {
+            span,
+            args: foundations::Args {
+                span,
+                items: [].into(),
+            },
+        }
+    }
+
+    pub fn push(&mut self, value: impl IntoValue) {
+        self.args.push(self.span, value.into_value());
+    }
+
+    pub fn push_named(&mut self, name: &str, value: impl IntoValue) {
+        self.args.items.push(foundations::Arg {
+            span: self.span,
+            name: Some(name.into()),
+            value: Spanned::new(value.into_value(), self.span),
+        })
+    }
 }
 
 // Layout
-fn_elem!(page, layout::PageElem);
+fn_elem_empty!(page, layout::PageElem);
 fn_elem_empty!(pagebreak, layout::PagebreakElem);
 fn_elem!(vertical, layout::VElem, layout::Spacing);
 fn_elem!(horizontal, layout::HElem, layout::Spacing);
@@ -74,7 +110,7 @@ fn_elem!(rotate, layout::RotateElem);
 fn_elem!(hide, layout::HideElem);
 
 // Model
-fn_elem!(doc, model::DocumentElem, Vec<Content>);
+fn_elem_empty!(doc, model::DocumentElem);
 fn_elem!(reference, model::RefElem, Label);
 fn_elem!(
     link,
@@ -97,7 +133,7 @@ fn_elem!(
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
-fn_elem!(par, model::ParElem, Vec<Content>);
+fn_elem!(par, model::ParElem, foundations::StyleVec);
 fn_elem!(table, model::TableElem, Vec<model::TableChild>);
 fn_elem!(terms, model::TermsElem, Vec<Packed<model::TermItem>>);
 fn_elem!(emph, model::EmphElem);
@@ -116,7 +152,7 @@ fn_elem!(highlight, text::HighlightElem);
 fn_elem!(raw, text::RawElem, text::RawContent);
 
 // Symbols
-pub fn symbol(c: char) -> symbols::Symbol {
+pub fn symbol(c: symbols::SymChar) -> symbols::Symbol {
     symbols::Symbol::single(c)
 }
 
@@ -170,18 +206,18 @@ fn_elem!(
 fn_elem!(path, visualize::PathElem, Vec<visualize::PathVertex>);
 
 /// [visualize::Paint::Solid]
-pub fn solid(color: visualize::Color) -> visualize::Paint {
-    visualize::Paint::Solid(color)
+pub fn solid(color: impl Into<visualize::Color>) -> visualize::Paint {
+    visualize::Paint::Solid(color.into())
 }
 
 /// [visualize::Paint::Gradient]
-pub fn gradient(gradient: visualize::Gradient) -> visualize::Paint {
-    visualize::Paint::Gradient(gradient)
+pub fn gradient(gradient: impl Into<visualize::Gradient>) -> visualize::Paint {
+    visualize::Paint::Gradient(gradient.into())
 }
 
 /// [visualize::Paint::Pattern]
-pub fn pattern(pattern: visualize::Pattern) -> visualize::Paint {
-    visualize::Paint::Pattern(pattern)
+pub fn pattern(pattern: impl Into<visualize::Pattern>) -> visualize::Paint {
+    visualize::Paint::Pattern(pattern.into())
 }
 
 /// [visualize::Stroke]
