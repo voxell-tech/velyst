@@ -134,6 +134,7 @@ fn layout_typst_content<F: TypstFunc>(
     world: Res<TypstWorldRef>,
     mut scene: ResMut<VelystScene<F>>,
 ) {
+    // TODO: Optimize this system (currently the bottleneck).
     match world.layout_frame(&content) {
         Ok(frame) => {
             let new_scene = TypstScene::from_frame(&frame);
@@ -175,17 +176,19 @@ fn render_velyst_scene<F: TypstFunc>(
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
     mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex)>,
-    mut typst_scene: ResMut<VelystScene<F>>,
+    mut scene: ResMut<VelystScene<F>>,
 ) {
-    let Some(root_entity) = typst_scene.entity else {
+    let scene = scene.bypass_change_detection();
+
+    let Some(root_entity) = scene.entity else {
         return;
     };
 
-    typst_scene.reset_cached_entities_to_unused();
-    let mut computed_transforms = Vec::with_capacity(typst_scene.groups_len());
+    scene.reset_cached_entities_to_unused();
+    let mut computed_transforms = Vec::with_capacity(scene.groups_len());
 
-    for i in 0..typst_scene.groups_len() {
-        let group = typst_scene.get_group(i);
+    for i in 0..scene.groups_len() {
+        let group = scene.get_group(i);
 
         // Calculate accumulated transform from the group hierarchy.
         let transform = match group.parent() {
@@ -211,7 +214,7 @@ fn construct_interaction_tree<F: TypstFunc>(
         let height = Val::Px(group.size().y as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
-        if let Some((mut style, mut transform, mut z_index)) = typst_scene
+        if let Some((mut style, mut transform, mut z_index)) = scene
             .cached_entities
             .get_mut(&label)
             .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
@@ -251,12 +254,12 @@ fn construct_interaction_tree<F: TypstFunc>(
                 .set_parent(root_entity)
                 .id();
 
-            match typst_scene.cached_entities.get_mut(&label) {
+            match scene.cached_entities.get_mut(&label) {
                 Some(entities) => {
                     entities.push((new_entity, true));
                 }
                 None => {
-                    typst_scene
+                    scene
                         .cached_entities
                         .insert(label, vec![(new_entity, true)]);
                 }
