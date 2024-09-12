@@ -82,8 +82,11 @@ impl TypstScene {
                 // Use the rendered group scene.
                 scene.append(&group_scene.scene, transform);
             } else {
+                let new_scene = group.render();
                 // Scene needs to be re-rendered if it's not updated.
-                scene.append(&group.render(), transform);
+                scene.append(&new_scene, transform);
+                // Update group scene to the newly rendered scene.
+                group_scene.scene = new_scene;
             }
 
             if pushed_clip {
