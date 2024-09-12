@@ -55,9 +55,9 @@ impl TypstPath for HelloWorld {
     }
 }
 
-// Main function in typst with their respective values.
+// `main` function in Typst with their respective values.
 // These values can be something else as long as they can be used to
-// evaluate the respective input parameters needed for the Typst function.
+// evaluate the respective input arguments needed for the function.
 #[derive(Resource, Default)]
 struct MainFunc {
     width: f64,
