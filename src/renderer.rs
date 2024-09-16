@@ -215,6 +215,7 @@ fn construct_interaction_tree<F: TypstFunc>(
         let height = Val::Px(group.size().y as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
+        // Reuse cached nodes when available, otherwise, spawn a new one.
         if let Some((mut style, mut transform, mut z_index, mut viz)) = scene
             .cached_entities
             .get_mut(&label)
@@ -270,6 +271,7 @@ fn construct_interaction_tree<F: TypstFunc>(
         }
     }
 
+    // Hide unused cached nodes
     for entities in scene.cached_entities.values() {
         for (entity, used) in entities {
             match *used {
@@ -373,6 +375,7 @@ pub struct TypstLabel(TypLabel);
 pub trait TypstFunc: Resource {
     fn func_name(&self) -> &str;
 
+    // TODO: Create macro to automatically generate the render layers function.
     fn render_layers(&self) -> RenderLayers {
         RenderLayers::layer(0)
     }
