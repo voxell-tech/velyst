@@ -176,7 +176,7 @@ fn render_velyst_scene<F: TypstFunc>(
 /// Construct the interaction tree using bevy ui nodes.
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
-    mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex)>,
+    mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex, &mut Visibility)>,
     mut scene: ResMut<VelystScene<F>>,
 ) {
     let scene = scene.bypass_change_detection();
@@ -215,7 +215,7 @@ fn construct_interaction_tree<F: TypstFunc>(
         let height = Val::Px(group.size().y as f32);
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
-        if let Some((mut style, mut transform, mut z_index)) = scene
+        if let Some((mut style, mut transform, mut z_index, mut viz)) = scene
             .cached_entities
             .get_mut(&label)
             .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
@@ -233,6 +233,8 @@ fn construct_interaction_tree<F: TypstFunc>(
             transform.scale = scale;
             // ZIndex
             *z_index = ZIndex::Local(i as i32);
+            // Visibility
+            *viz = Visibility::Inherited;
         } else {
             let new_entity = commands
                 .spawn((
@@ -263,6 +265,17 @@ fn construct_interaction_tree<F: TypstFunc>(
                     scene
                         .cached_entities
                         .insert(label, vec![(new_entity, true)]);
+                }
+            }
+        }
+    }
+
+    for entities in scene.cached_entities.values() {
+        for (entity, used) in entities {
+            match *used {
+                true => continue,
+                false => {
+                    commands.entity(*entity).insert(Visibility::Hidden);
                 }
             }
         }
