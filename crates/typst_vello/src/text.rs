@@ -1,4 +1,3 @@
-use bevy_utils::default;
 use ttf_parser::{GlyphId, OutlineBuilder};
 use typst::{
     layout::{Abs, Ratio, Transform},
@@ -86,7 +85,7 @@ pub fn render_text(
             style: convert_fixed_stroke(stroke),
             brush: convert_paint_to_brush(&stroke.paint, state.size),
         }),
-        ..default()
+        ..Default::default()
     };
 
     let scale = text.size.to_pt() / text.font.units_per_em();
