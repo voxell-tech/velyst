@@ -26,7 +26,7 @@ fn setup(mut commands: Commands) {
 }
 
 fn main_func(
-    q_window: Query<Ref<Window>, (With<PrimaryWindow>, Changed<Window>)>,
+    q_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
     mut main_func: ResMut<MainFunc>,
     time: Res<Time>,
 ) {

@@ -29,7 +29,6 @@
       #polygon(
         fill: blue.transparentize(94%),
         stroke: blue,
-        // closed: true,
         (0%, 0%),
         (0%, (calc.sin(animate) * wave_height) + -50%),
         (10%, (calc.sin(animate + PI * 0.1) * wave_height) + -50%),
@@ -50,7 +49,6 @@
       #polygon(
         fill: red.transparentize(94%),
         stroke: red,
-        // closed: true,
         (0%, 0%),
         (0%, (calc.cos(animate) * wave_height) + -50%),
         (10%, (calc.cos(animate + PI * 0.1) * wave_height) + -50%),
