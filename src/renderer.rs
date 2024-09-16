@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{prelude::*, typst_element::prelude::*};
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
 use bevy_vello::prelude::*;
 use typst_vello::TypstScene;
 
@@ -149,6 +149,7 @@ fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
     mut q_scenes: Query<(&mut VelloScene, &mut Style)>,
     mut scene: ResMut<VelystScene<F>>,
+    func: Res<F>,
 ) {
     let scene = scene.bypass_change_detection();
 
@@ -166,7 +167,7 @@ fn render_velyst_scene<F: TypstFunc>(
                     coordinate_space: CoordinateSpace::ScreenSpace,
                     ..default()
                 })
-                .insert(NodeBundle::default())
+                .insert((NodeBundle::default(), func.render_layers()))
                 .id(),
         );
     }
@@ -358,6 +359,10 @@ pub struct TypstLabel(TypLabel);
 
 pub trait TypstFunc: Resource {
     fn func_name(&self) -> &str;
+
+    fn render_layers(&self) -> RenderLayers {
+        RenderLayers::layer(0)
+    }
 
     // TODO: Create macro to automatically generate the content function.
     fn content(&self, func: foundations::Func) -> Content;
