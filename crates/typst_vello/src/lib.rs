@@ -4,7 +4,7 @@
 
 pub use typst;
 
-use bevy_utils::HashMap;
+use ahash::AHashMap;
 use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
 use text::{render_text, TextScene};
@@ -26,7 +26,7 @@ pub mod utils;
 pub struct TypstScene {
     size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
-    group_map: HashMap<Label, Vec<usize>>,
+    group_map: AHashMap<Label, Vec<usize>>,
 }
 
 impl TypstScene {
