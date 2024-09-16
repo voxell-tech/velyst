@@ -4,7 +4,7 @@
 
 pub use typst;
 
-use bevy_utils::{default, HashMap};
+use bevy_utils::HashMap;
 use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
 use text::{render_text, TextScene};
@@ -32,9 +32,15 @@ pub struct TypstScene {
 impl TypstScene {
     pub fn from_frame(frame: &Frame) -> Self {
         let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
-        let mut typst_scene = TypstScene { size, ..default() };
+        let mut typst_scene = TypstScene {
+            size,
+            ..Default::default()
+        };
 
-        let group_paths = TypstGroup { size, ..default() };
+        let group_paths = TypstGroup {
+            size,
+            ..Default::default()
+        };
         typst_scene.append_group(group_paths);
         typst_scene.handle_frame(
             frame,
@@ -167,7 +173,7 @@ impl TypstScene {
             parent,
             clip_path: group.clip_path.as_ref().map(convert_path),
             label: group.label,
-            ..default()
+            ..Default::default()
         };
 
         // Update state based on group frame.
@@ -246,7 +252,10 @@ pub struct TypstGroupScene {
 
 impl TypstGroupScene {
     pub fn new(group: TypstGroup) -> Self {
-        Self { group, ..default() }
+        Self {
+            group,
+            ..Default::default()
+        }
     }
 }
 
@@ -275,7 +284,7 @@ impl TypstGroup {
         Self {
             scenes: vec![scene],
             parent,
-            ..default()
+            ..Default::default()
         }
     }
 

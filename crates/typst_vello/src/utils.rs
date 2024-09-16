@@ -1,6 +1,5 @@
 use std::f32::consts::TAU;
 
-use bevy_utils::default;
 use typst::{
     layout::{Quadrant, Size, Transform},
     visualize as viz,
@@ -27,7 +26,7 @@ pub fn convert_fixed_stroke(stroke: &viz::FixedStroke) -> kurbo::Stroke {
         miter_limit,
         start_cap: cap,
         end_cap: cap,
-        ..default()
+        ..Default::default()
     };
 
     if let Some(dash) = &stroke.dash {
