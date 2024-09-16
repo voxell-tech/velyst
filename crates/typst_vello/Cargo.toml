@@ -10,7 +10,7 @@ readme.workspace = true
 typst = { workspace = true }
 vello = { workspace = true }
 vello_svg = { workspace = true }
-bevy_utils = "0.14.1"
+ahash = "0.8.11"
 ttf-parser = "0.24.1"
 
 [lints]

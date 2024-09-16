@@ -5048,7 +5048,7 @@ dependencies = [
 name = "typst_vello"
 version = "0.1.0"
 dependencies = [
- "bevy_utils",
+ "ahash",
  "ttf-parser 0.24.1",
  "typst",
  "vello",
