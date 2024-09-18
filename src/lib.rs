@@ -13,7 +13,7 @@ pub mod prelude {
     pub use crate::asset::TypstAsset;
     pub use crate::renderer::{
         TypstAssetHandle, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath,
-        VelystCommandExt, VelystScene, VelystSet,
+        VelystAppExt, VelystScene, VelystSet,
     };
     pub use crate::world::{TypstWorld, TypstWorldRef};
 }
