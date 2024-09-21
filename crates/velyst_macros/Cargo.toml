@@ -1,0 +1,23 @@
+[package]
+name = "velyst_macros"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = "0.20.10"
+quote = "1.0.37"
+syn = "2.0.77"
+
+[lints]
+workspace = true
+
+# Needed for tests
+[dev-dependencies]
+bevy.workspace = true
+velyst = { path = "../.." }

@@ -16,6 +16,7 @@ pub mod prelude {
         VelystCommandExt, VelystScene, VelystSet,
     };
     pub use crate::world::{TypstWorld, TypstWorldRef};
+    pub use velyst_macros::{TypstFunc, TypstPath};
 }
 
 pub mod asset;
