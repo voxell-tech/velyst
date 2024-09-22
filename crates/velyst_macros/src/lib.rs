@@ -1,6 +1,6 @@
 use darling::{
     ast::Data,
-    util::{Flag, Ignored},
+    util::{Ignored, Override},
     Error, FromDeriveInput, FromField,
 };
 use proc_macro::TokenStream;
@@ -80,7 +80,21 @@ struct TypstFuncArgs {
 #[darling(attributes(typst_func))]
 struct TypstFuncField {
     ident: Option<Ident>,
-    named: Flag,
+    named: Option<Override<String>>,
+}
+
+impl TypstFuncField {
+    fn named(self) -> Option<darling::Result<String>> {
+        self.named.map(|ov| {
+            ov.explicit().map(Ok).unwrap_or_else(|| {
+                self.ident
+                    .map(|i| i.to_string())
+                    .ok_or(darling::Error::custom(
+                        "#[typst_func(named)] without a value is only supported on named fields",
+                    ))
+            })
+        })
+    }
 }
 
 /// Macro for deriving `TypstFunc`.
@@ -96,6 +110,8 @@ struct TypstFuncField {
 ///     height: f64,
 ///     #[typst_func(named)] // use as a named argument
 ///     animate: f64,
+///     #[typst_func(named = "bar")] // use as a named argument with the name "bar"
+///     foo: f64,
 /// }
 /// ```
 #[proc_macro_derive(TypstFunc, attributes(typst_func))]
@@ -121,24 +137,19 @@ pub fn derive_typst_func(input: TokenStream) -> TokenStream {
         .enumerate()
         .filter_map(|(i, field)| {
             errors.handle_in(|| {
-                Ok(if field.named.is_present() {
-                    let ident = field.ident.as_ref().ok_or(
-                        Error::custom("#[typst_func(named)] is only supported on named fields")
-                            .with_span(&field.ident.span()),
-                    )?;
+                let ident = field
+                    .ident
+                    .as_ref()
+                    .map(|f| f.to_token_stream())
+                    .unwrap_or(Index::from(i).to_token_stream());
 
-                    let name = ident.to_string();
+                Ok(if let Some(named) = field.named() {
+                    let name = named?;
 
                     quote! {
                         args.push_named(#name, self.#ident);
                     }
                 } else {
-                    let ident = field
-                        .ident
-                        .as_ref()
-                        .map(|f| f.to_token_stream())
-                        .unwrap_or(Index::from(i).to_token_stream());
-
                     quote! {
                         args.push(self.#ident);
                     }
