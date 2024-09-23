@@ -12,10 +12,10 @@ impl Plugin for VelystRendererPlugin {
         app.configure_sets(
             Update,
             (
-                VelystSet::Layout,
-                VelystSet::Render,
                 VelystSet::AssetLoading,
                 VelystSet::Compile,
+                VelystSet::Layout,
+                VelystSet::Render,
             )
                 .chain(),
         );
@@ -25,17 +25,17 @@ impl Plugin for VelystRendererPlugin {
 /// Velyst rendering pipeline.
 #[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum VelystSet {
-    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
-    Layout,
-    /// Render [`TypstScene`] into a [`VelloScene`].
-    Render,
     /// Loading and reloading of [`TypstAsset`].
     AssetLoading,
     /// Compile [`TypstFunc`] into a [`TypstContent`].
     Compile,
+    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
+    Layout,
+    /// Render [`TypstScene`] into a [`VelloScene`].
+    Render,
 }
 
-pub trait VelystCommandExt {
+pub trait VelystAppExt {
     /// Load [`TypstAsset`] using [`TypstPath::path()`] and detect changes made towards the asset.
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
 
@@ -46,7 +46,7 @@ pub trait VelystCommandExt {
     fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
 }
 
-impl VelystCommandExt for App {
+impl VelystAppExt for App {
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
         self.add_systems(
             PreStartup,
@@ -147,18 +147,23 @@ fn layout_typst_content<F: TypstFunc>(
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].
 fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
-    mut q_scenes: Query<(&mut VelloScene, &mut Style)>,
+    mut q_scenes: Query<(&mut VelloScene, &mut Style, &mut Visibility)>,
     mut scene: ResMut<VelystScene<F>>,
     func: Res<F>,
 ) {
     let scene = scene.bypass_change_detection();
 
-    if let Some((mut vello_scene, mut style)) = scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
+    if let Some((mut vello_scene, mut style, mut viz)) =
+        scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
     {
+        // Scene
         **vello_scene = scene.render();
         let size = scene.size();
+        // Style
         style.width = Val::Px(size.x as f32);
         style.height = Val::Px(size.y as f32);
+        // Visibility
+        *viz = scene.visibility;
     } else {
         scene.entity = Some(
             commands
@@ -167,7 +172,13 @@ fn render_velyst_scene<F: TypstFunc>(
                     coordinate_space: CoordinateSpace::ScreenSpace,
                     ..default()
                 })
-                .insert((NodeBundle::default(), func.render_layers()))
+                .insert((
+                    NodeBundle {
+                        visibility: scene.visibility,
+                        ..default()
+                    },
+                    func.render_layers(),
+                ))
                 .id(),
         );
     }
@@ -329,10 +340,12 @@ impl<F: TypstFunc> Default for TypstContent<F> {
 /// Storage of a [`TypstScene`] in a resource as well as
 /// caching the render and interaction entities.
 #[derive(Resource, Deref, DerefMut)]
-pub struct VelystScene<F> {
+pub struct VelystScene<F: TypstFunc> {
     #[deref]
     /// Underlying [`TypstScene`] data.
     scene: TypstScene,
+    /// Visibility of the scene.
+    pub visibility: Visibility,
     /// Entity that contains [`VelloSceneBundle`] for rendering the typst scene.
     entity: Option<Entity>,
     /// Cached entities mapped by [`TypLabel`].
@@ -343,18 +356,7 @@ pub struct VelystScene<F> {
     phantom: PhantomData<F>,
 }
 
-impl<F> Default for VelystScene<F> {
-    fn default() -> Self {
-        Self {
-            scene: default(),
-            entity: None,
-            cached_entities: default(),
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<F> VelystScene<F> {
+impl<F: TypstFunc> VelystScene<F> {
     pub fn new(scene: TypstScene) -> Self {
         Self { scene, ..default() }
     }
@@ -365,6 +367,18 @@ impl<F> VelystScene<F> {
             for (_, used) in entities.iter_mut() {
                 *used = false;
             }
+        }
+    }
+}
+
+impl<F: TypstFunc> Default for VelystScene<F> {
+    fn default() -> Self {
+        Self {
+            scene: default(),
+            visibility: Visibility::Inherited,
+            entity: None,
+            cached_entities: default(),
+            phantom: PhantomData,
         }
     }
 }
