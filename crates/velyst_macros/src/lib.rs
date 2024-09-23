@@ -5,7 +5,7 @@ use darling::{
 };
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident, Index};
+use syn::{parse_macro_input, DeriveInput, Ident, Index};
 
 #[derive(FromDeriveInput)]
 #[darling(forward_attrs(typst_path))]
@@ -57,7 +57,7 @@ pub fn derive_typst_path(input: TokenStream) -> TokenStream {
     };
 
     quote! {
-        impl velyst::renderer::TypstPath for #ident {
+        impl ::velyst::renderer::TypstPath for #ident {
             fn path() -> &'static str {
                 #path
             }
@@ -103,7 +103,7 @@ impl TypstFuncField {
 /// ```rust
 /// # use velyst_macros::TypstFunc;
 /// # use bevy::prelude::*;
-/// #[derive(Resource, TypstFunc)]
+/// #[derive(TypstFunc, Resource)]
 /// #[typst_func(name = "main", layer = 0)] // layer is optional
 /// struct MainFunc {
 ///     width: f64,
@@ -143,17 +143,21 @@ pub fn derive_typst_func(input: TokenStream) -> TokenStream {
                     .map(|f| f.to_token_stream())
                     .unwrap_or(Index::from(i).to_token_stream());
 
-                Ok(if let Some(named) = field.named() {
-                    let name = named?;
+                let field_token = match field.named() {
+                    Some(named) => {
+                        let name = named?;
+                        quote! {
+                            args.push_named(#name, self.#ident);
+                        }
+                    }
+                    None => {
+                        quote! {
+                            args.push(self.#ident);
+                        }
+                    }
+                };
 
-                    quote! {
-                        args.push_named(#name, self.#ident);
-                    }
-                } else {
-                    quote! {
-                        args.push(self.#ident);
-                    }
-                })
+                Ok(field_token)
             })
         })
         .collect::<Vec<_>>();
@@ -162,22 +166,28 @@ pub fn derive_typst_func(input: TokenStream) -> TokenStream {
         return e.write_errors().into();
     }
 
+    // velyst paths
+    let foundations = quote!(::velyst::typst::foundations);
+    let elem = quote!(::velyst::typst_element::elem);
+    // bevy paths
+    let view = quote!(::bevy::render::view);
+
     quote! {
-        impl velyst::renderer::TypstFunc for #ident {
+        impl ::velyst::renderer::TypstFunc for #ident {
             fn func_name(&self) -> &str {
                 #name
             }
 
-            fn content(&self, func: velyst::typst::foundations::Func) -> velyst::typst::foundations::Content {
-                velyst::typst::foundations::NativeElement::pack(
-                    velyst::typst_element::elem::context(func, |args| {
+            fn content(&self, func: #foundations::Func) -> #foundations::Content {
+                #foundations::NativeElement::pack(
+                    #elem::context(func, |args| {
                         #(#field_tokens)*
                     })
                 )
             }
 
-            fn render_layers(&self) -> bevy::render::view::RenderLayers {
-                bevy::render::view::RenderLayers::layer(#layer)
+            fn render_layers(&self) -> #view::RenderLayers {
+                #view::RenderLayers::layer(#layer)
             }
 
         }
