@@ -111,7 +111,7 @@ impl TypstFuncField {
 ///     #[typst_func(named)] // use as a named argument
 ///     animate: f64,
 ///     #[typst_func(named = "bar")] // use as a named argument with the name "bar"
-///     foo: f64,
+///     foo: String,
 /// }
 /// ```
 #[proc_macro_derive(TypstFunc, attributes(typst_func))]
@@ -147,14 +147,12 @@ pub fn derive_typst_func(input: TokenStream) -> TokenStream {
                     Some(named) => {
                         let name = named?;
                         quote! {
-                            args.push_named(#name, self.#ident);
+                            args.push_named(#name, self.#ident.clone());
                         }
                     }
-                    None => {
-                        quote! {
-                            args.push(self.#ident);
-                        }
-                    }
+                    None => quote! {
+                        args.push(self.#ident.clone());
+                    },
                 };
 
                 Ok(field_token)
