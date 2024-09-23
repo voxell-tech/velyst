@@ -46,39 +46,18 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-struct HelloWorld;
-
-// Path to the Typst file that you created.
-impl TypstPath for HelloWorld {
-    fn path() -> &'static str {
-        "typst/hello_world.typ"
-    }
-}
-
 // `main` function in Typst with their respective values.
-// These values can be something else as long as they can be used to
-// evaluate the respective input arguments needed for the function.
-#[derive(Resource, Default)]
+#[derive(TypstFunc, Resource, Default)]
+#[typst_func(name = "main")] // name of function in the Typst file
 struct MainFunc {
     width: f64,
     height: f64,
 }
 
-impl TypstFunc for MainFunc {
-    // Name of the function in the Typst file.
-    fn func_name(&self) -> &str {
-        "main"
-    }
-
-    // Create a ContextElem with the correct function arguments.
-    fn content(&self, func: foundations::Func) -> Content {
-        elem::context(func, |args| {
-            args.push(self.width);
-            args.push(self.height);
-        })
-        .pack()
-    }
-}
+// Path to the Typst file that you created.
+#[derive(TypstPath)]
+#[typst_path = "path/to/file.typ"]
+struct HelloWorld;
 ```
 
 ## Interactions
