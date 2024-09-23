@@ -49,6 +49,7 @@ comemo = { workspace = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
 ecow = { workspace = true }
 thiserror = { workspace = true }
+velyst_macros = { version = "0.1.0", path = "crates/velyst_macros" }
 
 [features]
 default = ["embed-fonts"]

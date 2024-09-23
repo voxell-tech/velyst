@@ -73,56 +73,25 @@ fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
     perf_metrics.elapsed_time = elapsed_time;
 }
 
-struct GameUi;
-
-impl TypstPath for GameUi {
-    fn path() -> &'static str {
-        "typst/game_ui.typ"
-    }
-}
-
-#[derive(Resource, Default)]
+#[derive(TypstFunc, Resource, Default)]
+#[typst_func(name = "main")]
 pub struct MainFunc {
     width: f64,
     height: f64,
     perf_metrics: Content,
+    #[typst_func(named)]
     btn_highlight: String,
+    #[typst_func(named)]
     animate: f64,
 }
 
-impl TypstFunc for MainFunc {
-    fn func_name(&self) -> &str {
-        "main"
-    }
-
-    fn content(&self, func: foundations::Func) -> Content {
-        elem::context(func, |args| {
-            args.push(self.width);
-            args.push(self.height);
-            args.push(self.perf_metrics.clone());
-            args.push_named("btn_highlight", self.btn_highlight.clone());
-            args.push_named("animate", self.animate);
-        })
-        .pack()
-    }
-}
-
-#[derive(Resource, Default)]
+#[derive(TypstFunc, Resource, Default)]
+#[typst_func(name = "perf_metrics")]
 pub struct PerfMetricsFunc {
     fps: f64,
     elapsed_time: f64,
 }
 
-impl TypstFunc for PerfMetricsFunc {
-    fn func_name(&self) -> &str {
-        "perf_metrics"
-    }
-
-    fn content(&self, func: foundations::Func) -> Content {
-        elem::context(func, |args| {
-            args.push(self.fps);
-            args.push(self.elapsed_time);
-        })
-        .pack()
-    }
-}
+#[derive(TypstPath)]
+#[typst_path = "typst/game_ui.typ"]
+struct GameUi;
