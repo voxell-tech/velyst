@@ -10,6 +10,7 @@ readme.workspace = true
 typst = { workspace = true }
 vello = { workspace = true }
 vello_svg = { workspace = true }
+smallvec = { workspace = true }
 ahash = "0.8.11"
 ttf-parser = "0.24.1"
 
