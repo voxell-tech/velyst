@@ -25,7 +25,7 @@ Then, in your `.rs` file, register your Typst asset file and function.
 ```rs
 use bevy::prelude::*;
 use bevy_vello::VelloPlugin;
-use velyst::{prelude::*, typst_element::prelude::*, VelystPlugin};
+use velyst::{prelude::*, VelystPlugin};
 
 fn main() {
     App::new()

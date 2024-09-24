@@ -11,7 +11,7 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.14.1", default-features = false }
+bevy = { version = "0.14.2", default-features = false }
 bevy_vello = "0.6.1"
 vello = "0.2.1"
 vello_svg = "0.3.1"
@@ -23,6 +23,7 @@ unicode-math-class = "0.1" # in sync with typst
 # Common dependencies
 ecow = { version = "0.2", features = ["serde"] }
 thiserror = "1"
+smallvec = "1"
 
 [workspace.lints.clippy]
 redundant_type_annotations = "warn"
@@ -52,6 +53,7 @@ comemo = { workspace = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
 ecow = { workspace = true }
 thiserror = { workspace = true }
+smallvec = { workspace = true }
 
 [features]
 default = ["embed-fonts"]
@@ -62,3 +64,11 @@ bevy = { version = "0.14.1", features = ["file_watcher"] }
 
 [lints]
 workspace = true
+
+# Enable a small amount of optimization in the dev profile.
+[profile.dev]
+opt-level = 1
+
+# Enable a large amount of optimization in the dev profile for dependencies.
+[profile.dev.package."*"]
+opt-level = 3
