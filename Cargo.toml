@@ -60,7 +60,7 @@ default = ["embed-fonts"]
 embed-fonts = ["dep:typst-assets"]
 
 [dev-dependencies]
-bevy = { version = "0.14.1", features = ["file_watcher"] }
+bevy = { workspace = true, features = ["file_watcher"] }
 
 [lints]
 workspace = true
