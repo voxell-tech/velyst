@@ -7,6 +7,7 @@ pub use typst;
 use ahash::AHashMap;
 use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
+use smallvec::SmallVec;
 use text::{render_text, TextScene};
 use typst::{
     foundations::Label,
@@ -26,7 +27,7 @@ pub mod utils;
 pub struct TypstScene {
     size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
-    group_map: AHashMap<Label, Vec<usize>>,
+    group_map: AHashMap<Label, SmallVec<[usize; 1]>>,
 }
 
 impl TypstScene {
@@ -198,7 +199,7 @@ impl TypstScene {
                     map.push(index);
                 }
                 None => {
-                    self.group_map.insert(label, vec![index]);
+                    self.group_map.insert(label, SmallVec::from_buf([index]));
                 }
             }
         }
@@ -207,7 +208,7 @@ impl TypstScene {
 }
 
 impl TypstScene {
-    pub fn query(&self, label: Label) -> Vec<usize> {
+    pub fn query(&self, label: Label) -> SmallVec<[usize; 1]> {
         self.group_map[&label].clone()
     }
 

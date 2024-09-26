@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use crate::{prelude::*, typst_element::prelude::*};
 use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
 use bevy_vello::prelude::*;
+use smallvec::SmallVec;
 use typst_vello::TypstScene;
 
 pub struct VelystRendererPlugin;
@@ -276,7 +277,7 @@ fn construct_interaction_tree<F: TypstFunc>(
                 None => {
                     scene
                         .cached_entities
-                        .insert(label, vec![(new_entity, true)]);
+                        .insert(label, SmallVec::from_buf([(new_entity, true)]));
                 }
             }
         }
@@ -352,7 +353,7 @@ pub struct VelystScene<F: TypstFunc> {
     ///
     /// - First element stores the cached entity itself.
     /// - Second element denotes whether it's used up or not.
-    cached_entities: HashMap<TypLabel, Vec<(Entity, bool)>>, // TODO: Use SmallVec
+    cached_entities: HashMap<TypLabel, SmallVec<[(Entity, bool); 1]>>, // TODO: Use SmallVec
     phantom: PhantomData<F>,
 }
 
