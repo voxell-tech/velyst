@@ -9,11 +9,10 @@ use image::{render_image, ImageScene};
 use shape::{convert_path, render_shape, ShapeScene};
 use smallvec::SmallVec;
 use text::{render_text, TextScene};
-use typst::{
-    foundations::Label,
-    layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
-};
+use typst::foundations::Label;
+use typst::layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform};
 use utils::convert_transform;
+use vello::kurbo::Shape;
 use vello::{kurbo, peniko};
 
 pub mod image;
@@ -21,13 +20,14 @@ pub mod shape;
 pub mod text;
 pub mod utils;
 
-/// Every group is layouted in a flat list.
+/// Every group is layouted in a flat Vec.
 /// Each group will have a parent index associated with it.
 #[derive(Default)]
 pub struct TypstScene {
     size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
     group_map: AHashMap<Label, SmallVec<[usize; 1]>>,
+    pub post_process_map: AHashMap<Label, PostProcess>,
 }
 
 impl TypstScene {
@@ -52,13 +52,39 @@ impl TypstScene {
         typst_scene
     }
 
+    pub fn update_frame(&mut self, frame: &Frame) {
+        let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
+
+        self.group_scenes.clear();
+        self.group_map.clear();
+        self.size = size;
+
+        let group_paths = TypstGroup {
+            size,
+            ..Default::default()
+        };
+        self.append_group(group_paths);
+        self.handle_frame(
+            frame,
+            RenderState::new(frame.size(), Transform::identity()),
+            0,
+        );
+    }
+
     /// Render [`TypstScene`] into a [`vello::Scene`].
     pub fn render(&mut self) -> vello::Scene {
         let mut scene = vello::Scene::new();
         let mut computed_transforms = Vec::with_capacity(self.group_scenes.len());
 
-        for group_scene in self.group_scenes.iter_mut() {
+        let mut layers = Vec::new();
+
+        for (i, group_scene) in self.group_scenes.iter_mut().enumerate() {
             let group = &mut group_scene.group;
+
+            let post_process = group
+                .label
+                .as_ref()
+                .and_then(|label| self.post_process_map.get(label));
 
             // Calculate accumulated transform from the group hierarchy.
             let transform = match group.parent {
@@ -68,41 +94,60 @@ impl TypstScene {
                     transform
                 }
                 None => {
-                    computed_transforms.push(group.transform);
-                    group.transform
+                    let transform = group.transform;
+                    computed_transforms.push(transform);
+                    transform
                 }
             };
             let transform = (transform != kurbo::Affine::IDENTITY).then_some(transform);
 
-            let mut pushed_clip = false;
-            if let Some(clip_path) = &group.clip_path {
-                scene.push_layer(
-                    peniko::BlendMode::new(peniko::Mix::Clip, peniko::Compose::SrcOver),
-                    1.0,
-                    group.transform,
-                    clip_path,
-                );
-                pushed_clip = true;
+            if let (Some(&last_layer), Some(parent_index)) = (layers.last(), group.parent) {
+                if last_layer > parent_index {
+                    scene.pop_layer();
+                    layers.pop();
+                }
             }
+
+            if let Some(layer) = post_process
+                .and_then(|p| p.layer.as_ref())
+                .or(group.layer())
+            {
+                scene.push_layer(
+                    layer.blend_mode,
+                    layer.alpha,
+                    transform.unwrap_or_default(),
+                    layer.clip_path.as_ref().unwrap_or(
+                        &kurbo::Rect::new(0.0, 0.0, group.size.x - 10.0, group.size.y).to_path(0.1),
+                    ),
+                );
+
+                layers.push(i);
+            }
+            print!("parent: {:?}, ", group.parent);
+            println!("layers: {}", layers.len());
 
             if group_scene.updated {
                 // Use the rendered group scene.
                 scene.append(&group_scene.scene, transform);
             } else {
-                let new_scene = group.render();
                 // Scene needs to be re-rendered if it's not updated.
+                let new_scene = group.render(&EmptySceneProcessor);
                 scene.append(&new_scene, transform);
                 // Update group scene to the newly rendered scene.
                 group_scene.scene = new_scene;
             }
 
-            if pushed_clip {
-                scene.pop_layer();
-            }
-
             // Flag the current group scene as updated.
             group_scene.updated = true;
         }
+
+        // Pop the last layer if there is any left.
+        if layers.len() > 0 {
+            scene.pop_layer();
+            layers.pop();
+        }
+
+        debug_assert!(layers.len() == 0);
 
         scene
     }
@@ -172,7 +217,10 @@ impl TypstScene {
             size: kurbo::Vec2::new(group.frame.size().x.to_pt(), group.frame.size().y.to_pt()),
             transform: convert_transform(local_transform.pre_concat(group.transform)),
             parent,
-            clip_path: group.clip_path.as_ref().map(convert_path),
+            layer: group.clip_path.as_ref().map(|path| Layer {
+                clip_path: Some(convert_path(path)),
+                ..Default::default()
+            }),
             label: group.label,
             ..Default::default()
         };
@@ -208,8 +256,8 @@ impl TypstScene {
 }
 
 impl TypstScene {
-    pub fn query(&self, label: Label) -> SmallVec<[usize; 1]> {
-        self.group_map[&label].clone()
+    pub fn query(&self, label: Label) -> Option<&[usize]> {
+        self.group_map.get(&label).map(|indices| indices.as_slice())
     }
 
     pub fn get_group(&mut self, index: usize) -> &TypstGroup {
@@ -260,22 +308,13 @@ impl TypstGroupScene {
     }
 }
 
-impl std::fmt::Debug for TypstGroupScene {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TypstGroupScene")
-            .field("group", &self.group)
-            .field("updated", &self.updated)
-            .finish()
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct TypstGroup {
     size: kurbo::Vec2,
     transform: kurbo::Affine,
     scenes: Vec<SceneKind>,
     parent: Option<usize>,
-    clip_path: Option<kurbo::BezPath>,
+    layer: Option<Layer>,
     label: Option<Label>,
 }
 
@@ -289,16 +328,19 @@ impl TypstGroup {
         }
     }
 
-    pub fn render(&self) -> vello::Scene {
-        let mut scene = vello::Scene::new();
+    pub fn render(&self, scene_processor: &impl SceneProcesser) -> vello::Scene {
+        let mut vello_scene = vello::Scene::new();
 
-        for shape in self.scenes.iter() {
-            shape.render(&mut scene);
+        for (i, scene) in self.scenes.iter().enumerate() {
+            vello_scene.append(&scene_processor.process_scene(i, scene), None);
         }
 
-        scene
+        vello_scene
     }
+}
 
+// Getters
+impl TypstGroup {
     pub fn size(&self) -> kurbo::Vec2 {
         self.size
     }
@@ -311,12 +353,74 @@ impl TypstGroup {
         self.parent
     }
 
-    pub fn clip_path(&self) -> Option<&kurbo::BezPath> {
-        self.clip_path.as_ref()
+    pub fn layer(&self) -> Option<&Layer> {
+        self.layer.as_ref()
     }
 
     pub fn label(&self) -> Option<Label> {
         self.label
+    }
+}
+
+pub struct PostProcess {
+    /// Transform override.
+    pub transform: Option<kurbo::Affine>,
+    /// Layer override.
+    pub layer: Option<Layer>,
+    /// Post process for scenes.
+    pub scene_processor: Box<dyn SceneProcesser>,
+}
+
+impl Default for PostProcess {
+    fn default() -> Self {
+        Self {
+            transform: None,
+            layer: None,
+            scene_processor: Box::new(EmptySceneProcessor),
+        }
+    }
+}
+
+impl std::fmt::Debug for PostProcess {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PostProcess")
+            .field("transform", &self.transform)
+            .field("layer", &self.layer)
+            .finish()
+    }
+}
+
+/// Render [`SceneKind`] as usual without any post processing.
+pub struct EmptySceneProcessor;
+
+impl SceneProcesser for EmptySceneProcessor {
+    fn process_scene(&self, _scene_index: usize, scene: &SceneKind) -> vello::Scene {
+        let mut vello_scene = vello::Scene::new();
+        scene.render(&mut vello_scene);
+
+        vello_scene
+    }
+}
+
+pub trait SceneProcesser: Send + Sync + 'static {
+    /// Process a scene.
+    fn process_scene(&self, scene_index: usize, scene: &SceneKind) -> vello::Scene;
+}
+
+#[derive(Debug, Clone)]
+pub struct Layer {
+    pub blend_mode: peniko::BlendMode,
+    pub alpha: f32,
+    pub clip_path: Option<kurbo::BezPath>,
+}
+
+impl Default for Layer {
+    fn default() -> Self {
+        Self {
+            blend_mode: peniko::BlendMode::default(),
+            alpha: 1.0,
+            clip_path: None,
+        }
     }
 }
 

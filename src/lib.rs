@@ -1,11 +1,10 @@
 pub use {typst, typst_element, typst_vello};
 
-use {
-    asset::TypstAssetPlugin,
-    renderer::VelystRendererPlugin,
-    std::{path::PathBuf, sync::Arc},
-    world::{TypstWorld, TypstWorldRef},
-};
+use std::{path::PathBuf, sync::Arc};
+
+use asset::TypstAssetPlugin;
+use renderer::VelystRendererPlugin;
+use world::{TypstWorld, TypstWorldRef};
 
 use bevy::prelude::*;
 

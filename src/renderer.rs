@@ -138,8 +138,7 @@ fn layout_typst_content<F: TypstFunc>(
     // TODO: Optimize this system (currently the bottleneck).
     match world.layout_frame(&content) {
         Ok(frame) => {
-            let new_scene = TypstScene::from_frame(&frame);
-            **scene = new_scene;
+            scene.update_frame(&frame);
         }
         Err(err) => error!("{err:#?}"),
     }
@@ -211,8 +210,9 @@ fn construct_interaction_tree<F: TypstFunc>(
                 transform
             }
             None => {
-                computed_transforms.push(group.transform());
-                group.transform()
+                let transform = group.transform();
+                computed_transforms.push(transform);
+                transform
             }
         };
 
@@ -375,7 +375,7 @@ impl<F: TypstFunc> VelystScene<F> {
 impl<F: TypstFunc> Default for VelystScene<F> {
     fn default() -> Self {
         Self {
-            scene: default(),
+            scene: TypstScene::default(),
             visibility: Visibility::Inherited,
             entity: None,
             cached_entities: default(),

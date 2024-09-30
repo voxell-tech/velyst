@@ -14,9 +14,10 @@ readme = "README.md"
 bevy = { version = "0.14.2", default-features = false }
 bevy_vello = "0.6.1"
 vello = "0.2.1"
-vello_svg = "0.3.1"
+# vello_svg = "0.3.1"
+vello_svg = { git = "https://github.com/linebender/vello_svg", rev = "eb95f55"}
 # Typst dependencies
-typst = { git = "https://github.com/typst/typst", rev = "8501a655" }
+typst = { git = "https://github.com/typst/typst", rev = "0b151b8" }
 typst-assets = { version = "0.11", features = ["fonts"] }
 comemo = "0.4" # in sync with typst
 unicode-math-class = "0.1" # in sync with typst
