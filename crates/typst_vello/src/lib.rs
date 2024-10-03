@@ -117,14 +117,12 @@ impl TypstScene {
                     layer.alpha,
                     transform.unwrap_or_default(),
                     layer.clip_path.as_ref().unwrap_or(
-                        &kurbo::Rect::new(0.0, 0.0, group.size.x - 10.0, group.size.y).to_path(0.1),
+                        &kurbo::Rect::new(0.0, 0.0, group.size.x, group.size.y).to_path(0.1),
                     ),
                 );
 
                 layers.push(i);
             }
-            print!("parent: {:?}, ", group.parent);
-            println!("layers: {}", layers.len());
 
             if group_scene.updated {
                 // Use the rendered group scene.
@@ -417,7 +415,7 @@ pub struct Layer {
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            blend_mode: peniko::BlendMode::default(),
+            blend_mode: peniko::BlendMode::new(peniko::Mix::Normal, peniko::Compose::SrcOver),
             alpha: 1.0,
             clip_path: None,
         }
