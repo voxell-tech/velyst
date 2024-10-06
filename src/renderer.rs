@@ -400,7 +400,7 @@ pub trait TypstFunc: Resource {
         match scope.get_func(self.func_name()) {
             Ok(func) => self.content(func),
             Err(err) => {
-                warn!("{err:#?}");
+                error!("Compilation error on `{}`: {:#?}", self.func_name(), err);
                 Content::empty()
             }
         }
