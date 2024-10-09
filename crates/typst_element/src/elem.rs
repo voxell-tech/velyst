@@ -31,7 +31,7 @@ macro_rules! fn_elem {
     };
 
     ($fn_name:ident, $elem:ty) => {
-        fn_elem!($fn_name, $elem, body = ::typst::foundations::Content);
+        fn_elem!($fn_name, $elem, body = $crate::typst::foundations::Content);
     };
 
     ($fn_name:ident, $elem:ty, $in_elem:ty) => {
@@ -40,15 +40,7 @@ macro_rules! fn_elem {
 }
 
 // Foundations
-/// [foundations::SequenceElem]
-#[macro_export]
-macro_rules! sequence {
-    ($($native_elem:expr),*,) => {
-        ::typst::foundations::SequenceElem::new(vec![
-            $(::typst::foundations::Content::from($native_elem),)*
-        ])
-    };
-}
+fn_elem!(sequence, foundations::SequenceElem, Vec<Content>);
 
 /// [foundations::ContextElem]
 pub fn context(
