@@ -178,6 +178,7 @@ fn render_velyst_scene<F: TypstFunc>(
                         ..default()
                     },
                     func.render_layers(),
+                    VelystSceneTag::<F>::default(),
                 ))
                 .id(),
         );
@@ -335,6 +336,17 @@ impl<F: TypstFunc> TypstContent<F> {
 impl<F: TypstFunc> Default for TypstContent<F> {
     fn default() -> Self {
         Self(Content::default(), PhantomData)
+    }
+}
+
+/// A tag component for the entity that holds the [`VelloScene`]
+/// that is rendering the [`VelystScene<F>`].
+#[derive(Component, Debug)]
+pub struct VelystSceneTag<F: TypstFunc>(PhantomData<F>);
+
+impl<F: TypstFunc> Default for VelystSceneTag<F> {
+    fn default() -> Self {
+        Self(PhantomData)
     }
 }
 
