@@ -86,15 +86,18 @@ impl TypstScene {
                 .as_ref()
                 .and_then(|label| self.post_process_map.get(label));
 
+            let local_transform = post_process
+                .and_then(|p| p.transform)
+                .unwrap_or(group.transform);
             // Calculate accumulated transform from the group hierarchy.
             let transform = match group.parent {
                 Some(parent_index) => {
-                    let transform = computed_transforms[parent_index] * group.transform;
+                    let transform = computed_transforms[parent_index] * local_transform;
                     computed_transforms.push(transform);
                     transform
                 }
                 None => {
-                    let transform = group.transform;
+                    let transform = local_transform;
                     computed_transforms.push(transform);
                     transform
                 }
@@ -258,7 +261,7 @@ impl TypstScene {
         self.group_map.get(&label).map(|indices| indices.as_slice())
     }
 
-    pub fn get_group(&mut self, index: usize) -> &TypstGroup {
+    pub fn get_group(&self, index: usize) -> &TypstGroup {
         &self.group_scenes[index].group
     }
 
