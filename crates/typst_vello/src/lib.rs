@@ -32,7 +32,7 @@ pub struct TypstScene {
 
 impl TypstScene {
     pub fn from_frame(frame: &Frame) -> Self {
-        let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
+        let size = kurbo::Vec2::new(frame.width().to_pt(), frame.height().to_pt());
         let mut typst_scene = TypstScene {
             size,
             ..Default::default()
@@ -53,7 +53,7 @@ impl TypstScene {
     }
 
     pub fn update_frame(&mut self, frame: &Frame) {
-        let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
+        let size = kurbo::Vec2::new(frame.width().to_pt(), frame.height().to_pt());
 
         self.group_scenes.clear();
         self.group_map.clear();
@@ -215,7 +215,7 @@ impl TypstScene {
     ) {
         // Generate TypstGroup for the underlying frame.
         let group_paths = TypstGroup {
-            size: kurbo::Vec2::new(group.frame.size().x.to_pt(), group.frame.size().y.to_pt()),
+            size: kurbo::Vec2::new(group.frame.width().to_pt(), group.frame.height().to_pt()),
             transform: convert_transform(local_transform.pre_concat(group.transform)),
             parent,
             layer: group.clip_path.as_ref().map(|path| Layer {
