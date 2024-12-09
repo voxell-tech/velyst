@@ -1,13 +1,20 @@
 #import "styles/monokai_pro.typ": *
 
-#set page(
-  width: auto,
-  height: auto,
-  fill: black,
-  margin: 0pt,
-)
-
 #let PI = 3.142
+
+#let wave_gen(func, frequency, amplitude, time, resolution) = {
+  let result = ()
+  let inv_resolution = 1.0 / resolution
+
+  for i in range(0, resolution + 1) {
+    result.push((
+      100% * i * inv_resolution,
+      (func((time + PI * float(i) / resolution) * frequency) * amplitude) - 50%,
+    ))
+  }
+
+  return result
+}
 
 #let main(
   width,
@@ -17,6 +24,11 @@
   let width = (width * 1pt)
   let height = (height * 1pt)
 
+  let amplitude = 10%
+  let frequency = 1
+  let resolution = 20
+  let animate = animate * 2
+
   box(
     width: width,
     height: height,
@@ -24,43 +36,22 @@
     #set text(size: 48pt, fill: base7)
     #place(center, dy: 20%)[= Wave]
 
-    #let wave_height = 10%
     #place(center + bottom)[
       #polygon(
-        fill: blue.transparentize(94%),
+        fill: blue.transparentize(90%),
         stroke: blue,
         (0%, 0%),
-        (0%, (calc.sin(animate) * wave_height) + -50%),
-        (10%, (calc.sin(animate + PI * 0.1) * wave_height) + -50%),
-        (20%, (calc.sin(animate + PI * 0.2) * wave_height) + -50%),
-        (30%, (calc.sin(animate + PI * 0.3) * wave_height) + -50%),
-        (40%, (calc.sin(animate + PI * 0.4) * wave_height) + -50%),
-        (50%, (calc.sin(animate + PI * 0.5) * wave_height) + -50%),
-        (60%, (calc.sin(animate + PI * 0.6) * wave_height) + -50%),
-        (70%, (calc.sin(animate + PI * 0.7) * wave_height) + -50%),
-        (80%, (calc.sin(animate + PI * 0.8) * wave_height) + -50%),
-        (90%, (calc.sin(animate + PI * 0.9) * wave_height) + -50%),
-        (100%, (calc.sin(animate + PI) * wave_height) + -50%),
+        ..wave_gen(calc.sin, frequency, amplitude, animate, resolution),
         (100%, 0%),
       )
     ]
 
     #place(center + bottom)[
       #polygon(
-        fill: red.transparentize(94%),
+        fill: red.transparentize(90%),
         stroke: red,
         (0%, 0%),
-        (0%, (calc.cos(animate) * wave_height) + -50%),
-        (10%, (calc.cos(animate + PI * 0.1) * wave_height) + -50%),
-        (20%, (calc.cos(animate + PI * 0.2) * wave_height) + -50%),
-        (30%, (calc.cos(animate + PI * 0.3) * wave_height) + -50%),
-        (40%, (calc.cos(animate + PI * 0.4) * wave_height) + -50%),
-        (50%, (calc.cos(animate + PI * 0.5) * wave_height) + -50%),
-        (60%, (calc.cos(animate + PI * 0.6) * wave_height) + -50%),
-        (70%, (calc.cos(animate + PI * 0.7) * wave_height) + -50%),
-        (80%, (calc.cos(animate + PI * 0.8) * wave_height) + -50%),
-        (90%, (calc.cos(animate + PI * 0.9) * wave_height) + -50%),
-        (100%, (calc.cos(animate + PI) * wave_height) + -50%),
+        ..wave_gen(calc.cos, frequency, amplitude, animate, resolution),
         (100%, 0%),
       )
     ]

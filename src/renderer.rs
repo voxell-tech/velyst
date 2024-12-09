@@ -115,7 +115,7 @@ fn asset_change_detection<P: TypstPath>(
     }
 }
 
-/// System implementation for layouting [`TypstFunc`] into [`TypstContent`].
+/// System implementation for compiling [`TypstFunc`] into [`TypstContent`].
 fn compile_typst_func<P: TypstPath, F: TypstFunc>(
     context: TypstContext<P>,
     mut content: ResMut<TypstContent<F>>,
@@ -129,7 +129,7 @@ fn compile_typst_func<P: TypstPath, F: TypstFunc>(
     }
 }
 
-/// System implementation for layouting [`TypstFunc`] into [`VelystScene`].
+/// System implementation for layouting [`TypstContent`] into [`VelystScene`].
 fn layout_typst_content<F: TypstFunc>(
     content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
