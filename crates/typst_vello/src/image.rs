@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use typst::{
-    layout::{Size, Transform},
-    visualize as viz,
-};
+use typst::layout::{Size, Transform};
+use typst::visualize as viz;
 use vello::{kurbo, peniko};
 
 use crate::utils::convert_transform;

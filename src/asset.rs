@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use bevy::{
-    asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
-    prelude::*,
-};
+use bevy::asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
+use bevy::prelude::*;
 use ecow::EcoVec;
 use thiserror::Error;
-use typst::{diag::SourceDiagnostic, foundations::Module};
+use typst::diag::SourceDiagnostic;
+use typst::foundations::Module;
 
 use crate::world::TypstWorld;
 

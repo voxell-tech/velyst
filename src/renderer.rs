@@ -1,10 +1,14 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::*, typst_element::prelude::*};
-use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
+use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
+use bevy::utils::HashMap;
 use bevy_vello::prelude::*;
 use smallvec::SmallVec;
 use typst_vello::TypstScene;
+
+use crate::prelude::*;
+use crate::typst_element::prelude::*;
 
 pub struct VelystRendererPlugin;
 

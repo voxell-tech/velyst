@@ -87,7 +87,7 @@ impl TypstScene {
                 .and_then(|label| self.post_process_map.get(label));
 
             let local_transform = post_process
-                .and_then(|p| p.transform)
+                .map(|p| group.transform * p.transform.unwrap_or_default())
                 .unwrap_or(group.transform);
             // Calculate accumulated transform from the group hierarchy.
             let transform = match group.parent {

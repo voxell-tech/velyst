@@ -1,8 +1,6 @@
-use darling::{
-    ast::Data,
-    util::{Ignored, Override},
-    Error, FromDeriveInput, FromField,
-};
+use darling::ast::Data;
+use darling::util::{Ignored, Override};
+use darling::{Error, FromDeriveInput, FromField};
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput, Ident, Index};

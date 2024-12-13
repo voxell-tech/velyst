@@ -1,15 +1,11 @@
 use ttf_parser::{GlyphId, OutlineBuilder};
-use typst::{
-    layout::{Abs, Ratio, Transform},
-    text::{Font, TextItem},
-    visualize as viz,
-};
+use typst::layout::{Abs, Ratio, Transform};
+use typst::text::{Font, TextItem};
+use typst::visualize as viz;
 use vello::{kurbo, peniko};
 
-use crate::{
-    utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform},
-    RenderState,
-};
+use crate::utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform};
+use crate::RenderState;
 
 #[derive(Default, Debug, Clone)]
 pub struct TextScene {

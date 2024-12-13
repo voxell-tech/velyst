@@ -1,16 +1,8 @@
-use typst::{
-    diag::EcoString,
-    foundations::{self, Content, IntoValue, Label, Packed},
-    layout,
-    loading::Readable,
-    math,
-    model,
-    // realize::StyleVec,
-    symbols,
-    syntax::{Span, Spanned},
-    text,
-    visualize,
-};
+use typst::diag::EcoString;
+use typst::foundations::{self, Content, IntoValue, Label, Packed};
+use typst::loading::Readable;
+use typst::syntax::{Span, Spanned};
+use typst::{layout, math, model, symbols, text, visualize};
 use unicode_math_class::MathClass;
 
 macro_rules! fn_elem_empty {

@@ -1,14 +1,12 @@
 use paste::paste;
-use typst::{
-    diag::HintedString,
-    foundations::{
-        Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module,
-        Plugin, Scope, Smart, Str, Styles, Type, Version,
-    },
-    layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel},
-    symbols::Symbol,
-    visualize::{Color, Gradient, Pattern},
+use typst::diag::HintedString;
+use typst::foundations::{
+    Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module, Plugin,
+    Scope, Smart, Str, Styles, Type, Version,
 };
+use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel};
+use typst::symbols::Symbol;
+use typst::visualize::{Color, Gradient, Pattern};
 
 pub trait UnitExt: Sized {
     fn length(self) -> Length;

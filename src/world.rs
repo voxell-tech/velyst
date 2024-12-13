@@ -1,23 +1,20 @@
-use std::{
-    fs, mem,
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
-};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::{fs, mem};
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
+use bevy::utils::HashMap;
 use chrono::{DateTime, Datelike, Local};
 use comemo::{Track, Validate};
-use typst::{
-    diag::{FileError, FileResult, SourceResult},
-    engine::{Engine, Route, Sink, Traced},
-    foundations::{Bytes, Content, Datetime, Module, StyleChain},
-    introspection::Introspector,
-    layout::{Abs, Axes, Frame, Region},
-    syntax::{FileId, Source, VirtualPath},
-    text::{Font, FontBook},
-    utils::LazyHash,
-    Library, World,
-};
+use typst::diag::{FileError, FileResult, SourceResult};
+use typst::engine::{Engine, Route, Sink, Traced};
+use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
+use typst::introspection::Introspector;
+use typst::layout::{Abs, Axes, Frame, Region};
+use typst::syntax::{FileId, Source, VirtualPath};
+use typst::text::{Font, FontBook};
+use typst::utils::LazyHash;
+use typst::{Library, World};
 
 use fonts::{FontSearcher, FontSlot};
 
