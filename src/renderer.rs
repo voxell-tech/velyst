@@ -6,6 +6,7 @@ use bevy::utils::HashMap;
 use bevy_vello::prelude::*;
 use smallvec::SmallVec;
 use typst_vello::TypstScene;
+use velyst_macros::all_tuples_with_indices;
 
 use crate::prelude::*;
 use crate::typst_element::prelude::*;
@@ -322,9 +323,7 @@ impl<P: TypstPath> TypstContext<'_, P> {
     }
 
     pub fn get_scope(&self) -> Option<&foundations::Scope> {
-        self.assets
-            .get(&**self.handle)
-            .map(|asset| asset.module().scope())
+        self.assets.get(&**self.handle).map(|asset| asset.scope())
     }
 }
 
@@ -426,3 +425,33 @@ pub trait TypstFunc: Resource {
 pub trait TypstPath: Send + Sync + 'static {
     fn path() -> &'static str;
 }
+
+// TODO:
+// 1. Retained
+// 2. Component based
+// 3. Hot reloadable
+
+#[derive(Component)]
+pub struct _TypstFunc<T: TypstArgs> {
+    pub name: &'static str,
+    pub params: T,
+    pub asset: Handle<TypstAsset>,
+}
+
+pub trait TypstArgs {
+    fn apply(&self, args: &mut elem::SpannedArgs);
+}
+
+macro_rules! impl_typst_args {
+    ({ $($N: tt),* }, $($T:ident),*) => {
+        impl<$($T: ::typst::foundations::IntoValue + Clone),*> TypstArgs for ($($T,)*) {
+            fn apply(&self, args: &mut ::typst_element::elem::SpannedArgs) {
+                $(
+                    args.push(self.$N.clone());
+                )*
+            }
+        }
+    };
+}
+
+all_tuples_with_indices!(impl_typst_args, 1, 20, T);

@@ -18,14 +18,8 @@ impl Plugin for TypstAssetPlugin {
     }
 }
 
-#[derive(Asset, TypePath)]
+#[derive(Asset, TypePath, Deref)]
 pub struct TypstAsset(Module);
-
-impl TypstAsset {
-    pub fn module(&self) -> &Module {
-        &self.0
-    }
-}
 
 pub struct TypstAssetLoader(Arc<TypstWorld>);
 
