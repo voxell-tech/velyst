@@ -10,12 +10,14 @@ use bevy::prelude::*;
 
 pub mod prelude {
     pub use crate::asset::TypstAsset;
-    pub use crate::renderer::{
-        TypstAssetHandle, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath,
-        VelystAppExt, VelystScene, VelystSceneTag, VelystSet,
-    };
+    // pub use crate::renderer::{
+    //     TypstAssetHandle, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath,
+    //     VelystAppExt, VelystScene, VelystSceneTag, VelystSet,
+    // };
+    pub use crate::renderer::{TypstFunc, VelystScene};
+    pub use crate::typst_params;
     pub use crate::world::{TypstWorld, TypstWorldRef};
-    pub use velyst_macros::{TypstFunc, TypstPath};
+    // pub use velyst_macros::{TypstFunc, TypstPath};
 }
 
 pub mod asset;
