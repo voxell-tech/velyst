@@ -50,7 +50,7 @@ pub struct TypstWorld {
 impl TypstWorld {
     pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> Self {
         let mut searcher = FontSearcher::default();
-        searcher.search(font_paths);
+        searcher.search(font_paths.iter().map(|path| root.join(path)));
 
         Self {
             root,

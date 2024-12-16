@@ -40,16 +40,18 @@ impl FontSlot {
 
 impl FontSearcher {
     /// Search everything that is available.
-    pub fn search(&mut self, font_paths: &[PathBuf]) {
+    pub fn search(&mut self, font_paths: impl Iterator<Item = PathBuf>) {
         let mut db = Database::new();
 
+        // TODO: Load using asset server or support wasm builds.
         // Font paths have highest priority.
         for path in font_paths {
             db.load_fonts_dir(path);
         }
 
+        // TODO: Remove system fonts
         // System fonts have second priority.
-        db.load_system_fonts();
+        // db.load_system_fonts();
 
         for face in db.faces() {
             let path = match &face.source {
