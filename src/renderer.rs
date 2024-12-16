@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::utils::HashMap;
 use bevy_vello::prelude::*;
+use foundations::IntoValue;
 use smallvec::SmallVec;
 use typst_vello::TypstScene;
 use velyst_macros::all_tuples_with_indices;
@@ -427,31 +428,89 @@ pub trait TypstPath: Send + Sync + 'static {
 }
 
 // TODO:
-// 1. Retained
-// 2. Component based
+// 1. Retained -> DONE
+// 2. Component based -> DONE
 // 3. Hot reloadable
 
-#[derive(Component)]
-pub struct _TypstFunc<T: TypstArgs> {
-    pub name: &'static str,
-    pub params: T,
-    pub asset: Handle<TypstAsset>,
-}
-
-pub trait TypstArgs {
-    fn apply(&self, args: &mut elem::SpannedArgs);
-}
-
-macro_rules! impl_typst_args {
-    ({ $($N: tt),* }, $($T:ident),*) => {
-        impl<$($T: ::typst::foundations::IntoValue + Clone),*> TypstArgs for ($($T,)*) {
-            fn apply(&self, args: &mut ::typst_element::elem::SpannedArgs) {
-                $(
-                    args.push(self.$N.clone());
-                )*
-            }
-        }
+#[macro_export]
+macro_rules! typst_params {
+    ($($param: expr),*) => {
+        vec![$(::typst::foundations::IntoValue::into_value($param)),*]
     };
 }
 
-all_tuples_with_indices!(impl_typst_args, 1, 20, T);
+fn test() {
+    let func = _TypstFunc {
+        name: "func_name",
+        params: typst_params!(0.0, 1.0, 3, 214, "asd", "asd"),
+        asset: Handle::default(),
+    };
+}
+
+fn compile_typst_funcs(
+    mut commands: Commands,
+    world: Res<TypstWorldRef>,
+    q_funcs: Query<(&_TypstFunc, Entity), Changed<_TypstFunc>>,
+    assets: Res<Assets<TypstAsset>>,
+) {
+    for (func, entity) in q_funcs.iter() {
+        let Some(asset) = assets.get(&func.asset) else {
+            continue;
+        };
+
+        let content = func.compile(asset);
+        let Ok(frame) = world.layout_frame(&content) else {
+            continue;
+        };
+
+        let scene = TypstScene::from_frame(&frame).render();
+        commands.entity(entity).insert(VelloScene::from(scene));
+    }
+}
+
+#[derive(Component)]
+pub struct _TypstFunc {
+    pub name: &'static str,
+    pub params: Vec<foundations::Value>,
+    pub asset: Handle<TypstAsset>,
+}
+
+impl _TypstFunc {
+    #[must_use]
+    pub fn compile(&self, asset: &TypstAsset) -> Content {
+        let func = asset.scope().get_func_unchecked(&self.name);
+        elem::context(func, |args| {
+            for p in self.params.iter() {
+                args.push(p.clone());
+            }
+        })
+        .pack()
+    }
+}
+
+// #[derive(Deref, DerefMut)]
+// pub struct SingleParam<T: IntoValue + Clone>(T);
+
+// impl<T: IntoValue + Clone> TypstArgs for SingleParam<T> {
+//     fn apply(&self, args: &mut elem::SpannedArgs) {
+//         args.push(self.0.clone());
+//     }
+// }
+
+// pub trait TypstArgs {
+//     fn apply(&self, args: &mut elem::SpannedArgs);
+// }
+
+// macro_rules! impl_typst_args {
+//     ({ $($N: tt),* }, $($T:ident),*) => {
+//         impl<$($T: ::typst::foundations::IntoValue + Clone),*> TypstArgs for ($($T,)*) {
+//             fn apply(&self, args: &mut ::typst_element::elem::SpannedArgs) {
+//                 $(
+//                     args.push(self.$N.clone());
+//                 )*
+//             }
+//         }
+//     };
+// }
+
+// all_tuples_with_indices!(impl_typst_args, 1, 20, T);
