@@ -37,22 +37,47 @@ fn hot_reload(
 fn compile_typst_funcs(
     mut commands: Commands,
     world: Res<TypstWorldRef>,
-    q_funcs: Query<(&TypstFunc, Entity), Changed<TypstFunc>>,
+    q_funcs: Query<(&TypstFunc, Option<&Node>, Entity), Or<(Changed<TypstFunc>, Changed<Node>)>>,
     assets: Res<Assets<TypstAsset>>,
 ) {
-    for (func, entity) in q_funcs.iter() {
+    for (func, node, entity) in q_funcs.iter() {
         let Some(asset) = assets.get(&func.asset) else {
             continue;
         };
 
         let content = func.compile(asset);
-        let Ok(frame) = world.layout_frame(&content) else {
-            continue;
+        let frame = match node {
+            Some(node) => {
+                let size = node.size().as_dvec2();
+
+                world.layout_frame_with_region(
+                    &content,
+                    layout::Region::new(
+                        layout::Axes::new(Abs::pt(size.x), Abs::pt(size.y)),
+                        default(),
+                    ),
+                )
+            }
+            None => world.layout_frame(&content),
+        };
+
+        let frame = match frame {
+            Ok(frame) => frame,
+            Err(err) => {
+                error!("{err:#?}");
+                continue;
+            }
         };
 
         // TODO: Use update_frame instead?
         let scene = VelystScene(TypstScene::from_frame(&frame));
-        commands.entity(entity).insert(scene);
+        commands
+            .entity(entity)
+            .insert(scene)
+            .insert(match node.is_some() {
+                true => CoordinateSpace::ScreenSpace,
+                false => CoordinateSpace::WorldSpace,
+            });
     }
 }
 
@@ -96,7 +121,7 @@ impl TypstFunc {
 #[macro_export]
 macro_rules! typst_params {
     ($($param: expr),*) => {
-        vec![$(::typst::foundations::IntoValue::into_value($param)),*]
+        vec![$(::velyst::typst::foundations::IntoValue::into_value($param)),*]
     };
 }
 

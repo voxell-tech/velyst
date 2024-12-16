@@ -78,6 +78,17 @@ impl TypstWorld {
     }
 
     pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
+        self.layout_frame_with_region(
+            content,
+            Region::new(Axes::new(Abs::inf(), Abs::inf()), Axes::new(false, false)),
+        )
+    }
+
+    pub fn layout_frame_with_region(
+        &self,
+        content: &Content,
+        region: Region,
+    ) -> SourceResult<Frame> {
         let world: &dyn World = self;
         let styles = StyleChain::new(&world.library().styles);
 
@@ -103,13 +114,7 @@ impl TypstWorld {
             let locator = typst::introspection::Locator::root();
 
             // Layout!
-            typst::layout::layout_frame(
-                &mut engine,
-                content,
-                locator,
-                styles,
-                Region::new(Axes::new(Abs::inf(), Abs::inf()), Axes::new(false, false)),
-            )?
+            typst::layout::layout_frame(&mut engine, content, locator, styles, region)?
         };
 
         // Promote delayed errors.
