@@ -34,7 +34,10 @@
     height: height,
   )[
     #set text(size: 48pt, fill: base7)
-    #place(center, dy: 20%)[= Wave]
+    #place(
+      center,
+      dy: 20%,
+    )[#stack(dir: ltr, image("/images/health.svg"), [= Wave])]
 
     #place(center + bottom)[
       #polygon(
