@@ -146,6 +146,9 @@ fn layout_typst_content<F: TypstFunc>(
         }
         Err(err) => error!("{err:#?}"),
     }
+
+    // Clear cache regularly to prevent memory build ups.
+    comemo::evict(4);
 }
 
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].
@@ -323,7 +326,7 @@ impl<P: TypstPath> TypstContext<'_, P> {
 
     pub fn get_scope(&self) -> Option<&foundations::Scope> {
         self.assets
-            .get(&**self.handle)
+            .get(&self.handle.0)
             .map(|asset| asset.module().scope())
     }
 }
@@ -369,7 +372,7 @@ pub struct VelystScene<F: TypstFunc> {
     ///
     /// - First element stores the cached entity itself.
     /// - Second element denotes whether it's used up or not.
-    cached_entities: HashMap<TypLabel, SmallVec<[(Entity, bool); 1]>>, // TODO: Use SmallVec
+    cached_entities: HashMap<TypLabel, SmallVec<[(Entity, bool); 1]>>,
     phantom: PhantomData<F>,
 }
 
