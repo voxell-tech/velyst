@@ -8,8 +8,8 @@ readme.workspace = true
 
 [dependencies]
 typst = { workspace = true }
-vello = { workspace = true }
-vello_svg = { workspace = true }
+vello = "0.4.0"
+vello_svg = "0.6.0"
 smallvec = { workspace = true }
 ahash = "0.8.11"
 ttf-parser = "0.24.1"

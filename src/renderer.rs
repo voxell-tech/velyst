@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::*, typst_element::prelude::*};
-use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
+use crate::prelude::*;
+use crate::typst_element::prelude::*;
+use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
+use bevy::utils::HashMap;
 use bevy_vello::prelude::*;
 use smallvec::SmallVec;
 use typst_vello::TypstScene;
@@ -66,10 +69,10 @@ impl VelystAppExt for App {
                 .run_if(
                     // Asset and function needs to exists first.
                     resource_exists::<TypstAssetHandle<P>>
-                        .and_then(resource_exists::<F>)
-                        .and_then(
+                        .and(resource_exists::<F>)
+                        .and(
                             // Any changes to the asset or the function will cause a content recompilation.
-                            resource_changed::<TypstAssetHandle<P>>.or_else(resource_changed::<F>),
+                            resource_changed::<TypstAssetHandle<P>>.or(resource_changed::<F>),
                         ),
                 )
                 .in_set(VelystSet::Compile),
@@ -148,36 +151,30 @@ fn layout_typst_content<F: TypstFunc>(
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].
 fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
-    mut q_scenes: Query<(&mut VelloScene, &mut Style, &mut Visibility)>,
+    mut q_scenes: Query<(&mut VelloScene, &mut Node, &mut Visibility)>,
     mut scene: ResMut<VelystScene<F>>,
     func: Res<F>,
 ) {
     let scene = scene.bypass_change_detection();
 
-    if let Some((mut vello_scene, mut style, mut viz)) =
+    if let Some((mut vello_scene, mut node, mut viz)) =
         scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
     {
         // Scene
-        **vello_scene = scene.render();
+        **vello_scene = scene.render().into();
         let size = scene.size();
         // Style
-        style.width = Val::Px(size.x as f32);
-        style.height = Val::Px(size.y as f32);
+        node.width = Val::Px(size.x as f32);
+        node.height = Val::Px(size.y as f32);
         // Visibility
         *viz = scene.visibility;
     } else {
         scene.entity = Some(
             commands
-                .spawn(VelloSceneBundle {
-                    scene: scene.render().into(),
-                    coordinate_space: CoordinateSpace::ScreenSpace,
-                    ..default()
-                })
-                .insert((
-                    NodeBundle {
-                        visibility: scene.visibility,
-                        ..default()
-                    },
+                .spawn((
+                    VelloScene::from(scene.render()),
+                    Node::DEFAULT,
+                    scene.visibility,
                     func.render_layers(),
                 ))
                 .id(),
@@ -188,7 +185,7 @@ fn render_velyst_scene<F: TypstFunc>(
 /// Construct the interaction tree using bevy ui nodes.
 fn construct_interaction_tree<F: TypstFunc>(
     mut commands: Commands,
-    mut q_nodes: Query<(&mut Style, &mut Transform, &mut ZIndex, &mut Visibility)>,
+    mut q_nodes: Query<(&mut Node, &mut Transform, &mut ZIndex, &mut Visibility)>,
     mut scene: ResMut<VelystScene<F>>,
 ) {
     let scene = scene.bypass_change_detection();
@@ -228,7 +225,7 @@ fn construct_interaction_tree<F: TypstFunc>(
         let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
 
         // Reuse cached nodes when available, otherwise, spawn a new one.
-        if let Some((mut style, mut transform, mut z_index, mut viz)) = scene
+        if let Some((mut node, mut transform, mut z_index, mut viz)) = scene
             .cached_entities
             .get_mut(&label)
             .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
@@ -238,32 +235,29 @@ fn construct_interaction_tree<F: TypstFunc>(
             })
         {
             // Style
-            style.left = left;
-            style.top = top;
-            style.width = width;
-            style.height = height;
+            node.left = left;
+            node.top = top;
+            node.width = width;
+            node.height = height;
             // Scale
             transform.scale = scale;
             // ZIndex
-            *z_index = ZIndex::Local(i as i32);
+            *z_index = ZIndex(i as i32);
             // Visibility
             *viz = Visibility::Inherited;
         } else {
             let new_entity = commands
                 .spawn((
-                    NodeBundle {
-                        style: Style {
-                            position_type: PositionType::Absolute,
-                            left,
-                            top,
-                            width,
-                            height,
-                            ..default()
-                        },
-                        transform: Transform::from_scale(scale),
-                        z_index: ZIndex::Local(i as i32),
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left,
+                        top,
+                        width,
+                        height,
                         ..default()
                     },
+                    Transform::from_scale(scale),
+                    ZIndex(i as i32),
                     Interaction::default(),
                     TypstLabel(label),
                 ))

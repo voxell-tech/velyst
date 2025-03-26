@@ -1,14 +1,12 @@
 use paste::paste;
-use typst::{
-    diag::HintedString,
-    foundations::{
-        Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module,
-        Plugin, Scope, Smart, Str, Styles, Type, Version,
-    },
-    layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel},
-    symbols::Symbol,
-    visualize::{Color, Gradient, Pattern},
+use typst::diag::HintedString;
+use typst::foundations::Symbol;
+use typst::foundations::{
+    Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module, Scope,
+    Smart, Str, Styles, Type, Version,
 };
+use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel};
+use typst::visualize::{Color, Gradient, Tiling};
 
 pub trait UnitExt: Sized {
     fn length(self) -> Length;
@@ -88,7 +86,7 @@ pub trait ScopeExt {
         (get_fraction, Fr),
         (get_color, Color),
         (get_gradient, Gradient),
-        (get_pattern, Pattern),
+        (get_tiling, Tiling),
         (get_symbol, Symbol),
         (get_version, Version),
         (get_str, Str),
@@ -104,13 +102,12 @@ pub trait ScopeExt {
         (get_args, Args),
         (get_type, Type),
         (get_module, Module),
-        (get_plugin, Plugin),
     );
 }
 
 impl ScopeExt for Scope {
     fn get_value_unchecked<T: FromValue>(&self, var: &str) -> T {
-        self.get(var).cloned().unwrap().cast::<T>().unwrap()
+        self.get(var).unwrap().read().clone().cast::<T>().unwrap()
     }
 
     fn get_value<T: FromValue>(&self, var: &str) -> Result<T, ScopeError> {
@@ -118,6 +115,7 @@ impl ScopeExt for Scope {
             .ok_or(ScopeError::VariableNotFound)
             .and_then(|value| {
                 value
+                    .read()
                     .clone()
                     .cast::<T>()
                     .map_err(ScopeError::ValueCastFailed)

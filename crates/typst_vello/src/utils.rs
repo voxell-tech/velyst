@@ -1,9 +1,7 @@
 use std::f32::consts::TAU;
 
-use typst::{
-    layout::{Quadrant, Size, Transform},
-    visualize as viz,
-};
+use typst::layout::{Quadrant, Size, Transform};
+use typst::visualize as viz;
 use vello::{kurbo, peniko};
 
 pub fn convert_fixed_stroke(stroke: &viz::FixedStroke) -> kurbo::Stroke {
@@ -48,7 +46,7 @@ pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
                 .iter()
                 .map(|(color, ratio)| peniko::ColorStop {
                     offset: ratio.get() as f32,
-                    color: convert_color(color),
+                    color: peniko::color::DynamicColor::from_alpha_color(convert_color(color)),
                 })
                 .collect::<Vec<_>>();
 
@@ -93,13 +91,13 @@ pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
             peniko::Brush::Gradient(gradient)
         }
         // TODO: Support pattern.
-        viz::Paint::Pattern(_) => peniko::Brush::Solid(peniko::Color::RED),
+        viz::Paint::Tiling(_) => peniko::Brush::Solid(peniko::Color::new([1.0, 0.0, 0.0, 0.0])),
     }
 }
 
 pub fn convert_color(color: &viz::Color) -> peniko::Color {
     let channels = color.to_rgb().to_vec4_u8();
-    peniko::Color::rgba8(channels[0], channels[1], channels[2], channels[3])
+    peniko::Color::from_rgba8(channels[0], channels[1], channels[2], channels[3])
 }
 
 pub fn convert_transform(transform: Transform) -> kurbo::Affine {

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use bevy::{
-    asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
-    prelude::*,
-};
+use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext, io::Reader};
+use bevy::prelude::*;
 use ecow::EcoVec;
 use thiserror::Error;
-use typst::{diag::SourceDiagnostic, foundations::Module};
+use typst::diag::SourceDiagnostic;
+use typst::foundations::Module;
 
 use crate::world::TypstWorld;
 
@@ -37,11 +36,11 @@ impl AssetLoader for TypstAssetLoader {
 
     type Error = TypstAssetLoaderError;
 
-    async fn load<'a>(
-        &'a self,
-        reader: &'a mut Reader<'_>,
-        _settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext<'_>,
+    async fn load(
+        &self,
+        reader: &mut dyn Reader,
+        _settings: &Self::Settings,
+        load_context: &mut LoadContext<'_>,
     ) -> Result<Self::Asset, Self::Error> {
         let mut text = String::new();
         reader.read_to_string(&mut text).await?;

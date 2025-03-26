@@ -1,11 +1,16 @@
-use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_vello::VelloPlugin;
-use velyst::{prelude::*, typst_element::prelude::*, VelystPlugin};
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+use bevy_vello::prelude::*;
+use velyst::prelude::*;
+use velyst::typst_element::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, VelloPlugin::default()))
-        .add_plugins(VelystPlugin::default())
+        .add_plugins((
+            DefaultPlugins,
+            bevy_vello::VelloPlugin::default(),
+            velyst::VelystPlugin::default(),
+        ))
         .register_typst_asset::<GameUi>()
         .compile_typst_func::<GameUi, MainFunc>()
         .compile_typst_func::<GameUi, PerfMetricsFunc>()
@@ -22,7 +27,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2d, VelloView));
 }
 
 fn main_func_window(
@@ -53,7 +58,7 @@ fn main_func_interactions(
 ) {
     for (interaction, label) in q_interactions.iter() {
         if *interaction == Interaction::Hovered {
-            main_func.btn_highlight = label.as_str().to_owned();
+            main_func.btn_highlight = label.resolve().to_string();
             main_func.animate = 0.0;
         } else {
             main_func.btn_highlight.clear();
@@ -62,12 +67,12 @@ fn main_func_interactions(
 
     // Clamp below 1.0
     const SPEED: f64 = 8.0;
-    main_func.animate = f64::min(main_func.animate + time.delta_seconds_f64() * SPEED, 1.0);
+    main_func.animate = f64::min(main_func.animate + time.delta_secs_f64() * SPEED, 1.0);
 }
 
 fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
-    let fps = (1.0 / time.delta_seconds_f64() * 100.0).round() / 100.0;
-    let elapsed_time = (time.elapsed_seconds_f64() * 100.0).round() / 100.0;
+    let fps = (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
+    let elapsed_time = (time.elapsed_secs_f64() * 100.0).round() / 100.0;
 
     perf_metrics.fps = fps;
     perf_metrics.elapsed_time = elapsed_time;

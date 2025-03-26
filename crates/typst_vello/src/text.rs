@@ -7,8 +7,8 @@ use typst::{
 use vello::{kurbo, peniko};
 
 use crate::{
-    utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform},
     RenderState,
+    utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform},
 };
 
 #[derive(Default, Debug, Clone)]
@@ -153,7 +153,7 @@ fn text_paint_transform(state: RenderState, paint: &viz::Paint) -> Transform {
             )
             .post_concat(state.transform.invert().unwrap()),
         },
-        viz::Paint::Pattern(pattern) => match pattern.unwrap_relative(true) {
+        viz::Paint::Tiling(tiling) => match tiling.unwrap_relative(true) {
             viz::RelativeTo::Self_ => Transform::identity(),
             viz::RelativeTo::Parent => state.transform.invert().unwrap(),
         },

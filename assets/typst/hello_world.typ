@@ -37,7 +37,7 @@
     #place(
       center,
       dy: 20%,
-    )[#stack(dir: ltr, image("/images/health.svg"), [= Wave])]
+    )[= Wave]
 
     #place(center + bottom)[
       #polygon(
