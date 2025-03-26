@@ -3,6 +3,7 @@ use std::sync::Arc;
 use typst::layout::{Size, Transform};
 use typst::visualize as viz;
 use vello::{kurbo, peniko};
+use vello_svg::usvg;
 
 use crate::utils::convert_transform;
 
@@ -21,6 +22,8 @@ impl ImageScene {
 pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) -> ImageScene {
     // Size cannot be 0.
     debug_assert!(size.all(|p| p.to_pt() != 0.0));
+
+    // TODO: The plan is to load it using bevy assets!
 
     match image.kind() {
         viz::ImageKind::Raster(raster) => {
@@ -51,9 +54,13 @@ pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) 
         viz::ImageKind::Svg(svg) => {
             let transform = convert_transform(local_transform)
                 .pre_scale_non_uniform(size.x.to_pt() / svg.width(), size.y.to_pt() / svg.height());
-            // TODO: Waiting for bevy_vello to support latest version of vello
-            // let scene = vello_svg::render_tree(svg.tree());
-            let scene = vello::Scene::new();
+
+            // FIXME: This is needed because the svg versions are different.
+            let scene =
+                match usvg::Tree::from_data(svg.data().as_slice(), &usvg::Options::default()) {
+                    Ok(tree) => vello_svg::render_tree(&tree),
+                    _ => vello::Scene::new(),
+                };
 
             ImageScene { transform, scene }
         }
