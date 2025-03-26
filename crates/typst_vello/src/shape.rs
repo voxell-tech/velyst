@@ -1,11 +1,9 @@
 use kurbo::Shape;
-use typst::{
-    layout::{Abs, Ratio, Size, Transform},
-    visualize as viz,
-};
+use typst::layout::{Abs, Ratio, Size, Transform};
+use typst::visualize as viz;
 use vello::{kurbo, peniko};
 
-use crate::{utils::*, RenderState};
+use crate::{RenderState, utils::*};
 
 #[derive(Default, Debug, Clone)]
 pub struct ShapeScene {
@@ -119,8 +117,8 @@ pub fn shape_paint_transform(
             )
             .post_concat(state.transform.invert().unwrap()),
         }
-    } else if let viz::Paint::Pattern(pattern) = paint {
-        match pattern.unwrap_relative(false) {
+    } else if let viz::Paint::Tiling(tiling) = paint {
+        match tiling.unwrap_relative(false) {
             viz::RelativeTo::Self_ => Transform::identity(),
             viz::RelativeTo::Parent => state.transform.invert().unwrap(),
         }
@@ -161,23 +159,23 @@ pub fn convert_geometry_to_path(geometry: &viz::Geometry) -> kurbo::BezPath {
                 .to_path(0.01)
         }
 
-        viz::Geometry::Path(p) => convert_path(p),
+        viz::Geometry::Curve(curve) => convert_curve(curve),
     }
 }
 
-pub fn convert_path(path: &viz::Path) -> kurbo::BezPath {
+pub fn convert_curve(path: &viz::Curve) -> kurbo::BezPath {
     let mut bezpath = kurbo::BezPath::new();
 
     for item in &path.0 {
         match item {
-            viz::PathItem::MoveTo(p) => bezpath.move_to((p.x.to_pt(), p.y.to_pt())),
-            viz::PathItem::LineTo(p) => bezpath.line_to((p.x.to_pt(), p.y.to_pt())),
-            viz::PathItem::CubicTo(p1, p2, p3) => bezpath.curve_to(
+            viz::CurveItem::Move(p) => bezpath.move_to((p.x.to_pt(), p.y.to_pt())),
+            viz::CurveItem::Line(p) => bezpath.line_to((p.x.to_pt(), p.y.to_pt())),
+            viz::CurveItem::Cubic(p1, p2, p3) => bezpath.curve_to(
                 (p1.x.to_pt(), p1.y.to_pt()),
                 (p2.x.to_pt(), p2.y.to_pt()),
                 (p3.x.to_pt(), p3.y.to_pt()),
             ),
-            viz::PathItem::ClosePath => bezpath.close_path(),
+            viz::CurveItem::Close => bezpath.close_path(),
         }
     }
     bezpath

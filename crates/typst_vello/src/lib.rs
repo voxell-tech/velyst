@@ -5,10 +5,10 @@
 pub use typst;
 
 use ahash::AHashMap;
-use image::{render_image, ImageScene};
-use shape::{convert_path, render_shape, ShapeScene};
+use image::{ImageScene, render_image};
+use shape::{ShapeScene, convert_curve, render_shape};
 use smallvec::SmallVec;
-use text::{render_text, TextScene};
+use text::{TextScene, render_text};
 use typst::{
     foundations::Label,
     layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
@@ -172,7 +172,7 @@ impl TypstScene {
             size: kurbo::Vec2::new(group.frame.size().x.to_pt(), group.frame.size().y.to_pt()),
             transform: convert_transform(local_transform.pre_concat(group.transform)),
             parent,
-            clip_path: group.clip_path.as_ref().map(convert_path),
+            clip_path: group.clip.as_ref().map(convert_curve),
             label: group.label,
             ..Default::default()
         };

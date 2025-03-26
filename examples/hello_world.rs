@@ -1,11 +1,15 @@
-use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_vello::VelloPlugin;
-use velyst::{prelude::*, VelystPlugin};
+use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+use bevy_vello::prelude::*;
+use velyst::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, VelloPlugin::default()))
-        .add_plugins(VelystPlugin::default())
+        .add_plugins((
+            DefaultPlugins,
+            velyst::VelystPlugin::default(),
+            bevy_vello::VelloPlugin::default(),
+        ))
         .register_typst_asset::<HelloWorld>()
         .compile_typst_func::<HelloWorld, MainFunc>()
         .render_typst_func::<MainFunc>()
@@ -16,13 +20,14 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        camera: Camera {
+    commands.spawn((
+        Camera2d,
+        Camera {
             clear_color: Color::BLACK.into(),
             ..default()
         },
-        ..default()
-    });
+        VelloView,
+    ));
 }
 
 fn main_func(
@@ -35,7 +40,7 @@ fn main_func(
         main_func.height = window.height() as f64;
     };
 
-    main_func.animate = time.elapsed_seconds_f64();
+    main_func.animate = time.elapsed_secs_f64();
 }
 
 #[derive(TypstFunc, Resource, Default)]
