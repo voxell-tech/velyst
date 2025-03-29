@@ -29,19 +29,12 @@ pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) 
         viz::ImageKind::Raster(raster) => {
             let mut scene = vello::Scene::new();
 
-            let rgba_image = raster.dynamic().to_rgba8();
-            let data = peniko::Blob::new(Arc::new(rgba_image.into_vec()));
-
-            let image = peniko::Image {
-                data,
-                format: peniko::ImageFormat::Rgba8,
-                width: raster.width(),
-                height: raster.height(),
-                x_extend: peniko::Extend::default(),
-                y_extend: peniko::Extend::default(),
-                quality: peniko::ImageQuality::default(),
-                alpha: 1.0,
-            };
+            let image = peniko::Image::new(
+                peniko::Blob::new(Arc::new(raster.dynamic().to_rgba8().into_vec())),
+                peniko::ImageFormat::Rgba8,
+                raster.width(),
+                raster.height(),
+            );
 
             scene.draw_image(&image, kurbo::Affine::IDENTITY);
             let (width, height) = (raster.width() as f64, raster.height() as f64);

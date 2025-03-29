@@ -63,6 +63,7 @@ embed-fonts = ["dep:typst-assets"]
 
 [dev-dependencies]
 bevy = { workspace = true, features = ["file_watcher"] }
+bevy_vello = { workspace = true, features = ["svg"] }
 
 [lints]
 workspace = true

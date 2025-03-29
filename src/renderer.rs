@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use crate::asset::SourceModules;
 use crate::prelude::*;
 use crate::typst_element::prelude::*;
 use bevy::prelude::*;
@@ -29,7 +30,7 @@ impl Plugin for VelystRendererPlugin {
 /// Velyst rendering pipeline.
 #[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum VelystSet {
-    /// Loading and reloading of [`TypstAsset`].
+    /// Loading and reloading of [`TypstSource`].
     AssetLoading,
     /// Compile [`TypstFunc`] into a [`TypstContent`].
     Compile,
@@ -40,7 +41,7 @@ pub enum VelystSet {
 }
 
 pub trait VelystAppExt {
-    /// Load [`TypstAsset`] using [`TypstPath::path()`] and detect changes made towards the asset.
+    /// Load [`TypstSource`] using [`TypstPath::path()`] and detect changes made towards the asset.
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
 
     /// Compile [`TypstFunc`] into [`TypstContent`].
@@ -102,7 +103,7 @@ fn load_typst_asset<P: TypstPath>(mut commands: Commands, asset_server: Res<Asse
 }
 
 fn asset_change_detection<P: TypstPath>(
-    mut asset_evr: EventReader<AssetEvent<TypstAsset>>,
+    mut asset_evr: EventReader<AssetEvent<TypstSource>>,
     mut typst_handle: ResMut<TypstAssetHandle<P>>,
 ) {
     for asset_evt in asset_evr.read() {
@@ -134,8 +135,8 @@ fn compile_typst_func<P: TypstPath, F: TypstFunc>(
 
 /// System implementation for layouting [`TypstContent`] into [`VelystScene`].
 fn layout_typst_content<F: TypstFunc>(
+    world: VelystWorld,
     content: Res<TypstContent<F>>,
-    world: Res<TypstWorldRef>,
     mut scene: ResMut<VelystScene<F>>,
 ) {
     // TODO: Optimize this system (currently the bottleneck).
@@ -146,6 +147,9 @@ fn layout_typst_content<F: TypstFunc>(
         }
         Err(err) => error!("{err:#?}"),
     }
+
+    // Clear cache regularly to prevent memory build ups.
+    typst::comemo::evict(4);
 }
 
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].
@@ -291,10 +295,16 @@ fn construct_interaction_tree<F: TypstFunc>(
 }
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstAsset>, PhantomData<P>);
+pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstSource>, PhantomData<P>);
+
+// impl From<Typst> for AssetId<TypstAsset> {
+//     fn from(value: Typst) -> Self {
+//         value.id()
+//     }
+// }
 
 impl<P: TypstPath> TypstAssetHandle<P> {
-    pub fn new(handle: Handle<TypstAsset>) -> Self {
+    pub fn new(handle: Handle<TypstSource>) -> Self {
         Self(handle, PhantomData)
     }
 }
@@ -302,18 +312,18 @@ impl<P: TypstPath> TypstAssetHandle<P> {
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct TypstContext<'w, P: TypstPath> {
     pub handle: Res<'w, TypstAssetHandle<P>>,
-    pub assets: Res<'w, Assets<TypstAsset>>,
+    pub modules: Res<'w, SourceModules>,
 }
 
 impl<P: TypstPath> TypstContext<'_, P> {
     pub fn is_loaded(&self) -> bool {
-        self.assets.contains(&**self.handle)
+        self.modules.contains_key(&self.handle.id())
     }
 
     pub fn get_scope(&self) -> Option<&foundations::Scope> {
-        self.assets
-            .get(&**self.handle)
-            .map(|asset| asset.module().scope())
+        self.modules
+            .get(&self.handle.id())
+            .map(|module| module.scope())
     }
 }
 
@@ -380,6 +390,12 @@ impl<F: TypstFunc> Default for VelystScene<F> {
 
 #[derive(Component, Deref, DerefMut)]
 pub struct TypstLabel(TypLabel);
+
+pub trait TypstFuncComp: TypstFunc + Component {}
+pub trait TypstFuncRes: TypstFunc + Resource {}
+
+impl<T: TypstFunc + Component> TypstFuncComp for T {}
+impl<T: TypstFunc + Resource> TypstFuncRes for T {}
 
 pub trait TypstFunc: Resource {
     fn func_name(&self) -> &str;

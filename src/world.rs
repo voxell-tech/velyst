@@ -1,84 +1,127 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Mutex;
+use std::time::Duration;
 use std::{fs, mem};
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy::time::common_conditions::on_timer;
 use bevy::utils::HashMap;
-use chrono::{DateTime, Datelike, Local};
+use chrono::{DateTime, Datelike, Local, Timelike};
 use comemo::{Track, Validate};
-use fonts::{FontSearcher, FontSlot};
-use typst::diag::{FileError, FileResult, SourceResult};
+use fonts::TypstFonts;
+use typst::Library;
+use typst::diag::{FileError, FileResult, PackageError, SourceResult};
 use typst::engine::{Engine, Route, Sink, Traced};
 use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
 use typst::introspection::Introspector;
 use typst::layout::{Abs, Axes, Frame, Region};
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst::{Library, World};
 
 pub mod fonts;
 
-/// Resource reference to the underlying [`TypstWorld`].
+pub struct VelystWorldPlugin;
+
+impl Plugin for VelystWorldPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<TypstRoot>()
+            .init_resource::<TypstLibrary>()
+            .init_resource::<TypstFonts>()
+            .init_resource::<TypstDateTime>()
+            .init_resource::<TypstFileSlots>();
+
+        app.add_systems(
+            Update,
+            // Date time only goes down to the second,
+            // so we don't need to update every frame.
+            update_date_time.run_if(on_timer(Duration::from_secs(1))),
+        );
+    }
+}
+
+/// Update [`TypstDateTime`].
+fn update_date_time(mut date_time: ResMut<TypstDateTime>) {
+    date_time.0 = chrono::Local::now();
+}
+
+/// The root folder of the Typst assets.
 #[derive(Resource, Deref, DerefMut)]
-pub struct TypstWorldRef(Arc<TypstWorld>);
+pub struct TypstRoot(PathBuf);
 
-impl TypstWorldRef {
-    pub fn new(world: Arc<TypstWorld>) -> Self {
-        Self(world)
+impl Default for TypstRoot {
+    fn default() -> Self {
+        let default_path = AssetPlugin::default().file_path;
+        let mut root_path = PathBuf::from(".");
+        root_path.push(default_path);
+
+        Self(root_path)
     }
 }
 
-/// World for compiling Typst's [`Content`].
-pub struct TypstWorld {
-    /// The root relative to which absolute paths are resolved.
-    root: PathBuf,
-    /// Typst's standard library.
-    library: LazyHash<Library>,
-    /// Metadata about discovered fonts.
-    book: LazyHash<FontBook>,
-    /// Locations of and storage for lazily loaded fonts.
-    fonts: Vec<FontSlot>,
-    /// Maps file ids to source files and buffers.
-    slots: Mutex<HashMap<FileId, FileSlot>>,
-    /// The current datetime if requested. This is stored here to ensure it is
-    /// always the same within one compilation. Reset between compilations.
-    now: OnceLock<DateTime<Local>>,
+/// Typst's standard library.
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct TypstLibrary(LazyHash<Library>);
+
+/// The current datetime if requested. This is stored here to ensure it is
+/// always the same within one frame. Reset between frames.
+#[derive(Resource, Deref, DerefMut)]
+pub struct TypstDateTime(DateTime<Local>);
+
+impl Default for TypstDateTime {
+    fn default() -> Self {
+        Self(chrono::Local::now())
+    }
 }
 
-impl TypstWorld {
-    pub fn new(root: PathBuf, font_paths: &[PathBuf]) -> Self {
-        let mut searcher = FontSearcher::default();
-        searcher.search(font_paths);
+/// Maps file ids to source files and buffers.
+pub type FileSlots = HashMap<FileId, FileSlot>;
 
-        Self {
-            root,
-            library: LazyHash::new(Library::default()),
-            book: LazyHash::new(searcher.book),
-            fonts: searcher.fonts,
-            slots: Mutex::new(HashMap::new()),
-            now: OnceLock::new(),
-        }
-    }
+/// A [`Mutex`] holder of [`FileSlots`].
+#[derive(Resource, Default, Deref, DerefMut)]
+pub struct TypstFileSlots(Mutex<FileSlots>);
 
-    pub fn eval_file(&self, path: &str, text: impl Into<String>) -> SourceResult<Module> {
-        let source = Source::new(FileId::new(None, VirtualPath::new(path)), text.into());
+#[derive(SystemParam)]
+pub struct VelystWorld<'w> {
+    pub root: Res<'w, TypstRoot>,
+    pub library: Res<'w, TypstLibrary>,
+    pub fonts: Res<'w, TypstFonts>,
+    pub date_time: Res<'w, TypstDateTime>,
+    pub file_slots: Res<'w, TypstFileSlots>,
+}
+
+impl VelystWorld<'_> {
+    pub fn eval_source(&self, source: &Source) -> SourceResult<Module> {
         // Typst world
-        let world: &dyn World = self;
+        let world: &dyn typst::World = self;
+        let mut sink = Sink::new();
 
         // Try to evaluate the source file into a module.
-        typst_eval::eval(
+        let module = typst_eval::eval(
             &typst::ROUTINES,
             world.track(),
             Traced::default().track(),
-            Sink::new().track_mut(),
+            sink.track_mut(),
             Route::default().track(),
-            &source,
-        )
+            source,
+        );
+
+        for warning in sink.warnings() {
+            warn!(
+                "Typst compilation warning:\nMessage: {:?}\nFile: {:?}\nTrace: {:?}\nHints: {:?}",
+                warning.message,
+                warning.span.id(),
+                warning.trace,
+                warning.hints.join("\n")
+            );
+        }
+
+        module
     }
 
     pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
-        let world: &dyn World = self;
+        let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
         let introspector = Introspector::default();
@@ -121,30 +164,28 @@ impl TypstWorld {
 
         Ok(frame)
     }
-}
 
-impl TypstWorld {
     /// Access the canonical slot for the given file id.
     fn slot<F, T>(&self, id: FileId, f: F) -> T
     where
         F: FnOnce(&mut FileSlot) -> T,
     {
-        let mut map = self.slots.lock().unwrap();
-        f(map.entry(id).or_insert_with(|| FileSlot::new(id)))
+        let mut file_slots = self.file_slots.lock().unwrap();
+        f(file_slots.entry(id).or_insert_with(|| FileSlot::new(id)))
     }
 }
 
-impl World for TypstWorld {
+impl typst::World for VelystWorld<'_> {
     fn library(&self) -> &LazyHash<Library> {
         &self.library
     }
 
     fn book(&self) -> &LazyHash<FontBook> {
-        &self.book
+        &self.fonts.book
     }
 
     fn main(&self) -> FileId {
-        unreachable!("There shouldn't be a main file.")
+        unreachable!()
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
@@ -156,21 +197,22 @@ impl World for TypstWorld {
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        self.fonts[index].get()
+        self.fonts.fonts[index].get()
     }
 
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = self.now.get_or_init(chrono::Local::now);
-
         let naive = match offset {
-            None => now.naive_local(),
-            Some(o) => now.naive_utc() + chrono::Duration::hours(o),
+            None => self.date_time.naive_local(),
+            Some(o) => self.date_time.naive_utc() + chrono::Duration::hours(o),
         };
 
-        Datetime::from_ymd(
+        Datetime::from_ymd_hms(
             naive.year(),
             naive.month().try_into().ok()?,
             naive.day().try_into().ok()?,
+            naive.hour().try_into().ok()?,
+            naive.minute().try_into().ok()?,
+            naive.second().try_into().ok()?,
         )
     }
 }
@@ -178,7 +220,7 @@ impl World for TypstWorld {
 /// Holds the processed data for a file ID.
 ///
 /// Both fields can be populated if the file is both imported and read().
-struct FileSlot {
+pub struct FileSlot {
     /// The slot's file id.
     id: FileId,
     /// The lazily loaded and incrementally updated source file.
@@ -220,6 +262,12 @@ impl FileSlot {
             |data, _| Ok(Bytes::new(data)),
         )
     }
+
+    /// Reset the accessed state of the file.
+    pub fn reset(&mut self) {
+        self.source.reset();
+        self.file.reset();
+    }
 }
 
 /// Lazily processes data for a file.
@@ -240,6 +288,11 @@ impl<T: Clone> SlotCell<T> {
             fingerprint: 0,
             accessed: false,
         }
+    }
+
+    /// Reset the accessed state of the file.
+    fn reset(&mut self) {
+        self.accessed = false;
     }
 
     /// Gets the contents of the cell or initialize them.
@@ -280,7 +333,11 @@ fn system_path(project_root: &Path, id: FileId) -> FileResult<PathBuf> {
     // Determine the root path relative to which the file path
     // will be resolved.
     if id.package().is_some() {
-        return Err(FileError::Package(typst::diag::PackageError::Other(Some("Package (online) imports is not supported, please download manually and reference them via file paths.".into()))));
+        const PACKAGE_ERROR: &str = "Package (online) imports is not supported, please download manually and reference them via file paths.";
+
+        return Err(FileError::Package(PackageError::Other(Some(
+            PACKAGE_ERROR.into(),
+        ))));
     }
 
     // Join the path to the root. If it tries to escape, deny

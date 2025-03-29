@@ -1,14 +1,15 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_vello::prelude::*;
+use typst_element::prelude::*;
 use velyst::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            velyst::VelystPlugin::default(),
             bevy_vello::VelloPlugin::default(),
+            velyst::VelystPlugin,
         ))
         .register_typst_asset::<HelloWorld>()
         .compile_typst_func::<HelloWorld, MainFunc>()
@@ -43,13 +44,28 @@ fn main_func(
     main_func.animate = time.elapsed_secs_f64();
 }
 
-#[derive(TypstFunc, Resource, Default)]
-#[typst_func(name = "main")]
+#[derive(Resource, Default)]
+// #[typst_func(name = "main")]
 struct MainFunc {
     width: f64,
     height: f64,
-    #[typst_func(named)]
+    // #[typst_func(named)]
     animate: f64,
+}
+
+impl TypstFunc for MainFunc {
+    fn func_name(&self) -> &str {
+        "main"
+    }
+
+    fn content(&self, func: foundations::Func) -> Content {
+        elem::context(func, |args| {
+            args.push(self.width);
+            args.push(self.height);
+            args.push_named("animate", self.animate);
+        })
+        .pack()
+    }
 }
 
 #[derive(TypstPath)]

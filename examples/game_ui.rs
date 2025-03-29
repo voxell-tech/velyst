@@ -9,7 +9,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             bevy_vello::VelloPlugin::default(),
-            velyst::VelystPlugin::default(),
+            velyst::VelystPlugin,
         ))
         .register_typst_asset::<GameUi>()
         .compile_typst_func::<GameUi, MainFunc>()
