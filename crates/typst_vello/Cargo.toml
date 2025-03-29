@@ -9,7 +9,8 @@ readme.workspace = true
 [dependencies]
 typst = { workspace = true }
 vello = "0.4.0"
-vello_svg = "0.6.0"
+# vello_svg = "0.6.0"
+vello_svg = { git = "https://github.com/nixon-voxell/vello_svg.git", rev = "0188267" }
 smallvec = { workspace = true }
 ahash = "0.8.11"
 ttf-parser = "0.24.1"

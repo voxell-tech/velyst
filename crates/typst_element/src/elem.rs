@@ -1,5 +1,5 @@
 use typst::diag::EcoString;
-use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, Packed};
+use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, OneOrMultiple, Packed};
 use typst::loading::DataSource;
 use typst::syntax::{Span, Spanned};
 use typst::{layout, math, model, text, visualize};
@@ -116,12 +116,11 @@ fn_elem!(figure, model::FigureElem);
 fn_elem!(footnote, model::FootnoteElem, model::FootnoteBody);
 fn_elem!(quote, model::QuoteElem);
 fn_elem!(cite, model::CiteElem, Label);
-// fn_elem!(
-//     bibliography,
-//     model::BibliographyElem,
-//     paths = model::BibliographyPaths,
-//     bibliography = model::Bibliography
-// );
+fn_elem!(
+    bibliography,
+    model::BibliographyElem,
+    bibliography = Derived<OneOrMultiple<DataSource>, model::Bibliography>
+);
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
