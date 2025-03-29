@@ -96,10 +96,8 @@ impl AssetLoader for TypstSourceLoader {
         reader.read_to_string(&mut text).await?;
 
         let path = load_context.asset_path().to_string();
-        // println!("loading: {}", path);
         let source = Source::new(FileId::new(None, VirtualPath::new(&path)), text);
 
-        println!("done loading: {}", path);
         Ok(TypstSource(source))
     }
 
