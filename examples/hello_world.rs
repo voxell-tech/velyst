@@ -1,7 +1,6 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy_vello::prelude::*;
-use typst_element::prelude::*;
+use foundations::IntoValue;
 use velyst::prelude::*;
 
 fn main() {
@@ -11,16 +10,12 @@ fn main() {
             bevy_vello::VelloPlugin::default(),
             velyst::VelystPlugin,
         ))
-        .register_typst_asset::<HelloWorld>()
-        .compile_typst_func::<HelloWorld, MainFunc>()
-        .render_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
-        .init_resource::<MainFunc>()
         .add_systems(Update, main_func)
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         Camera2d,
         Camera {
@@ -29,45 +24,24 @@ fn setup(mut commands: Commands) {
         },
         VelloView,
     ));
+
+    let handle = asset_server.load("typst/hello_world.typ");
+    commands.spawn((
+        VelystFunc {
+            handle,
+            name: "main",
+            positional_args: values!(0.0).to_vec(),
+            ..default()
+        },
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+    ));
 }
 
-fn main_func(
-    q_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
-    mut main_func: ResMut<MainFunc>,
-    time: Res<Time>,
-) {
-    if let Ok(window) = q_window.get_single() {
-        main_func.width = window.width() as f64;
-        main_func.height = window.height() as f64;
-    };
-
-    main_func.animate = time.elapsed_secs_f64();
+fn main_func(mut func: Query<&mut VelystFunc>, time: Res<Time>) {
+    let mut func = func.single_mut();
+    func.positional_args[0] = time.elapsed_secs_f64().into_value();
 }
-
-#[derive(Resource, Default)]
-// #[typst_func(name = "main")]
-struct MainFunc {
-    width: f64,
-    height: f64,
-    // #[typst_func(named)]
-    animate: f64,
-}
-
-impl TypstFunc for MainFunc {
-    fn func_name(&self) -> &str {
-        "main"
-    }
-
-    fn content(&self, func: foundations::Func) -> Content {
-        elem::context(func, |args| {
-            args.push(self.width);
-            args.push(self.height);
-            args.push_named("animate", self.animate);
-        })
-        .pack()
-    }
-}
-
-#[derive(TypstPath)]
-#[typst_path = "typst/hello_world.typ"]
-struct HelloWorld;

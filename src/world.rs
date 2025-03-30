@@ -11,11 +11,11 @@ use chrono::{DateTime, Datelike, Local, Timelike};
 use fonts::TypstFonts;
 use typst::Library;
 use typst::comemo::{Track, Validate};
-use typst::diag::{FileError, FileResult, PackageError, SourceResult};
+use typst::diag::{FileError, FileResult, PackageError, SourceDiagnostic};
 use typst::engine::{Engine, Route, Sink, Traced};
 use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
 use typst::introspection::Introspector;
-use typst::layout::{Abs, Axes, Frame, Region};
+use typst::layout::{Abs, Axes, Frame, Region, Size};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -92,7 +92,7 @@ pub struct VelystWorld<'w> {
 }
 
 impl VelystWorld<'_> {
-    pub fn eval_source(&self, source: &Source) -> SourceResult<Module> {
+    pub fn eval_source(&self, source: &Source) -> Option<Module> {
         // Typst world
         let world: &dyn typst::World = self;
         let mut sink = Sink::new();
@@ -107,20 +107,31 @@ impl VelystWorld<'_> {
             source,
         );
 
-        for warning in sink.warnings() {
-            warn!(
-                "Typst compilation warning:\nMessage: {:?}\nFile: {:?}\nTrace: {:?}\nHints: {:?}",
-                warning.message,
-                warning.span.id(),
-                warning.trace,
-                warning.hints.join("\n")
-            );
-        }
+        match module {
+            Ok(module) => {
+                for warning in sink.warnings() {
+                    log_diagnostic(warning);
+                }
 
-        module
+                Some(module)
+            }
+            Err(errors) => {
+                error!("Evaluation failed for {:?}!", source.id());
+                for error in errors {
+                    log_diagnostic(error);
+                }
+
+                None
+            }
+        }
     }
 
-    pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
+    pub fn layout_frame(&self, content: &Content, region: Option<Region>) -> Option<Frame> {
+        const INF_REGION: Region = Region {
+            size: Size::new(Abs::inf(), Abs::inf()),
+            expand: Axes::new(false, false),
+        };
+
         let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
@@ -152,17 +163,27 @@ impl VelystWorld<'_> {
                 content,
                 locator,
                 styles,
-                Region::new(Axes::new(Abs::inf(), Abs::inf()), Axes::new(false, false)),
-            )?
+                region.unwrap_or(INF_REGION),
+            )
         };
 
-        // Promote delayed errors.
-        let delayed = sink.delayed();
-        if !delayed.is_empty() {
-            return Err(delayed);
-        }
+        match frame {
+            Ok(frame) => {
+                for warning in sink.warnings() {
+                    log_diagnostic(warning);
+                }
 
-        Ok(frame)
+                Some(frame)
+            }
+            Err(errors) => {
+                error!("Layout failed!");
+                for error in errors {
+                    log_diagnostic(error);
+                }
+
+                None
+            }
+        }
     }
 
     /// Access the canonical slot for the given file id.
@@ -363,4 +384,20 @@ fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
     Ok(std::str::from_utf8(
         buf.strip_prefix(b"\xef\xbb\xbf").unwrap_or(buf),
     )?)
+}
+
+fn log_diagnostic(diagnostic: SourceDiagnostic) {
+    let mut log_msg = String::from("Typst compiler:\n");
+    log_msg.push_str(&diagnostic.message);
+    log_msg.push('\n');
+    log_msg.push_str(&format!("In file: {:?}", diagnostic.span.id()));
+    log_msg.push('\n');
+    log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
+    log_msg.push('\n');
+    log_msg.push_str(&format!("Hints: {}", diagnostic.hints.join("\n")));
+
+    match diagnostic.severity {
+        typst::diag::Severity::Error => error!(log_msg),
+        typst::diag::Severity::Warning => warn!(log_msg),
+    }
 }

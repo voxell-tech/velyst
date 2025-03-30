@@ -27,6 +27,7 @@ smallvec = "1"
 [workspace.lints.clippy]
 redundant_type_annotations = "warn"
 bool_comparison = "allow"
+type_complexity = "allow"
 
 [package]
 name = "velyst"

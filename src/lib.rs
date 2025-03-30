@@ -6,13 +6,10 @@ use world::VelystWorldPlugin;
 pub use {typst, typst_element, typst_vello};
 
 pub mod prelude {
-    pub use crate::asset::TypstSource;
-    pub use crate::renderer::{
-        TypstAssetHandle, TypstContent, TypstContext, TypstFunc, TypstLabel, TypstPath,
-        VelystAppExt, VelystScene, VelystSet,
-    };
+    pub use crate::asset::VelystSource;
+    pub use crate::renderer::{VelystFunc, VelystFuncReady, VelystScene, VelystSet};
     pub use crate::world::VelystWorld;
-    pub use velyst_macros::{TypstFunc, TypstPath};
+    pub use typst_element::prelude::*;
 }
 
 pub mod asset;

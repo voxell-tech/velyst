@@ -1,28 +1,39 @@
-use std::marker::PhantomData;
-
-use crate::asset::SourceModules;
-use crate::prelude::*;
-use crate::typst_element::prelude::*;
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
-use bevy::utils::HashMap;
+use bevy::ui::UiSystem;
 use bevy_vello::prelude::*;
-use smallvec::SmallVec;
+use typst::foundations::{Content, NativeElement, Value};
+use typst::layout::{Abs, Axes, Region, Size};
+use typst_element::elem::FuncCall;
+use typst_element::prelude::ScopeExt;
 use typst_vello::TypstScene;
+
+use crate::asset::{VelystModules, VelystSource};
+use crate::world::VelystWorld;
 
 pub struct VelystRendererPlugin;
 
 impl Plugin for VelystRendererPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            Update,
+            PostUpdate,
             (
-                VelystSet::AssetLoading,
-                VelystSet::Compile,
-                VelystSet::Layout,
+                VelystSet::PreLayout,
+                VelystSet::Layout.in_set(UiSystem::PostLayout),
+                VelystSet::PostLayout,
                 VelystSet::Render,
             )
                 .chain(),
+        );
+
+        app.add_systems(
+            PostUpdate,
+            (
+                (check_func_ready, compile_func)
+                    .chain()
+                    .in_set(VelystSet::PreLayout),
+                layout_content.in_set(VelystSet::Layout),
+                render_scene.in_set(VelystSet::Render),
+            ),
         );
     }
 }
@@ -30,393 +41,135 @@ impl Plugin for VelystRendererPlugin {
 /// Velyst rendering pipeline.
 #[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum VelystSet {
-    /// Loading and reloading of [`TypstSource`].
-    AssetLoading,
-    /// Compile [`TypstFunc`] into a [`TypstContent`].
-    Compile,
-    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
+    /// Compilation of [`Content`] should happen here.
+    PreLayout,
+    /// Layout [`Content`] into a [`VelystScene`].
     Layout,
-    /// Render [`TypstScene`] into a [`VelloScene`].
+    /// Post processing of [`VelystScene`] should happen here.
+    PostLayout,
+    /// Render [`VelystScene`] into a [`VelloScene`].
     Render,
 }
 
-pub trait VelystAppExt {
-    /// Load [`TypstSource`] using [`TypstPath::path()`] and detect changes made towards the asset.
-    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
-
-    /// Compile [`TypstFunc`] into [`TypstContent`].
-    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
-
-    /// Layout [`TypstContent`] into [`VelystScene`] and render it into a [`VelloScene`].
-    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
-}
-
-impl VelystAppExt for App {
-    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
-        self.add_systems(
-            PreStartup,
-            load_typst_asset::<P>.in_set(VelystSet::AssetLoading),
-        )
-        .add_systems(
-            Update,
-            asset_change_detection::<P>.in_set(VelystSet::AssetLoading),
-        )
-    }
-
-    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
-        self.init_resource::<TypstContent<F>>().add_systems(
-            Update,
-            compile_typst_func::<P, F>
-                .run_if(
-                    // Asset and function needs to exists first.
-                    resource_exists::<TypstAssetHandle<P>>
-                        .and(resource_exists::<F>)
-                        .and(
-                            // Any changes to the asset or the function will cause a content recompilation.
-                            resource_changed::<TypstAssetHandle<P>>.or(resource_changed::<F>),
-                        ),
-                )
-                .in_set(VelystSet::Compile),
-        )
-    }
-
-    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
-        self.init_resource::<VelystScene<F>>().add_systems(
-            Update,
-            (
-                // Layout
-                layout_typst_content::<F>
-                    .run_if(resource_exists_and_changed::<TypstContent<F>>)
-                    .in_set(VelystSet::Layout),
-                // Render
-                (render_velyst_scene::<F>, construct_interaction_tree::<F>)
-                    .run_if(resource_exists_and_changed::<VelystScene<F>>)
-                    .in_set(VelystSet::Render),
-            ),
-        )
-    }
-}
-
-fn load_typst_asset<P: TypstPath>(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let typst_handle = TypstAssetHandle::<P>::new(asset_server.load(P::path()));
-    commands.insert_resource(typst_handle);
-}
-
-fn asset_change_detection<P: TypstPath>(
-    mut asset_evr: EventReader<AssetEvent<TypstSource>>,
-    mut typst_handle: ResMut<TypstAssetHandle<P>>,
+fn compile_func(
+    mut commands: Commands,
+    mut q_funcs: Query<
+        (&VelystFunc, &mut VelystContent, &Visibility, Entity),
+        (
+            Or<(Changed<VelystFunc>, Changed<Visibility>)>,
+            With<VelystFuncReady>,
+        ),
+    >,
+    modules: Res<VelystModules>,
 ) {
-    for asset_evt in asset_evr.read() {
-        match asset_evt {
-            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
-                let handle = typst_handle.clone_weak();
-                if *id == handle.id() {
-                    typst_handle.set_changed();
+    for (func, mut content, viz, entity) in q_funcs.iter_mut() {
+        if viz == Visibility::Hidden {
+            continue;
+        }
+
+        if let Some(module) = modules.get(&func.handle.id()) {
+            match module.scope().get_func(func.name) {
+                Ok(typst_func) => {
+                    content.0 = typst_func
+                        .call_with_named(&func.positional_args, &func.named_args)
+                        .pack();
                 }
+                Err(err) => error!("Unable to get typst function {}: {err}", func.name),
             }
-            _ => {}
+        } else {
+            // Check again for module availability next frame.
+            commands.entity(entity).remove::<VelystFuncReady>();
         }
     }
 }
 
-/// System implementation for compiling [`TypstFunc`] into [`TypstContent`].
-fn compile_typst_func<P: TypstPath, F: TypstFunc>(
-    context: TypstContext<P>,
-    mut content: ResMut<TypstContent<F>>,
-    func: Res<F>,
+fn check_func_ready(
+    mut commands: Commands,
+    mut q_funcs: Query<(&VelystFunc, Entity), Without<VelystFuncReady>>,
+    modules: Res<VelystModules>,
 ) {
-    if let Some(scope) = context.get_scope() {
-        let new_content = func.compile(scope);
-        **content = new_content;
-    } else if context.is_loaded() {
-        error!("Unable to get scope for #{}().", func.func_name());
+    for (func, entity) in q_funcs.iter_mut() {
+        if modules.contains_key(&func.handle.id()) {
+            commands.entity(entity).insert(VelystFuncReady);
+        }
     }
 }
 
-/// System implementation for layouting [`TypstContent`] into [`VelystScene`].
-fn layout_typst_content<F: TypstFunc>(
+/// Layout [`Content`] into a [`VelystScene`].
+fn layout_content(
     world: VelystWorld,
-    content: Res<TypstContent<F>>,
-    mut scene: ResMut<VelystScene<F>>,
+    mut q_contents: Query<
+        (
+            &VelystContent,
+            &mut VelystScene,
+            &Visibility,
+            Option<&ComputedNode>,
+        ),
+        Or<(Changed<VelystContent>, Changed<Visibility>)>,
+    >,
 ) {
-    // TODO: Optimize this system (currently the bottleneck).
-    match world.layout_frame(&content) {
-        Ok(frame) => {
-            let new_scene = TypstScene::from_frame(&frame);
-            **scene = new_scene;
+    for (content, mut scene, viz, node) in q_contents.iter_mut() {
+        if viz == Visibility::Hidden {
+            continue;
         }
-        Err(err) => error!("{err:#?}"),
+        if let Some(frame) = world.layout_frame(
+            &content.0,
+            // Constraint to node size if it exists.
+            node.map(|node| {
+                let size = node.size().as_dvec2();
+                Region::new(
+                    Size::new(Abs::pt(size.x), Abs::pt(size.y)),
+                    Axes::splat(false),
+                )
+            }),
+        ) {
+            scene.0 = TypstScene::from_frame(&frame);
+        }
     }
 
     // Clear cache regularly to prevent memory build ups.
     typst::comemo::evict(4);
 }
 
-/// System implementation for rendering [`VelystScene`] into [`VelloScene`].
-fn render_velyst_scene<F: TypstFunc>(
-    mut commands: Commands,
-    mut q_scenes: Query<(&mut VelloScene, &mut Node, &mut Visibility)>,
-    mut scene: ResMut<VelystScene<F>>,
-    func: Res<F>,
+/// Render [`VelystScene`] into a [`VelloScene`].
+fn render_scene(
+    mut q_scenes: Query<
+        (&mut VelystScene, &mut VelloScene, &Visibility),
+        Or<(Changed<VelystScene>, Changed<Visibility>)>,
+    >,
 ) {
-    let scene = scene.bypass_change_detection();
-
-    if let Some((mut vello_scene, mut node, mut viz)) =
-        scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
-    {
-        // Scene
-        **vello_scene = scene.render().into();
-        let size = scene.size();
-        // Style
-        node.width = Val::Px(size.x as f32);
-        node.height = Val::Px(size.y as f32);
-        // Visibility
-        *viz = scene.visibility;
-    } else {
-        scene.entity = Some(
-            commands
-                .spawn((
-                    VelloScene::from(scene.render()),
-                    Node::DEFAULT,
-                    scene.visibility,
-                    func.render_layers(),
-                ))
-                .id(),
-        );
-    }
-}
-
-/// Construct the interaction tree using bevy ui nodes.
-fn construct_interaction_tree<F: TypstFunc>(
-    mut commands: Commands,
-    mut q_nodes: Query<(&mut Node, &mut Transform, &mut ZIndex, &mut Visibility)>,
-    mut scene: ResMut<VelystScene<F>>,
-) {
-    let scene = scene.bypass_change_detection();
-
-    let Some(root_entity) = scene.entity else {
-        return;
-    };
-
-    scene.reset_cached_entities_to_unused();
-    let mut computed_transforms = Vec::with_capacity(scene.groups_len());
-
-    for i in 0..scene.groups_len() {
-        let group = scene.get_group(i);
-
-        // Calculate accumulated transform from the group hierarchy.
-        let transform = match group.parent() {
-            Some(parent_index) => {
-                let transform = computed_transforms[parent_index] * group.transform();
-                computed_transforms.push(transform);
-                transform
-            }
-            None => {
-                computed_transforms.push(group.transform());
-                group.transform()
-            }
-        };
-
-        let Some(label) = group.label() else {
+    for (mut velyst_scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+        if viz == Visibility::Hidden {
             continue;
-        };
-
-        let coeffs = transform.as_coeffs();
-        let left = Val::Px(coeffs[4] as f32);
-        let top = Val::Px(coeffs[5] as f32);
-        let width = Val::Px(group.size().x as f32);
-        let height = Val::Px(group.size().y as f32);
-        let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
-
-        // Reuse cached nodes when available, otherwise, spawn a new one.
-        if let Some((mut node, mut transform, mut z_index, mut viz)) = scene
-            .cached_entities
-            .get_mut(&label)
-            .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
-            .and_then(|(entity, used)| {
-                *used = true;
-                q_nodes.get_mut(*entity).ok()
-            })
-        {
-            // Style
-            node.left = left;
-            node.top = top;
-            node.width = width;
-            node.height = height;
-            // Scale
-            transform.scale = scale;
-            // ZIndex
-            *z_index = ZIndex(i as i32);
-            // Visibility
-            *viz = Visibility::Inherited;
-        } else {
-            let new_entity = commands
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left,
-                        top,
-                        width,
-                        height,
-                        ..default()
-                    },
-                    Transform::from_scale(scale),
-                    ZIndex(i as i32),
-                    Interaction::default(),
-                    TypstLabel(label),
-                ))
-                .set_parent(root_entity)
-                .id();
-
-            match scene.cached_entities.get_mut(&label) {
-                Some(entities) => {
-                    entities.push((new_entity, true));
-                }
-                None => {
-                    scene
-                        .cached_entities
-                        .insert(label, SmallVec::from_buf([(new_entity, true)]));
-                }
-            }
         }
-    }
-
-    // Hide unused cached nodes
-    for entities in scene.cached_entities.values() {
-        for (entity, used) in entities {
-            match *used {
-                true => continue,
-                false => {
-                    commands.entity(*entity).insert(Visibility::Hidden);
-                }
-            }
-        }
+        *vello_scene = VelloScene::from(velyst_scene.render());
     }
 }
 
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstSource>, PhantomData<P>);
-
-// impl From<Typst> for AssetId<TypstAsset> {
-//     fn from(value: Typst) -> Self {
-//         value.id()
-//     }
-// }
-
-impl<P: TypstPath> TypstAssetHandle<P> {
-    pub fn new(handle: Handle<TypstSource>) -> Self {
-        Self(handle, PhantomData)
-    }
+#[derive(Component, Default)]
+#[require(VelystContent)]
+pub struct VelystFunc {
+    pub handle: Handle<VelystSource>,
+    pub name: &'static str,
+    pub positional_args: Vec<Value>,
+    pub named_args: Vec<(&'static str, Value)>,
 }
 
-#[derive(bevy::ecs::system::SystemParam)]
-pub struct TypstContext<'w, P: TypstPath> {
-    pub handle: Res<'w, TypstAssetHandle<P>>,
-    pub modules: Res<'w, SourceModules>,
-}
+/// Marker component that is inserted when the [module][typst::foundations::Module]
+/// needed from [`VelystModules`] for the [`VelystFunc`] is ready.
+///
+/// Will be removed when the [module][typst::foundations::Module]
+/// needed becomes unavailable again.
+#[derive(Component)]
+pub struct VelystFuncReady;
 
-impl<P: TypstPath> TypstContext<'_, P> {
-    pub fn is_loaded(&self) -> bool {
-        self.modules.contains_key(&self.handle.id())
-    }
+#[derive(Component, Default, Deref, DerefMut)]
+#[require(VelystScene)]
+pub struct VelystContent(pub Content);
 
-    pub fn get_scope(&self) -> Option<&foundations::Scope> {
-        self.modules
-            .get(&self.handle.id())
-            .map(|module| module.scope())
-    }
-}
+#[derive(Component, Default, Deref, DerefMut)]
+#[require(VelloScene)]
+pub struct VelystScene(pub TypstScene);
 
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstContent<F: TypstFunc>(#[deref] Content, PhantomData<F>);
-
-impl<F: TypstFunc> TypstContent<F> {
-    pub fn new(content: Content) -> Self {
-        Self(content, PhantomData)
-    }
-}
-
-impl<F: TypstFunc> Default for TypstContent<F> {
-    fn default() -> Self {
-        Self(Content::default(), PhantomData)
-    }
-}
-
-/// Storage of a [`TypstScene`] in a resource as well as
-/// caching the render and interaction entities.
-#[derive(Resource, Deref, DerefMut)]
-pub struct VelystScene<F: TypstFunc> {
-    #[deref]
-    /// Underlying [`TypstScene`] data.
-    scene: TypstScene,
-    /// Visibility of the scene.
-    pub visibility: Visibility,
-    /// Entity that contains [`VelloSceneBundle`] for rendering the typst scene.
-    entity: Option<Entity>,
-    /// Cached entities mapped by [`TypLabel`].
-    ///
-    /// - First element stores the cached entity itself.
-    /// - Second element denotes whether it's used up or not.
-    cached_entities: HashMap<TypLabel, SmallVec<[(Entity, bool); 1]>>, // TODO: Use SmallVec
-    phantom: PhantomData<F>,
-}
-
-impl<F: TypstFunc> VelystScene<F> {
-    pub fn new(scene: TypstScene) -> Self {
-        Self { scene, ..default() }
-    }
-
-    /// Resets all cached entities to unused.
-    fn reset_cached_entities_to_unused(&mut self) {
-        for entities in self.cached_entities.values_mut() {
-            for (_, used) in entities.iter_mut() {
-                *used = false;
-            }
-        }
-    }
-}
-
-impl<F: TypstFunc> Default for VelystScene<F> {
-    fn default() -> Self {
-        Self {
-            scene: default(),
-            visibility: Visibility::Inherited,
-            entity: None,
-            cached_entities: default(),
-            phantom: PhantomData,
-        }
-    }
-}
-
-#[derive(Component, Deref, DerefMut)]
-pub struct TypstLabel(TypLabel);
-
-pub trait TypstFuncComp: TypstFunc + Component {}
-pub trait TypstFuncRes: TypstFunc + Resource {}
-
-impl<T: TypstFunc + Component> TypstFuncComp for T {}
-impl<T: TypstFunc + Resource> TypstFuncRes for T {}
-
-pub trait TypstFunc: Resource {
-    fn func_name(&self) -> &str;
-
-    fn render_layers(&self) -> RenderLayers {
-        RenderLayers::layer(0)
-    }
-
-    fn content(&self, func: foundations::Func) -> Content;
-
-    fn compile(&self, scope: &foundations::Scope) -> Content {
-        match scope.get_func(self.func_name()) {
-            Ok(func) => self.content(func),
-            Err(err) => {
-                warn!("{err:#?}");
-                Content::empty()
-            }
-        }
-    }
-}
-
-pub trait TypstPath: Send + Sync + 'static {
-    fn path() -> &'static str;
-}
+// #[derive(Component, Deref, DerefMut)]
+// pub struct TypstLabel(TypLabel);

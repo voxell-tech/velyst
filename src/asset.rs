@@ -2,7 +2,7 @@ use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
-use typst::foundations::{Bytes, Module};
+use typst::foundations::Module;
 use typst::syntax::{FileId, Source, VirtualPath};
 
 use crate::world::VelystWorld;
@@ -11,20 +11,18 @@ pub struct TypstAssetPlugin;
 
 impl Plugin for TypstAssetPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<TypstSource>()
-            .init_asset_loader::<TypstSourceLoader>()
-            .init_asset::<TypstFile>()
-            .init_asset_loader::<TypstFileLoader>()
-            .init_resource::<SourceModules>()
+        app.init_asset::<VelystSource>()
+            .init_asset_loader::<VelystSourceLoader>()
+            .init_resource::<VelystModules>()
             .add_systems(PreUpdate, eval_source);
     }
 }
 
 fn eval_source(
     world: VelystWorld,
-    mut evr_asset_event: EventReader<AssetEvent<TypstSource>>,
-    mut modules: ResMut<SourceModules>,
-    sources: Res<Assets<TypstSource>>,
+    mut evr_asset_event: EventReader<AssetEvent<VelystSource>>,
+    mut modules: ResMut<VelystModules>,
+    sources: Res<Assets<VelystSource>>,
 ) {
     let mut reset = false;
 
@@ -44,21 +42,8 @@ fn eval_source(
                     reset = true;
                 }
 
-                match world.eval_source(&source.0) {
-                    Ok(module) => {
-                        modules.insert(*id, module);
-                    }
-                    Err(diagnostics) => {
-                        for diag in diagnostics {
-                            error!(
-                                "Typst compilation error:\nMessage: {}\nFile: {:?}\nTrace: {:?}\nHints: {}",
-                                diag.message,
-                                diag.span.id(),
-                                diag.trace,
-                                diag.hints.join("\n")
-                            );
-                        }
-                    }
+                if let Some(module) = world.eval_source(&source.0) {
+                    modules.insert(*id, module);
                 }
             }
             AssetEvent::Removed { id } | AssetEvent::Unused { id } => {
@@ -70,17 +55,17 @@ fn eval_source(
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
-pub struct SourceModules(HashMap<AssetId<TypstSource>, Module>);
+pub struct VelystModules(HashMap<AssetId<VelystSource>, Module>);
 
 /// A Typst [`Source`] file loaded from disk.
 #[derive(Asset, TypePath, Deref)]
-pub struct TypstSource(pub(super) Source);
+pub struct VelystSource(pub(super) Source);
 
 #[derive(Default)]
-pub struct TypstSourceLoader;
+pub struct VelystSourceLoader;
 
-impl AssetLoader for TypstSourceLoader {
-    type Asset = TypstSource;
+impl AssetLoader for VelystSourceLoader {
+    type Asset = VelystSource;
 
     type Settings = ();
 
@@ -98,7 +83,7 @@ impl AssetLoader for TypstSourceLoader {
         let path = load_context.asset_path().to_string();
         let source = Source::new(FileId::new(None, VirtualPath::new(&path)), text);
 
-        Ok(TypstSource(source))
+        Ok(VelystSource(source))
     }
 
     fn extensions(&self) -> &[&str] {
@@ -106,32 +91,32 @@ impl AssetLoader for TypstSourceLoader {
     }
 }
 
-/// An arbitrary file required by Typst compiler,
-/// stored in [`Bytes`] format.
-#[derive(Asset, TypePath, Deref)]
-pub struct TypstFile(Bytes);
+// /// An arbitrary file required by Typst compiler,
+// /// stored in [`Bytes`] format.
+// #[derive(Asset, TypePath, Deref)]
+// pub struct TypstFile(Bytes);
 
-#[derive(Default)]
-pub struct TypstFileLoader;
+// #[derive(Default)]
+// pub struct TypstFileLoader;
 
-impl AssetLoader for TypstFileLoader {
-    type Asset = TypstFile;
+// impl AssetLoader for TypstFileLoader {
+//     type Asset = TypstFile;
 
-    type Settings = ();
+//     type Settings = ();
 
-    type Error = std::io::Error;
+//     type Error = std::io::Error;
 
-    async fn load(
-        &self,
-        reader: &mut dyn Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut LoadContext<'_>,
-    ) -> Result<Self::Asset, Self::Error> {
-        let mut bytes = Vec::new();
-        reader.read_to_end(&mut bytes).await?;
+//     async fn load(
+//         &self,
+//         reader: &mut dyn Reader,
+//         _settings: &Self::Settings,
+//         _load_context: &mut LoadContext<'_>,
+//     ) -> Result<Self::Asset, Self::Error> {
+//         let mut bytes = Vec::new();
+//         reader.read_to_end(&mut bytes).await?;
 
-        let source = Bytes::new(bytes);
+//         let source = Bytes::new(bytes);
 
-        Ok(TypstFile(source))
-    }
-}
+//         Ok(TypstFile(source))
+//     }
+// }
