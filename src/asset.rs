@@ -61,6 +61,9 @@ pub struct VelystModules(HashMap<AssetId<VelystSource>, Module>);
 #[derive(Asset, TypePath, Deref)]
 pub struct VelystSource(pub(super) Source);
 
+#[derive(Component, Deref, DerefMut)]
+pub struct VelystSourceHandle(pub Handle<VelystSource>);
+
 #[derive(Default)]
 pub struct VelystSourceLoader;
 

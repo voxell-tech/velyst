@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
-use foundations::IntoValue;
 use velyst::prelude::*;
 
 fn main() {
@@ -10,6 +9,7 @@ fn main() {
             bevy_vello::VelloPlugin::default(),
             velyst::VelystPlugin,
         ))
+        .register_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
         .add_systems(Update, main_func)
         .run();
@@ -27,12 +27,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let handle = asset_server.load("typst/hello_world.typ");
     commands.spawn((
-        VelystFunc {
-            handle,
-            name: "main",
-            positional_args: values!(0.0).to_vec(),
-            ..default()
-        },
+        VelystSourceHandle(handle),
+        MainFunc { animate: 0.0 },
         Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
@@ -41,7 +37,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 }
 
-fn main_func(mut func: Query<&mut VelystFunc>, time: Res<Time>) {
+fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
     let mut func = func.single_mut();
-    func.positional_args[0] = time.elapsed_secs_f64().into_value();
+    func.animate = time.elapsed_secs_f64();
 }
+
+typst_func!(
+    #[derive(Component)]
+    struct MainFunc {
+        animate: f64,
+    },
+    "main"
+);
