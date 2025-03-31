@@ -233,25 +233,36 @@ impl<T: TypstFunc + Component> TypstFuncComp for T {}
 /// use bevy::prelude::*;
 ///
 /// typst_func!(
-///    /// A main function from Typst.
-///    #[derive(Component, Reflect)]
-///    #[reflect(Component)]
-///    pub struct MainFunc<T: IntoValue + Clone + 'static> {
-///        #[reflect(ignore)]
-///        pos_arg0: f64,
-///        /// Documentation for `pos_arg1`.
-///        pos_arg1: T,
-///    },
-///    // Named variables will be placed here.
-///    named {
-///        named_arg0: bool,
-///        named_arg1: i32,
-///        #[reflect(ignore)]
-///        named_arg2: String,
-///    },
-///    // The literal function name from the Typst scope.
-///    "main"
+///     /// A button function from Typst.
+///     #[derive(Component, Reflect)]
+///     #[reflect(Component)]
+///     pub(super) struct ButtonFunc<T: IntoValue + Clone> {},
+///     // Positional arguments, order matters here!
+///     positional_args {
+///         /// Label size.
+///         size: f64,
+///         custom_data: T,
+///         /// Button label.
+///         #[reflect(ignore)]
+///         label: String,
+///     },
+///     // Named arguments, order doesn't really matters here.
+///     named_args {
+///         icon_index: u32,
+///         #[reflect(ignore)]
+///         icon_label: String,
+///     },
+///     // The literal function name from the Typst scope,
+///     // usually from the source file.
+///     "button"
 /// );
+/// ```
+///
+/// Arguments can be also omitted if there aren't any:
+///
+/// ```
+/// use velyst::typst_func;
+/// typst_func!(struct EmptyFunc {}, "empty");
 /// ```
 #[macro_export]
 macro_rules! typst_func {
@@ -260,20 +271,24 @@ macro_rules! typst_func {
         $( #[$attr:meta] )*
         $vis:vis struct $struct_name:ident
         // Lifetimes and generics.
-        $(< $( $generic:tt $( : $bound:tt $(+ $_bound:tt )* )? ),+ >)? {
-            // Positional ags
-            $(
-                $( #[$pos_attr:meta] )*
-                $pos_arg:ident: $pos_type:ty,
-            )*
-        },
+        $(< $( $generic:tt $( : $bound:tt $(+ $_bound:tt )* )? ),+ >)? {},
+        // Positional args
         $(
-            named {
-                // Optional named args.
+            positional_args {
+                // Optional positional args.
+                $(
+                    $( #[$positional_attr:meta] )*
+                    $positional_arg:ident: $positional_type:ty
+                ),*$(,)?
+            },
+        )?
+        // Named args.
+        $(
+            named_args {
                 $(
                     $( #[$named_attr:meta] )*
-                    $named_arg:ident: $named_type:ty,
-                )*
+                    $named_arg:ident: $named_type:ty
+                ),*$(,)?
             },
         )?
         $str_name:literal
@@ -285,10 +300,10 @@ macro_rules! typst_func {
         // Lifetimes and generics.
         $(< $( $generic $( : $bound $(+ $_bound )* )? ),+ >)? {
             // Positional ags
-            $(
-                $( #[$pos_attr] )*
-                $pos_arg: $pos_type,
-            )*
+            $($(
+                $( #[$positional_attr] )*
+                $positional_arg: $positional_type,
+            )*)?
             // Optional named args.
             $($(
                 $( #[$named_attr] )*
@@ -306,17 +321,19 @@ macro_rules! typst_func {
             const NAME: &'static str = $str_name;
 
             fn apply_positional_args(&self, args: &mut Vec<$crate::typst::foundations::Value>) {
-                args.clear();
-                $(
+                $($(
+                    args.clear();
                     args.push(
-                        $crate::typst::foundations::IntoValue::into_value(self.$pos_arg.clone())
+                        $crate::typst::foundations::IntoValue::into_value(
+                            self.$positional_arg.clone()
+                        )
                     );
-                )*
+                )*)?
             }
 
             fn apply_named_args(&self, args: &mut Vec<(&'static str, $crate::typst::foundations::Value)>) {
-                args.clear();
                 $($(
+                    args.clear();
                     if let Some(arg) = self.$named_arg.as_ref() {
                         args.push(
                             (stringify!($named_arg),

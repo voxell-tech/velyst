@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
+use foundations::IntoValue;
 use velyst::prelude::*;
 
 fn main() {
@@ -46,8 +47,7 @@ fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
 
 typst_func!(
     #[derive(Component, Default)]
-    struct MainFunc {
-        animate: f64,
-    },
+    struct MainFunc {},
+    positional_args { animate: f64 },
     "main"
 );

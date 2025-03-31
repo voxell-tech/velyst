@@ -43,7 +43,7 @@ macro_rules! sequence {
 }
 
 /// Create an array of values with the signature of:
-/// \[[foundations::Value]\]
+/// <code>[[foundations::Value]]</code>
 ///
 /// # Example
 /// ```
@@ -63,7 +63,7 @@ macro_rules! values {
 }
 
 /// Create an array of named values with the signature of:
-/// \[(&[str], [foundations::Value])\]
+/// <code>[(&[str], [foundations::Value])]</code>
 ///
 /// # Example
 /// ```
