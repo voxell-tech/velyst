@@ -10,7 +10,7 @@ pub use {typst, typst_element, typst_vello};
 pub mod prelude {
     pub use crate::asset::{VelystModules, VelystSource, VelystSourceHandle};
     pub use crate::renderer::{
-        TypstFuncAppExt, VelystFunc, VelystScene, VelystSet, VelystSourceReady,
+        TypstFuncAppExt, VelystFunc, VelystFuncBundle, VelystScene, VelystSet, VelystSourceReady,
     };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;

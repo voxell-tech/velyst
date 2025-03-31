@@ -25,10 +25,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         VelloView,
     ));
 
-    let handle = asset_server.load("typst/hello_world.typ");
+    let handle = VelystSourceHandle(asset_server.load("typst/hello_world.typ"));
     commands.spawn((
-        VelystSourceHandle(handle),
-        MainFunc { animate: 0.0 },
+        VelystFuncBundle {
+            handle,
+            func: MainFunc { animate: 0.0 },
+        },
         Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),

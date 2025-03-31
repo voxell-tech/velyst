@@ -322,6 +322,12 @@ macro_rules! typst_func {
     };
 }
 
+#[derive(Bundle)]
+pub struct VelystFuncBundle<Func: TypstFuncComp> {
+    pub handle: VelystSourceHandle,
+    pub func: Func,
+}
+
 // #[derive(Component, Deref, DerefMut)]
 // pub struct TypstLabel(TypLabel);
 
