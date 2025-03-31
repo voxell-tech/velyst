@@ -1,25 +1,22 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy_vello::prelude::*;
+use foundations::IntoValue;
 use velyst::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            velyst::VelystPlugin::default(),
             bevy_vello::VelloPlugin::default(),
+            velyst::VelystPlugin,
         ))
-        .register_typst_asset::<HelloWorld>()
-        .compile_typst_func::<HelloWorld, MainFunc>()
-        .render_typst_func::<MainFunc>()
+        .register_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
-        .init_resource::<MainFunc>()
         .add_systems(Update, main_func)
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         Camera2d,
         Camera {
@@ -28,30 +25,29 @@ fn setup(mut commands: Commands) {
         },
         VelloView,
     ));
+
+    let handle = VelystSourceHandle(asset_server.load("typst/hello_world.typ"));
+    commands.spawn((
+        VelystFuncBundle {
+            handle,
+            func: MainFunc::default(),
+        },
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+    ));
 }
 
-fn main_func(
-    q_window: Query<&Window, (With<PrimaryWindow>, Changed<Window>)>,
-    mut main_func: ResMut<MainFunc>,
-    time: Res<Time>,
-) {
-    if let Ok(window) = q_window.get_single() {
-        main_func.width = window.width() as f64;
-        main_func.height = window.height() as f64;
-    };
-
-    main_func.animate = time.elapsed_secs_f64();
+fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
+    let mut func = func.single_mut();
+    func.animate = time.elapsed_secs_f64();
 }
 
-#[derive(TypstFunc, Resource, Default)]
-#[typst_func(name = "main")]
-struct MainFunc {
-    width: f64,
-    height: f64,
-    #[typst_func(named)]
-    animate: f64,
-}
-
-#[derive(TypstPath)]
-#[typst_path = "typst/hello_world.typ"]
-struct HelloWorld;
+typst_func!(
+    #[derive(Component, Default)]
+    struct MainFunc {},
+    positional_args { animate: f64 },
+    "main"
+);

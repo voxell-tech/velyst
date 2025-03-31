@@ -5,7 +5,7 @@ pub mod prelude {
     pub use typst::{foundations, layout, math, model, text, visualize as viz};
 
     pub use crate::extensions::{ScopeError, ScopeExt, UnitExt};
-    pub use crate::{elem, sequence};
+    pub use crate::{elem, named_values, sequence, values};
 }
 
 pub mod elem;

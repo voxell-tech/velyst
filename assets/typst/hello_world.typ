@@ -17,21 +17,16 @@
 }
 
 #let main(
-  width,
-  height,
-  animate: 0.0,
+  animate,
 ) = {
-  let width = (width * 1pt)
-  let height = (height * 1pt)
-
   let amplitude = 10%
   let frequency = 1
   let resolution = 20
   let animate = animate * 2
 
   box(
-    width: width,
-    height: height,
+    width: 100%,
+    height: 100%,
   )[
     #set text(size: 48pt, fill: base7)
     #place(

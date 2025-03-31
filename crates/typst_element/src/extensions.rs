@@ -128,3 +128,17 @@ pub enum ScopeError {
     VariableNotFound,
     ValueCastFailed(HintedString),
 }
+
+impl std::fmt::Display for ScopeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScopeError::VariableNotFound => f.pad("Variable not found!"),
+            ScopeError::ValueCastFailed(hinted_string) => write!(
+                f,
+                "Cast fail! {}\n{}",
+                hinted_string.message(),
+                hinted_string.hints().join("\n")
+            ),
+        }
+    }
+}

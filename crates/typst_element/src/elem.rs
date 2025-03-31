@@ -1,5 +1,5 @@
 use typst::diag::EcoString;
-use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, Packed};
+use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, OneOrMultiple, Packed};
 use typst::loading::DataSource;
 use typst::syntax::{Span, Spanned};
 use typst::{layout, math, model, text, visualize};
@@ -42,14 +42,96 @@ macro_rules! sequence {
     };
 }
 
+/// Create an array of values with the signature of:
+/// <code>[[foundations::Value]]</code>
+///
+/// # Example
+/// ```
+/// use typst_element::prelude::*;
+/// let vals = values!(1, false, 0.6);
+/// assert_eq!(vals, [
+///     foundations::Value::Int(1),
+///     foundations::Value::Bool(false),
+///     foundations::Value::Float(0.6),
+/// ]);
+/// ```
+#[macro_export]
+macro_rules! values {
+    ($($value:expr),* $(,)?) => {
+        [$($crate::prelude::foundations::IntoValue::into_value($value),)*]
+    };
+}
+
+/// Create an array of named values with the signature of:
+/// <code>[(&[str], [foundations::Value])]</code>
+///
+/// # Example
+/// ```
+/// use typst_element::prelude::*;
+/// let vals = named_values!(["arg0", 1], ["arg1", false], ["arg2", 0.6]);
+/// assert_eq!(vals, [
+///     ("arg0", foundations::Value::Int(1)),
+///     ("arg1", foundations::Value::Bool(false)),
+///     ("arg2", foundations::Value::Float(0.6)),
+/// ]);
+/// ```
+#[macro_export]
+macro_rules! named_values {
+    ($([$key:expr, $value:expr]),* $(,)?) => {
+        [$(($key, $crate::prelude::foundations::IntoValue::into_value($value)),)*]
+    };
+}
+
+// fn test(func: foundations::Func) {
+//     let var_str = String::from("var_arg_name");
+//     let array = foundations::Array::from(values!(10, "st", false).as_slice());
+//     let content = func
+//         .call_with_named(
+//             &values!(10, "st", 2.5),
+//             &named_values!(["name0", 10], [&var_str, "st"], ["", 2.5]),
+//         )
+//         .pack();
+// }
+
 /// [foundations::ContextElem]
-pub fn context(
-    func: foundations::Func,
-    apply_args: impl Fn(&mut SpannedArgs),
-) -> foundations::ContextElem {
-    let mut spanned_args = SpannedArgs::new(func.span());
-    apply_args(&mut spanned_args);
-    foundations::ContextElem::new(func.with(&mut spanned_args.args))
+pub fn context(func: foundations::Func, args: &mut foundations::Args) -> foundations::ContextElem {
+    foundations::ContextElem::new(func.with(args))
+}
+
+pub trait FuncCall {
+    fn call(self, positional_args: &[foundations::Value]) -> foundations::ContextElem;
+
+    fn call_with_named(
+        self,
+        positional_args: &[foundations::Value],
+        named_args: &[(&str, foundations::Value)],
+    ) -> foundations::ContextElem;
+}
+
+impl FuncCall for foundations::Func {
+    fn call(self, positional_args: &[foundations::Value]) -> foundations::ContextElem {
+        let mut args = foundations::Args::new(self.span(), positional_args.iter().cloned());
+
+        context(self, &mut args)
+    }
+
+    fn call_with_named(
+        self,
+        positional_args: &[foundations::Value],
+        named_args: &[(&str, foundations::Value)],
+    ) -> foundations::ContextElem {
+        let mut args = foundations::Args::new(self.span(), positional_args.iter().cloned());
+
+        for (name, value) in named_args {
+            args.items.push(foundations::Arg {
+                span: self.span(),
+                name: Some(foundations::Str::from(*name)),
+                value: Spanned::new(value.clone(), self.span()),
+            });
+        }
+
+        context(self, &mut args)
+    }
 }
 
 pub struct SpannedArgs {
@@ -116,12 +198,11 @@ fn_elem!(figure, model::FigureElem);
 fn_elem!(footnote, model::FootnoteElem, model::FootnoteBody);
 fn_elem!(quote, model::QuoteElem);
 fn_elem!(cite, model::CiteElem, Label);
-// fn_elem!(
-//     bibliography,
-//     model::BibliographyElem,
-//     paths = model::BibliographyPaths,
-//     bibliography = model::Bibliography
-// );
+fn_elem!(
+    bibliography,
+    model::BibliographyElem,
+    bibliography = Derived<OneOrMultiple<DataSource>, model::Bibliography>
+);
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
