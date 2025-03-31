@@ -61,8 +61,14 @@ pub struct VelystModules(HashMap<AssetId<VelystSource>, Module>);
 #[derive(Asset, TypePath, Deref)]
 pub struct VelystSource(pub(super) Source);
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Clone)]
 pub struct VelystSourceHandle(pub Handle<VelystSource>);
+
+impl From<VelystSourceHandle> for AssetId<VelystSource> {
+    fn from(value: VelystSourceHandle) -> Self {
+        value.id()
+    }
+}
 
 #[derive(Default)]
 pub struct VelystSourceLoader;

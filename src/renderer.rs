@@ -49,24 +49,31 @@ impl TypstFuncAppExt for App {
     fn register_typst_func<Func: TypstFuncComp>(&mut self) -> &mut Self {
         self.add_systems(
             PostUpdate,
-            spawn_or_apply_typst_func::<Func>.in_set(VelystSet::PrepareFunc),
+            apply_typst_func::<Func>.in_set(VelystSet::PrepareFunc),
         )
+        .add_observer(spawn_velyst_func::<Func>)
     }
 }
 
-fn spawn_or_apply_typst_func<Func: TypstFuncComp>(
+fn spawn_velyst_func<Func: TypstFuncComp>(
+    trigger: Trigger<OnAdd, Func>,
     mut commands: Commands,
-    mut q_funcs: Query<(&Func, Option<&mut VelystFunc>, Entity), Changed<Func>>,
+    mut q_func: Query<&Func, Without<VelystFunc>>,
 ) {
-    for (func, velyst_func, entity) in q_funcs.iter_mut() {
-        match velyst_func {
-            Some(mut velyst_func) => velyst_func.apply_typst_func(func),
-            None => {
-                let mut velyst_func = VelystFunc::default();
-                velyst_func.apply_typst_func(func);
-                commands.entity(entity).insert(velyst_func);
-            }
-        }
+    let entity = trigger.entity();
+
+    if let Ok(func) = q_func.get_mut(entity) {
+        let mut velyst_func = VelystFunc::default();
+        velyst_func.apply_typst_func(func);
+        commands.entity(entity).insert(velyst_func);
+    }
+}
+
+fn apply_typst_func<Func: TypstFuncComp>(
+    mut q_funcs: Query<(&Func, &mut VelystFunc), Changed<Func>>,
+) {
+    for (func, mut velyst_func) in q_funcs.iter_mut() {
+        velyst_func.apply_typst_func(func);
     }
 }
 

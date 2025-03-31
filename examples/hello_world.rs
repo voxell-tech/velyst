@@ -29,7 +29,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         VelystFuncBundle {
             handle,
-            func: MainFunc { animate: 0.0 },
+            func: MainFunc::default(),
         },
         Node {
             width: Val::Percent(100.0),
@@ -45,7 +45,7 @@ fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
 }
 
 typst_func!(
-    #[derive(Component)]
+    #[derive(Component, Default)]
     struct MainFunc {
         animate: f64,
     },
