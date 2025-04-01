@@ -148,7 +148,7 @@ fn layout_typst_content<F: TypstFunc>(
     }
 
     // Clear cache regularly to prevent memory build ups.
-    comemo::evict(4);
+    typst::comemo::evict(4);
 }
 
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].

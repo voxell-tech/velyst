@@ -5,7 +5,7 @@ use std::{fs, mem};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use chrono::{DateTime, Datelike, Local};
-use comemo::{Track, Validate};
+use typst::comemo::{Track, Validate};
 use typst::diag::{FileError, FileResult, SourceResult};
 use typst::engine::{Engine, Route, Sink, Traced};
 use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
@@ -68,7 +68,8 @@ impl TypstWorld {
         let world: &dyn World = self;
 
         // Try to evaluate the source file into a module.
-        typst::eval::eval(
+        typst_eval::eval(
+            &typst::ROUTINES,
             world.track(),
             Traced::default().track(),
             Sink::new().track_mut(),
@@ -93,6 +94,7 @@ impl TypstWorld {
             sink.delayed();
 
             let mut engine = Engine {
+                routines: &typst::ROUTINES,
                 world: world.track(),
                 introspector: introspector.track_with(&constraint),
                 traced: traced.track(),
@@ -103,7 +105,7 @@ impl TypstWorld {
             let locator = typst::introspection::Locator::root();
 
             // Layout!
-            typst::layout::layout_frame(
+            (typst::ROUTINES.layout_frame)(
                 &mut engine,
                 content,
                 locator,
@@ -216,7 +218,7 @@ impl FileSlot {
     fn file(&mut self, project_root: &Path) -> FileResult<Bytes> {
         self.file.get_or_init(
             || system_path(project_root, self.id),
-            |data, _| Ok(data.into()),
+            |data, _| Ok(Bytes::new(data)),
         )
     }
 }

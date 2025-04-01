@@ -218,7 +218,7 @@ impl TypstScene {
             size: kurbo::Vec2::new(group.frame.width().to_pt(), group.frame.height().to_pt()),
             transform: convert_transform(local_transform.pre_concat(group.transform)),
             parent,
-            layer: group.clip_path.as_ref().map(|path| Layer {
+            layer: group.clip.as_ref().map(|path| Layer {
                 clip_path: Some(convert_path(path)),
                 ..Default::default()
             }),

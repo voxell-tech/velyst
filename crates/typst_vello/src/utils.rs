@@ -91,7 +91,7 @@ pub fn convert_paint_to_brush(paint: &viz::Paint, size: Size) -> peniko::Brush {
             peniko::Brush::Gradient(gradient)
         }
         // TODO: Support pattern.
-        viz::Paint::Pattern(_) => peniko::Brush::Solid(peniko::Color::RED),
+        viz::Paint::Tiling(_) => peniko::Brush::Solid(peniko::Color::RED),
     }
 }
 

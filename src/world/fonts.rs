@@ -2,16 +2,30 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use bevy::prelude::*;
 use bevy_vello::vello_svg::usvg::fontdb::{Database, Source};
+use typst::foundations::Bytes;
 use typst::text::{Font, FontBook, FontInfo};
 
 /// Searches for fonts.
-#[derive(Debug, Default, Clone)]
+#[derive(Resource, Debug, Clone)]
 pub struct FontSearcher {
     /// Metadata about all discovered fonts.
     pub book: FontBook,
     /// Slots that the fonts are loaded into.
     pub fonts: Vec<FontSlot>,
+}
+
+impl Default for FontSearcher {
+    fn default() -> Self {
+        let mut fonts = Self {
+            book: FontBook::new(),
+            fonts: Vec::new(),
+        };
+
+        fonts.search(&[]);
+        fonts
+    }
 }
 
 /// Holds details about the location of a font and lazily load the font itself.
@@ -31,7 +45,7 @@ impl FontSlot {
     pub fn get(&self) -> Option<Font> {
         self.font
             .get_or_init(|| {
-                let data = fs::read(&self.path).ok()?.into();
+                let data = Bytes::new(fs::read(&self.path).ok()?);
                 Font::new(data, self.index)
             })
             .clone()
@@ -82,7 +96,7 @@ impl FontSearcher {
     #[cfg(feature = "embed-fonts")]
     fn add_embedded(&mut self) {
         for data in typst_assets::fonts() {
-            let buffer = typst::foundations::Bytes::from_static(data);
+            let buffer = Bytes::new(data);
             for (i, font) in Font::iter(buffer).enumerate() {
                 self.book.push(font.info().clone());
                 self.fonts.push(FontSlot {

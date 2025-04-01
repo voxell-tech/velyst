@@ -1,8 +1,8 @@
 use typst::diag::EcoString;
-use typst::foundations::{self, Content, IntoValue, Label, Packed};
-use typst::loading::Readable;
+use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, OneOrMultiple, Packed};
+use typst::loading::DataSource;
 use typst::syntax::{Span, Spanned};
-use typst::{layout, math, model, symbols, text, visualize};
+use typst::{layout, math, model, text, visualize};
 use unicode_math_class::MathClass;
 
 macro_rules! fn_elem_empty {
@@ -111,13 +111,12 @@ fn_elem!(cite, model::CiteElem, Label);
 fn_elem!(
     bibliography,
     model::BibliographyElem,
-    paths = model::BibliographyPaths,
-    bibliography = model::Bibliography
+    bibliography = Derived<OneOrMultiple<DataSource>, model::Bibliography>
 );
 fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
-fn_elem!(par, model::ParElem, foundations::StyleVec);
+fn_elem!(par, model::ParElem, Content);
 fn_elem!(table, model::TableElem, Vec<model::TableChild>);
 fn_elem!(terms, model::TermsElem, Vec<Packed<model::TermItem>>);
 fn_elem!(emph, model::EmphElem);
@@ -136,8 +135,8 @@ fn_elem!(highlight, text::HighlightElem);
 fn_elem!(raw, text::RawElem, text::RawContent);
 
 // Symbols
-pub fn symbol(c: symbols::SymChar) -> symbols::Symbol {
-    symbols::Symbol::single(c)
+pub fn symbol(c: char) -> foundations::Symbol {
+    foundations::Symbol::single(c)
 }
 
 // Math
@@ -174,8 +173,7 @@ fn_elem!(primes, math::PrimesElem, usize);
 fn_elem!(
     image,
     visualize::ImageElem,
-    path = EcoString,
-    readable = Readable
+    source = Derived<DataSource, Bytes>
 );
 fn_elem_empty!(line, visualize::LineElem);
 fn_elem_empty!(rect, visualize::RectElem);
@@ -199,9 +197,9 @@ pub fn gradient(gradient: impl Into<visualize::Gradient>) -> visualize::Paint {
     visualize::Paint::Gradient(gradient.into())
 }
 
-/// [visualize::Paint::Pattern]
-pub fn pattern(pattern: impl Into<visualize::Pattern>) -> visualize::Paint {
-    visualize::Paint::Pattern(pattern.into())
+/// [visualize::Paint::Tiling]
+pub fn tiling(tiling: impl Into<visualize::Tiling>) -> visualize::Paint {
+    visualize::Paint::Tiling(tiling.into())
 }
 
 /// [visualize::Stroke]
