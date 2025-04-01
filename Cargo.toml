@@ -14,8 +14,7 @@ readme = "README.md"
 bevy = { version = "0.14.2", default-features = false }
 bevy_vello = "0.6.1"
 vello = "0.2.1"
-# vello_svg = "0.3.1"
-vello_svg = { git = "https://github.com/linebender/vello_svg", rev = "eb95f55"}
+vello_svg = "0.3.1"
 # Typst dependencies
 typst = { git = "https://github.com/typst/typst", rev = "0b151b8" }
 typst-assets = { version = "0.11", features = ["fonts"] }
