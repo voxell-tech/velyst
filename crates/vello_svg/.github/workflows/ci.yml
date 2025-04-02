@@ -1,0 +1,241 @@
+env:
+  # We aim to always test with the latest stable Rust toolchain, however we pin to a specific
+  # version like 1.70. Note that we only specify MAJOR.MINOR and not PATCH so that bugfixes still
+  # come automatically. If the version specified here is no longer the latest stable version,
+  # then please feel free to submit a PR that adjusts it along with the potential clippy fixes.
+  RUST_STABLE_VER: "1.81" # In quotes because otherwise (e.g.) 1.70 would be interpreted as 1.7
+  # The purpose of checking with the minimum supported Rust toolchain is to detect its staleness.
+  # If the compilation fails, then the version specified here needs to be bumped up to reality.
+  # Be sure to also update the rust-version property in the workspace Cargo.toml file,
+  # plus all the README.md files of the affected packages.
+  RUST_MIN_VER: "1.75"
+  # List of packages that will be checked with the minimum supported Rust version.
+  # This should be limited to packages that are intended for publishing.
+  RUST_MIN_VER_PKGS: "-p vello_svg"
+
+
+# Rationale
+#
+# We don't run clippy with --all-targets because then even --lib and --bins are compiled with
+# dev dependencies enabled, which does not match how they would be compiled by users.
+# A dev dependency might enable a feature of a regular dependency that we need, but testing
+# with --all-targets would not catch that. Thus we split --lib & --bins into a separate step.
+
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    name: cargo fmt
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_STABLE_VER }}
+          components: rustfmt
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: install ripgrep
+        run: |
+          sudo apt update
+          sudo apt install ripgrep
+
+      - name: check copyright headers
+        run: bash .github/copyright.sh
+
+  test-stable:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: ubuntu-latest
+            gpu: 'yes'
+          - os: macos-latest
+            gpu: 'yes'
+          - os: windows-latest
+            # TODO: The windows runners theoretically have CPU fallback for GPUs, but
+            # this failed in initial testing
+            gpu: 'no'
+    name: cargo clippy + test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_STABLE_VER }}
+          components: clippy
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install native dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+
+      # Adapted from https://github.com/bevyengine/bevy/blob/b446374392adc70aceb92621b080d1a6cf7a7392/.github/workflows/validation-jobs.yml#L74-L79
+      - name: install xvfb, llvmpipe and lavapipe
+        if: matrix.os == 'ubuntu-latest'
+        # https://launchpad.net/~kisak/+archive/ubuntu/turtle
+        run: |
+          sudo apt-get update -y -qq
+          sudo add-apt-repository ppa:kisak/turtle -y
+          sudo apt-get update
+          sudo apt install -y xvfb libegl1-mesa libgl1-mesa-dri libxcb-xfixes0-dev mesa-vulkan-drivers
+
+      - name: cargo clippy (no default features)
+        run: cargo clippy --workspace --lib --bins --no-default-features -- -D warnings
+
+      - name: cargo clippy (no default features) (auxiliary)
+        run: cargo clippy --workspace --tests --benches --examples --no-default-features -- -D warnings
+
+      - name: cargo clippy (default features)
+        run: cargo clippy --workspace --lib --bins -- -D warnings
+
+      - name: cargo clippy (default features) (auxiliary)
+        run: cargo clippy --workspace --tests --benches --examples -- -D warnings
+
+      - name: cargo clippy (all features)
+        run: cargo clippy --workspace --lib --bins --all-features -- -D warnings
+
+      - name: cargo clippy (all features) (auxiliary)
+        run: cargo clippy --workspace --tests --benches --examples --all-features -- -D warnings
+
+      # At the time of writing, we don't have any tests. Nevertheless, it's better to still run this
+      - name: cargo test
+        run: cargo test --workspace --all-features
+        env:
+          VELLO_CI_GPU_SUPPORT: ${{ matrix.gpu }}
+
+  clippy-stable-wasm:
+    runs-on: ubuntu-latest
+    name: cargo test (wasm32)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_STABLE_VER }}
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - name: cargo clippy (wasm)
+        run: cargo clippy --all-targets --target wasm32-unknown-unknown --workspace -- -D warnings
+
+  android-stable-check:
+    runs-on: ubuntu-latest
+    name: cargo check (aarch64-android)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_STABLE_VER }}
+          targets: aarch64-linux-android
+
+      - name: install cargo apk
+        run: cargo install cargo-apk
+
+      - name: cargo apk check (android)
+        run: cargo apk check -p with_winit --lib
+        env:
+          # This is a bit of a hack, but cargo apk doesn't seem to allow customising this
+          RUSTFLAGS: '-D warnings'
+
+  check-msrv:
+    name: cargo check (msrv)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install msrv toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_MIN_VER }}
+
+      - name: install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
+      - name: install native dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+
+      - name: cargo check
+        run: cargo hack check ${{ env.RUST_MIN_VER_PKGS }} --locked --each-feature --optional-deps
+
+  check-msrv-wasm:
+    name: cargo check (msrv) (wasm32)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: install msrv toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_MIN_VER }}
+          targets: wasm32-unknown-unknown
+
+      - name: install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
+      - name: cargo check
+        # We don't include ${{ env.NO_WASM_PKGS }} here, because `-p foo --exclude foo` doesn't work
+        # and none of our `NO_WASM_PKGS` have an MSRV.
+        run: cargo hack check ${{ env.RUST_MIN_VER_PKGS }} --locked --target wasm32-unknown-unknown --each-feature --optional-deps
+
+  docs:
+    name: cargo doc
+    # NOTE: We don't have any platform specific docs in this workspace, so we only run on Ubuntu.
+    #       If we get per-platform docs (win/macos/linux/wasm32/..) then doc jobs should match that.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: restore cache
+        uses: Swatinem/rust-cache@v2
+
+      # We test documentation using nightly to match docs.rs. This prevents potential breakages
+      - name: cargo doc
+        run: cargo doc --workspace --all-features --no-deps --document-private-items -Zunstable-options -Zrustdoc-scrape-examples
+
+  # If this fails, consider changing your text or adding something to .typos.toml
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: check typos
+        uses: crate-ci/typos@v1.23.2

@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = ["examples/with_winit", "examples/run_wasm", "examples/scenes"]
+
+[workspace.package]
+edition = "2021"
+version = "0.3.1"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/linebender/vello_svg"
+# Keep in sync with RUST_MIN_VER in .github/workflows/ci.yml, with the relevant README.md files
+# and with the MSRV in the `Unreleased` section of CHANGELOG.md.
+rust-version = "1.75"
+
+[workspace.lints]
+clippy.doc_markdown = "warn"
+clippy.semicolon_if_nothing_returned = "warn"
+
+[workspace.dependencies]
+# NOTE: Make sure to keep this in sync with the version badge in README.md
+vello = { version = "0.2.1", default-features = false }
+
+[package]
+name = "vello_svg"
+description = "An SVG integration for vello."
+categories = ["rendering", "graphics"]
+keywords = ["2d", "vector-graphics", "vello", "svg"]
+version.workspace = true
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vello = { workspace = true }
+thiserror = "1.0.61"
+usvg = "0.43.0"
+image = { version = "0.25.0", default-features = false, features = [
+  "webp",
+  "png",
+  "jpeg",
+  "gif",
+] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3.42"
+
+[features]
+# Enables the wgpu feature on vello, which is disabled by default
+wgpu = ["vello/wgpu"]

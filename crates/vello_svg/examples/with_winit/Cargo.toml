@@ -1,0 +1,46 @@
+[package]
+name = "with_winit"
+version = "0.0.0"
+description = "An example using vello to render to a winit window"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "with_winit"
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+# Stop the PDB collision warning on windows
+name = "with_winit_bin"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+vello = { workspace = true, features = ["buffer_labels", "wgpu"] }
+scenes = { path = "../scenes" }
+anyhow = "1"
+clap = { version = "4.5.1", features = ["derive"] }
+instant = { version = "0.1.12", features = ["wasm-bindgen"] }
+pollster = "0.3"
+winit = "0.29.12"
+env_logger = "0.11.2"
+log = "0.4.21"
+
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "android")))'.dependencies]
+vello = { workspace = true, features = ["hot_reload", "wgpu"] }
+notify-debouncer-mini = "0.3"
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.29.12", features = ["android-native-activity"] }
+android_logger = "0.13.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = "1.0.0"
+wasm-bindgen-futures = "0.4.41"
+web-sys = { version = "0.3.67", features = ["HtmlCollection", "Text"] }
+getrandom = { version = "0.2.12", features = ["js"] }

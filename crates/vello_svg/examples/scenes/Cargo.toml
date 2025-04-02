@@ -1,0 +1,27 @@
+[package]
+name = "scenes"
+description = "Scenes used in the other examples."
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+vello = { workspace = true }
+vello_svg = { path = "../.." }
+anyhow = "1"
+clap = { version = "4.5.1", features = ["derive"] }
+rand = "0.8.5"
+instant = "0.1"
+
+# Used for the `download` command
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+byte-unit = "4.0.19"
+inquire = "0.7"
+ureq = "2.9.6"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2.12", features = ["js"] }
