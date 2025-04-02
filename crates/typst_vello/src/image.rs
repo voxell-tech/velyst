@@ -3,7 +3,6 @@ use std::sync::Arc;
 use typst::layout::{Size, Transform};
 use typst::visualize as viz;
 use vello::{kurbo, peniko};
-use vello_svg::usvg;
 
 use crate::utils::convert_transform;
 
@@ -49,9 +48,8 @@ pub fn render_image(image: &viz::Image, size: Size, local_transform: Transform) 
         viz::ImageKind::Svg(svg) => {
             let transform = convert_transform(local_transform)
                 .pre_scale_non_uniform(size.x.to_pt() / svg.width(), size.y.to_pt() / svg.height());
-            let data = svg.data().as_slice();
-            let tree = usvg::Tree::from_data(data, &usvg::Options::default()).unwrap();
-            let scene = vello_svg::render_tree(&tree);
+
+            let scene = vello_svg::render_tree(svg.tree());
 
             ImageScene { transform, scene }
         }
