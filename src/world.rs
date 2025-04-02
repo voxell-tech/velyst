@@ -68,14 +68,17 @@ impl TypstWorld {
         let world: &dyn World = self;
 
         // Try to evaluate the source file into a module.
-        typst_eval::eval(
+        let module = typst_eval::eval(
             &typst::ROUTINES,
             world.track(),
             Traced::default().track(),
             Sink::new().track_mut(),
             Route::default().track(),
             &source,
-        )
+        );
+        self.reset();
+
+        module
     }
 
     pub fn layout_frame(&self, content: &Content) -> SourceResult<Frame> {
@@ -121,6 +124,14 @@ impl TypstWorld {
         }
 
         Ok(frame)
+    }
+
+    fn reset(&self) {
+        let mut slots = self.slots.lock().unwrap();
+
+        for slot in slots.values_mut() {
+            slot.reset();
+        }
     }
 }
 
@@ -221,6 +232,11 @@ impl FileSlot {
             |data, _| Ok(Bytes::new(data)),
         )
     }
+
+    fn reset(&mut self) {
+        self.source.reset();
+        self.file.reset();
+    }
 }
 
 /// Lazily processes data for a file.
@@ -272,6 +288,10 @@ impl<T: Clone> SlotCell<T> {
         self.data = Some(value.clone());
 
         value
+    }
+
+    fn reset(&mut self) {
+        self.accessed = false;
     }
 }
 
