@@ -10,7 +10,7 @@ readme.workspace = true
 typst = { workspace = true }
 vello = { workspace = true }
 smallvec = { workspace = true }
-vello_svg = { path = "../vello_svg" }
+vello_svg = { path = "../../external_crates/vello_svg" }
 ahash = "0.8.11"
 ttf-parser = "0.24.1"
 
