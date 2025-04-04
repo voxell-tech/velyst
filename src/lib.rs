@@ -1,10 +1,10 @@
-pub use {typst, typst_element, typst_vello};
+pub use {typst, typst_element, typst_library, typst_vello};
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use asset::TypstAssetPlugin;
 use renderer::VelystRendererPlugin;
-use world::{TypstWorld, TypstWorldRef};
+use world::{TypstWorld, TypstWorldPlugin, TypstWorldRef};
 
 use bevy::prelude::*;
 
@@ -39,10 +39,13 @@ impl Plugin for VelystPlugin {
         // Using assets/ as the root path
         let mut assets_path = PathBuf::from(".");
         assets_path.push("assets");
-        let world = Arc::new(TypstWorld::new(assets_path, &self.font_paths));
+        let world = TypstWorld::new(assets_path, &self.font_paths);
+        let world_ref = TypstWorldRef::new(world);
 
-        app.add_plugins(TypstAssetPlugin(world.clone()))
-            .add_plugins(VelystRendererPlugin)
-            .insert_resource(TypstWorldRef::new(world));
+        app.add_plugins((
+            TypstWorldPlugin(world_ref.clone()),
+            TypstAssetPlugin(world_ref.clone()),
+            VelystRendererPlugin,
+        ));
     }
 }

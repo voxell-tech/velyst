@@ -17,6 +17,7 @@ vello = "0.2.1"
 # Typst dependencies
 typst = "0.13.1"
 typst-eval = "0.13.1"
+typst-library = "0.13.1"
 typst-assets = { version = "0.13.1", features = ["fonts"] }
 unicode-math-class = "0.1" # in sync with typst
 # Common dependencies
@@ -47,6 +48,7 @@ velyst_macros = { version = "0.1.0", path = "crates/velyst_macros" }
 bevy = { workspace = true }
 bevy_vello = { workspace = true }
 typst = { workspace = true }
+typst-library = { workspace = true }
 typst-eval = { workspace = true }
 typst-assets = { workspace = true, optional = true }
 chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }

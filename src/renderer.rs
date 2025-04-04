@@ -140,7 +140,7 @@ fn layout_typst_content<F: TypstFunc>(
     mut scene: ResMut<VelystScene<F>>,
 ) {
     // TODO: Optimize this system (currently the bottleneck).
-    match world.layout_frame(&content) {
+    match world.read().unwrap().layout_frame(&content) {
         Ok(frame) => {
             scene.update_frame(&frame);
         }

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext};
 use bevy::prelude::*;
 use ecow::EcoVec;
@@ -7,9 +5,9 @@ use thiserror::Error;
 use typst::diag::SourceDiagnostic;
 use typst::foundations::Module;
 
-use crate::world::TypstWorld;
+use crate::world::TypstWorldRef;
 
-pub struct TypstAssetPlugin(pub Arc<TypstWorld>);
+pub struct TypstAssetPlugin(pub TypstWorldRef);
 
 impl Plugin for TypstAssetPlugin {
     fn build(&self, app: &mut App) {
@@ -27,7 +25,7 @@ impl TypstAsset {
     }
 }
 
-pub struct TypstAssetLoader(Arc<TypstWorld>);
+pub struct TypstAssetLoader(TypstWorldRef);
 
 impl AssetLoader for TypstAssetLoader {
     type Asset = TypstAsset;
@@ -47,6 +45,8 @@ impl AssetLoader for TypstAssetLoader {
 
         let module = self
             .0
+            .read()
+            .unwrap()
             .eval_file(&load_context.asset_path().to_string(), &text)
             .map_err(SourceDiagnosticError)?;
         Ok(TypstAsset(module))

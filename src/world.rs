@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock, RwLock};
 use std::{fs, mem};
 
 use bevy::prelude::*;
@@ -8,7 +8,7 @@ use chrono::{DateTime, Datelike, Local};
 use typst::comemo::{Track, Validate};
 use typst::diag::{FileError, FileResult, SourceResult};
 use typst::engine::{Engine, Route, Sink, Traced};
-use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
+use typst::foundations::{func, Bytes, Content, Datetime, Module, StyleChain};
 use typst::introspection::Introspector;
 use typst::layout::{Abs, Axes, Frame, Region};
 use typst::syntax::{FileId, Source, VirtualPath};
@@ -20,13 +20,40 @@ use fonts::{FontSearcher, FontSlot};
 
 pub mod fonts;
 
+pub struct TypstWorldPlugin(pub TypstWorldRef);
+
+impl Plugin for TypstWorldPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(self.0.clone())
+            .add_systems(Update, update_global_time);
+    }
+}
+
+static ELAPSED_SECS: LazyLock<RwLock<f64>> = LazyLock::new(|| RwLock::new(0.0));
+static DELTA_SECS: LazyLock<RwLock<f64>> = LazyLock::new(|| RwLock::new(0.0));
+
+#[func]
+fn elapsed_secs() -> f64 {
+    *ELAPSED_SECS.read().unwrap()
+}
+
+#[func]
+fn delta_secs() -> f64 {
+    *DELTA_SECS.read().unwrap()
+}
+
+fn update_global_time(time: Res<Time>) {
+    *ELAPSED_SECS.write().unwrap() = time.elapsed_seconds_f64();
+    *DELTA_SECS.write().unwrap() = time.delta_seconds_f64();
+}
+
 /// Resource reference to the underlying [`TypstWorld`].
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstWorldRef(Arc<TypstWorld>);
+#[derive(Resource, Deref, DerefMut, Clone)]
+pub struct TypstWorldRef(Arc<RwLock<TypstWorld>>);
 
 impl TypstWorldRef {
-    pub fn new(world: Arc<TypstWorld>) -> Self {
-        Self(world)
+    pub fn new(world: TypstWorld) -> Self {
+        Self(Arc::new(RwLock::new(world)))
     }
 }
 
@@ -35,7 +62,7 @@ pub struct TypstWorld {
     /// The root relative to which absolute paths are resolved.
     root: PathBuf,
     /// Typst's standard library.
-    library: LazyHash<Library>,
+    pub library: LazyHash<Library>,
     /// Metadata about discovered fonts.
     book: LazyHash<FontBook>,
     /// Locations of and storage for lazily loaded fonts.
@@ -52,9 +79,14 @@ impl TypstWorld {
         let mut searcher = FontSearcher::default();
         searcher.search(font_paths);
 
+        let mut library = Library::default();
+        let scope = library.global.scope_mut();
+        scope.define_func::<elapsed_secs>();
+        scope.define_func::<delta_secs>();
+
         Self {
             root,
-            library: LazyHash::new(Library::default()),
+            library: LazyHash::new(library),
             book: LazyHash::new(searcher.book),
             fonts: searcher.fonts,
             slots: Mutex::new(HashMap::new()),
