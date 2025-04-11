@@ -15,14 +15,8 @@ pub struct VelystRendererPlugin;
 impl Plugin for VelystRendererPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            Update,
-            (
-                VelystSet::AssetLoading,
-                VelystSet::Compile,
-                VelystSet::Layout,
-                VelystSet::Render,
-            )
-                .chain(),
+            PostUpdate,
+            (VelystSet::Compile, VelystSet::Layout, VelystSet::Render).chain(),
         );
     }
 }
@@ -30,8 +24,6 @@ impl Plugin for VelystRendererPlugin {
 /// Velyst rendering pipeline.
 #[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum VelystSet {
-    /// Loading and reloading of [`TypstAsset`].
-    AssetLoading,
     /// Compile [`TypstFunc`] into a [`TypstContent`].
     Compile,
     /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
@@ -53,19 +45,13 @@ pub trait VelystAppExt {
 
 impl VelystAppExt for App {
     fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
-        self.add_systems(
-            PreStartup,
-            load_typst_asset::<P>.in_set(VelystSet::AssetLoading),
-        )
-        .add_systems(
-            Update,
-            asset_change_detection::<P>.in_set(VelystSet::AssetLoading),
-        )
+        self.add_systems(PreStartup, load_typst_asset::<P>)
+            .add_systems(Update, asset_change_detection::<P>)
     }
 
     fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
         self.init_resource::<TypstContent<F>>().add_systems(
-            Update,
+            PostUpdate,
             compile_typst_func::<P, F>
                 .run_if(
                     // Asset and function needs to exists first.
@@ -82,7 +68,7 @@ impl VelystAppExt for App {
 
     fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
         self.init_resource::<VelystScene<F>>().add_systems(
-            Update,
+            PostUpdate,
             (
                 // Layout
                 layout_typst_content::<F>
@@ -120,7 +106,7 @@ fn asset_change_detection<P: TypstPath>(
 }
 
 /// System implementation for compiling [`TypstFunc`] into [`TypstContent`].
-fn compile_typst_func<P: TypstPath, F: TypstFunc>(
+pub fn compile_typst_func<P: TypstPath, F: TypstFunc>(
     context: TypstContext<P>,
     mut content: ResMut<TypstContent<F>>,
     func: Res<F>,
@@ -134,7 +120,7 @@ fn compile_typst_func<P: TypstPath, F: TypstFunc>(
 }
 
 /// System implementation for layouting [`TypstContent`] into [`VelystScene`].
-fn layout_typst_content<F: TypstFunc>(
+pub fn layout_typst_content<F: TypstFunc>(
     content: Res<TypstContent<F>>,
     world: Res<TypstWorldRef>,
     mut scene: ResMut<VelystScene<F>>,
@@ -152,7 +138,7 @@ fn layout_typst_content<F: TypstFunc>(
 }
 
 /// System implementation for rendering [`VelystScene`] into [`VelloScene`].
-fn render_velyst_scene<F: TypstFunc>(
+pub fn render_velyst_scene<F: TypstFunc>(
     mut commands: Commands,
     mut q_scenes: Query<(&mut VelloScene, &mut Style, &mut Visibility)>,
     mut scene: ResMut<VelystScene<F>>,
