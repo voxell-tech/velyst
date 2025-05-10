@@ -22,7 +22,7 @@ To get started rendering a simple box, create a function inside a `.typ` file:
 }
 ```
 
-Then, in your `.rs` file, register your Typst asset file and function.
+Then, in your `.rs` file, load your Typst asset file and register your function.
 
 ```rs
 use bevy::prelude::*;
