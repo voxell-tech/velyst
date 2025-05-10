@@ -301,7 +301,7 @@ pub struct VelystContent(pub Content);
 #[require(VelloScene)]
 pub struct VelystScene(pub TypstScene);
 
-/// Width and height of the Typst region.
+/// Width and height of the Typst region inside a ui [`Node`].
 /// Use [`Val::Auto`] for auto sizing.
 #[derive(Component, Default)]
 #[require(ComputedVelystSize, Node)]

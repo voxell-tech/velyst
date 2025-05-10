@@ -8,15 +8,17 @@ Interactive [Typst](https://typst.app) content creator using [Vello](https://git
 
 ## Quickstart
 
-Velyst renders Typst content using Typst functions. To get started rendering a simple box, create a function inside a `.typ` file:
+Velyst renders Typst content using Typst functions.
+This example shows you how to render a simple white box in the center of the screen.
+To get started rendering a simple box, create a function inside a `.typ` file:
 
 ```typ
-#let main(width, height) = {
-  // Convert float to length
-  let width = (width * 1pt)
-  let height = (height * 1pt)
-
-  box(width: width, height: height, fill: white)
+#let main() = {
+  box(width: 100%, height: 100%)[
+    #place(center + horizon)[
+      #box(width: 10em, height: 10em, fill: white)
+    ]
+  ]
 }
 ```
 
@@ -24,45 +26,49 @@ Then, in your `.rs` file, register your Typst asset file and function.
 
 ```rs
 use bevy::prelude::*;
-use bevy_vello::VelloPlugin;
-use velyst::{prelude::*, VelystPlugin};
+use bevy_vello::prelude::*;
+use velyst::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, VelloPlugin::default()))
-        .add_plugins(VelystPlugin::default())
-        .register_typst_asset::<HelloWorld>()
-        .compile_typst_func::<HelloWorld, MainFunc>()
-        .render_typst_func::<MainFunc>()
-        .insert_resource(MainFunc {
-            width: 100.0,
-            height: 100.0,
-        })
+        .add_plugins((
+            DefaultPlugins,
+            bevy_vello::VelloPlugin::default(),
+            velyst::VelystPlugin,
+        ))
+        .register_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
         .run();
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn((Camera2d, VelloView));
+
+    let handle =
+        VelystSourceHandle(asset_server.load("typst/box.typ"));
+
+    commands.spawn((
+        VelystFuncBundle {
+            handle,
+            func: MainFunc::default(),
+        },
+        VelystSize {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+        },
+    ));
 }
 
-// `main` function in Typst with their respective values.
-#[derive(TypstFunc, Resource, Default)]
-#[typst_func(name = "main")] // name of function in the Typst file
-struct MainFunc {
-    width: f64,
-    height: f64,
-}
-
-// Path to the Typst file that you created.
-#[derive(TypstPath)]
-#[typst_path = "path/to/file.typ"]
-struct HelloWorld;
+typst_func!(
+    "main",
+    #[derive(Component, Default)]
+    struct MainFunc {},
+);
 ```
 
 ## Interactions
 
-Velyst comes with built-in interactions using `bevy_ui`.
+Velyst is also compatible with `bevy_ui` interactions.
 
 ![game ui](./.github/assets/game_ui.png)
 
