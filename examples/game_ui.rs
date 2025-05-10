@@ -1,8 +1,6 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy_vello::prelude::*;
 use velyst::prelude::*;
-use velyst::typst_element::prelude::*;
 
 fn main() {
     App::new()
@@ -11,92 +9,163 @@ fn main() {
             bevy_vello::VelloPlugin::default(),
             velyst::VelystPlugin,
         ))
-        .register_typst_asset::<GameUi>()
-        .compile_typst_func::<GameUi, MainFunc>()
-        .compile_typst_func::<GameUi, PerfMetricsFunc>()
-        .render_typst_func::<MainFunc>()
+        .register_typst_func::<LabelFunc>()
+        .register_typst_func::<ButtonFunc>()
+        .register_typst_func::<PerfMetricsFunc>()
         .add_systems(Startup, setup)
-        .init_resource::<MainFunc>()
-        .init_resource::<PerfMetricsFunc>()
-        .add_systems(
-            Update,
-            (main_func_window, main_func_interactions, main_func_metrics),
-        )
-        .add_systems(Update, perf_metrics)
+        .add_systems(Update, (button_interaction, perf_metrics))
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
+
+    let handle =
+        VelystSourceHandle(asset_server.load("typst/game_ui.typ"));
+
+    commands
+        .spawn(Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::VMin(6.0)),
+            justify_content: JustifyContent::Center,
+            ..default()
+        })
+        .with_children(|builder| {
+            builder.spawn((
+                VelystFuncBundle {
+                    handle: handle.clone(),
+                    func: LabelFunc::title("Title"),
+                },
+                VelystSize {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                },
+                Node {
+                    padding: UiRect::all(Val::Vh(4.0)),
+                    margin: UiRect::vertical(Val::Vh(6.0)),
+                    ..default()
+                },
+            ));
+            builder.spawn((
+                VelystFuncBundle {
+                    handle: handle.clone(),
+                    func: ButtonFunc::text("Start").with_fill(
+                        viz::Color::from_u8(0, 255, 0, 255),
+                    ),
+                },
+                VelystSize {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                },
+                Node {
+                    padding: UiRect::all(Val::Vh(4.0)),
+                    ..default()
+                },
+                Button,
+            ));
+
+            builder.spawn((
+                VelystFuncBundle {
+                    handle,
+                    func: PerfMetricsFunc::default(),
+                },
+                VelystSize {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                },
+                Node {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(0.0),
+                    right: Val::Px(0.0),
+                    ..default()
+                },
+            ));
+        });
 }
 
-fn main_func_window(
-    q_window: Query<Ref<Window>, (With<PrimaryWindow>, Changed<Window>)>,
-    mut main_func: ResMut<MainFunc>,
+fn perf_metrics(
+    time: Res<Time>,
+    mut q_func: Query<&mut PerfMetricsFunc>,
 ) {
-    let Ok(window) = q_window.get_single() else {
+    let Ok(mut func) = q_func.get_single_mut() else {
         return;
     };
 
-    main_func.width = window.width() as f64;
-    main_func.height = window.height() as f64;
+    func.fps = (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
+    func.elapsed_time =
+        (time.elapsed_secs_f64() * 100.0).round() / 100.0;
 }
 
-fn main_func_metrics(
-    perf_metrics: Res<TypstContent<PerfMetricsFunc>>,
-    mut main_func: ResMut<MainFunc>,
+fn button_interaction(
+    mut q_buttons: Query<(&mut ButtonFunc, &Interaction)>,
 ) {
-    if perf_metrics.is_changed() {
-        main_func.perf_metrics = perf_metrics.clone();
+    for (mut func, interaction) in q_buttons.iter_mut() {
+        func.hovered = *interaction == Interaction::Hovered;
     }
 }
 
-fn main_func_interactions(
-    q_interactions: Query<(&Interaction, &TypstLabel), Changed<Interaction>>,
-    mut main_func: ResMut<MainFunc>,
-    time: Res<Time>,
-) {
-    for (interaction, label) in q_interactions.iter() {
-        if *interaction == Interaction::Hovered {
-            main_func.btn_highlight = label.resolve().to_string();
-            main_func.animate = 0.0;
-        } else {
-            main_func.btn_highlight.clear();
+typst_func!(
+    "perf_metrics",
+    #[derive(Component, Default)]
+    struct PerfMetricsFunc {},
+    positional_args {
+        fps: f64,
+        elapsed_time: f64,
+    },
+);
+
+typst_func!(
+    "lbl",
+    #[derive(Component, Default)]
+    struct LabelFunc {},
+    positional_args { body: Content },
+    named_args {
+        fill: viz::Color,
+        size: Abs,
+    }
+);
+
+impl LabelFunc {
+    pub fn title(text: &str) -> Self {
+        Self {
+            body: elem::heading(elem::text(text).pack()).pack(),
+            size: Some(Abs::pt(48.0)),
+            ..default()
         }
     }
 
-    // Clamp below 1.0
-    const SPEED: f64 = 8.0;
-    main_func.animate = f64::min(main_func.animate + time.delta_secs_f64() * SPEED, 1.0);
+    // pub fn with_fill(mut self, fill: viz::Color) -> Self {
+    //     self.fill = Some(fill);
+    //     self
+    // }
 }
 
-fn perf_metrics(time: Res<Time>, mut perf_metrics: ResMut<PerfMetricsFunc>) {
-    let fps = (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
-    let elapsed_time = (time.elapsed_secs_f64() * 100.0).round() / 100.0;
+typst_func!(
+    "button",
+    #[derive(Component, Default)]
+    struct ButtonFunc {},
+    positional_args {
+        body: Content,
+        hovered: bool,
+    },
+    named_args {
+        fill: viz::Color,
+        size: Abs,
+    }
+);
 
-    perf_metrics.fps = fps;
-    perf_metrics.elapsed_time = elapsed_time;
+impl ButtonFunc {
+    pub fn text(text: &str) -> Self {
+        Self {
+            body: elem::heading(elem::text(text).pack()).pack(),
+            ..default()
+        }
+    }
+
+    pub fn with_fill(mut self, fill: viz::Color) -> Self {
+        self.fill = Some(fill);
+        self
+    }
 }
-
-#[derive(TypstFunc, Resource, Default)]
-#[typst_func(name = "main")]
-pub struct MainFunc {
-    width: f64,
-    height: f64,
-    perf_metrics: Content,
-    #[typst_func(named)]
-    btn_highlight: String,
-    #[typst_func(named)]
-    animate: f64,
-}
-
-#[derive(TypstFunc, Resource, Default)]
-#[typst_func(name = "perf_metrics")]
-pub struct PerfMetricsFunc {
-    fps: f64,
-    elapsed_time: f64,
-}
-
-#[derive(TypstPath)]
-#[typst_path = "typst/game_ui.typ"]
-struct GameUi;

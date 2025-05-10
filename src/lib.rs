@@ -1,3 +1,7 @@
+//! # Velyst
+//!
+//! Velyst is a [Typst](https://typst.app) renderer for [Bevy](https://bevyengine.org).
+
 extern crate self as velyst;
 
 use asset::TypstAssetPlugin;
@@ -8,9 +12,13 @@ use world::VelystWorldPlugin;
 pub use {typst, typst_element, typst_vello};
 
 pub mod prelude {
-    pub use crate::asset::{VelystModules, VelystSource, VelystSourceHandle};
+    pub use crate::asset::{
+        VelystModules, VelystSource, VelystSourceHandle,
+    };
     pub use crate::renderer::{
-        TypstFuncAppExt, VelystFunc, VelystFuncBundle, VelystScene, VelystSet, VelystSourceReady,
+        ComputedVelystSize, TypstFuncAppExt, VelystFunc,
+        VelystFuncBundle, VelystScene, VelystSet, VelystSize,
+        VelystSourceReady,
     };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;
@@ -26,6 +34,10 @@ pub struct VelystPlugin;
 
 impl Plugin for VelystPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((TypstAssetPlugin, VelystWorldPlugin, VelystRendererPlugin));
+        app.add_plugins((
+            TypstAssetPlugin,
+            VelystWorldPlugin,
+            VelystRendererPlugin,
+        ));
     }
 }

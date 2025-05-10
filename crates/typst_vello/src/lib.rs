@@ -11,7 +11,10 @@ use smallvec::SmallVec;
 use text::{TextScene, render_text};
 use typst::{
     foundations::Label,
-    layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform},
+    layout::{
+        Frame, FrameItem, FrameKind, GroupItem, Point, Size,
+        Transform,
+    },
 };
 use utils::convert_transform;
 use vello::{kurbo, peniko};
@@ -32,7 +35,10 @@ pub struct TypstScene {
 
 impl TypstScene {
     pub fn from_frame(frame: &Frame) -> Self {
-        let size = kurbo::Vec2::new(frame.size().x.to_pt(), frame.size().y.to_pt());
+        let size = kurbo::Vec2::new(
+            frame.size().x.to_pt(),
+            frame.size().y.to_pt(),
+        );
         let mut typst_scene = TypstScene {
             size,
             ..Default::default()
@@ -55,7 +61,8 @@ impl TypstScene {
     /// Render [`TypstScene`] into a [`vello::Scene`].
     pub fn render(&mut self) -> vello::Scene {
         let mut scene = vello::Scene::new();
-        let mut computed_transforms = Vec::with_capacity(self.group_scenes.len());
+        let mut computed_transforms =
+            Vec::with_capacity(self.group_scenes.len());
 
         for group_scene in self.group_scenes.iter_mut() {
             let group = &mut group_scene.group;
@@ -63,7 +70,8 @@ impl TypstScene {
             // Calculate accumulated transform from the group hierarchy.
             let transform = match group.parent {
                 Some(parent_index) => {
-                    let transform = computed_transforms[parent_index] * group.transform;
+                    let transform = computed_transforms[parent_index]
+                        * group.transform;
                     computed_transforms.push(transform);
                     transform
                 }
@@ -72,12 +80,16 @@ impl TypstScene {
                     group.transform
                 }
             };
-            let transform = (transform != kurbo::Affine::IDENTITY).then_some(transform);
+            let transform = (transform != kurbo::Affine::IDENTITY)
+                .then_some(transform);
 
             let mut pushed_clip = false;
             if let Some(clip_path) = &group.clip_path {
                 scene.push_layer(
-                    peniko::BlendMode::new(peniko::Mix::Clip, peniko::Compose::SrcOver),
+                    peniko::BlendMode::new(
+                        peniko::Mix::Clip,
+                        peniko::Compose::SrcOver,
+                    ),
                     1.0,
                     group.transform,
                     clip_path,
@@ -109,7 +121,12 @@ impl TypstScene {
 
     /// Populate [`TypstGroup`] with items inside the [`Frame`] and recursively
     /// populate the [`TypstScene`] itself if the frame contains any groups.
-    fn handle_frame(&mut self, frame: &Frame, state: RenderState, group_index: usize) {
+    fn handle_frame(
+        &mut self,
+        frame: &Frame,
+        state: RenderState,
+        group_index: usize,
+    ) {
         for (pos, item) in frame.items() {
             let pos = *pos;
             let local_transform = Transform::translate(pos.x, pos.y);
@@ -124,15 +141,18 @@ impl TypstScene {
                     );
                 }
                 FrameItem::Text(text) => {
-                    let scenes = &mut self.get_group_mut(group_index).scenes;
+                    let scenes =
+                        &mut self.get_group_mut(group_index).scenes;
                     scenes.push(SceneKind::Text(render_text(
                         text,
                         state.pre_translate(pos),
-                        (local_transform.is_identity() == false).then_some(local_transform),
+                        (local_transform.is_identity() == false)
+                            .then_some(local_transform),
                     )));
                 }
                 FrameItem::Shape(shape, _) => {
-                    let scenes = &mut self.get_group_mut(group_index).scenes;
+                    let scenes =
+                        &mut self.get_group_mut(group_index).scenes;
                     scenes.push(SceneKind::Shape(render_shape(
                         shape,
                         state.pre_translate(pos),
@@ -145,7 +165,8 @@ impl TypstScene {
                         continue;
                     }
 
-                    let scenes = &mut self.get_group_mut(group_index).scenes;
+                    let scenes =
+                        &mut self.get_group_mut(group_index).scenes;
                     scenes.push(SceneKind::Image(render_image(
                         image,
                         *size,
@@ -169,8 +190,13 @@ impl TypstScene {
     ) {
         // Generate TypstGroup for the underlying frame.
         let group_paths = TypstGroup {
-            size: kurbo::Vec2::new(group.frame.size().x.to_pt(), group.frame.size().y.to_pt()),
-            transform: convert_transform(local_transform.pre_concat(group.transform)),
+            size: kurbo::Vec2::new(
+                group.frame.size().x.to_pt(),
+                group.frame.size().y.to_pt(),
+            ),
+            transform: convert_transform(
+                local_transform.pre_concat(group.transform),
+            ),
             parent,
             clip_path: group.clip.as_ref().map(convert_curve),
             label: group.label,
@@ -199,7 +225,8 @@ impl TypstScene {
                     map.push(index);
                 }
                 None => {
-                    self.group_map.insert(label, SmallVec::from_buf([index]));
+                    self.group_map
+                        .insert(label, SmallVec::from_buf([index]));
                 }
             }
         }
@@ -227,7 +254,9 @@ impl TypstScene {
             .map(|group_scene| &group_scene.group)
     }
 
-    pub fn iter_groups_mut(&mut self) -> impl Iterator<Item = &mut TypstGroup> {
+    pub fn iter_groups_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut TypstGroup> {
         self.group_scenes
             .iter_mut()
             .map(|group_scene| &mut group_scene.group)
@@ -261,7 +290,10 @@ impl TypstGroupScene {
 }
 
 impl std::fmt::Debug for TypstGroupScene {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         f.debug_struct("TypstGroupScene")
             .field("group", &self.group)
             .field("updated", &self.updated)
@@ -281,7 +313,10 @@ pub struct TypstGroup {
 
 impl TypstGroup {
     /// Create [`TypstGroup`] from a single [`SceneKind`].
-    pub fn from_scene(scene: SceneKind, parent: Option<usize>) -> Self {
+    pub fn from_scene(
+        scene: SceneKind,
+        parent: Option<usize>,
+    ) -> Self {
         Self {
             scenes: vec![scene],
             parent,

@@ -60,7 +60,8 @@ pub fn render_shape(
         transform: convert_transform(local_transform),
         path: convert_geometry_to_path(&shape.geometry),
         fill: shape.fill.as_ref().map(|paint| {
-            let transform = shape_paint_transform(state, paint, shape);
+            let transform =
+                shape_paint_transform(state, paint, shape);
             let size = shape_fill_size(state, paint, shape);
             let brush = convert_paint_to_brush(paint, size);
 
@@ -75,7 +76,8 @@ pub fn render_shape(
             }
         }),
         stroke: shape.stroke.as_ref().map(|stroke| {
-            let transform = shape_paint_transform(state, &stroke.paint, shape);
+            let transform =
+                shape_paint_transform(state, &stroke.paint, shape);
             let size = shape_fill_size(state, &stroke.paint, shape);
             let brush = convert_paint_to_brush(&stroke.paint, size);
 
@@ -120,7 +122,9 @@ pub fn shape_paint_transform(
     } else if let viz::Paint::Tiling(tiling) = paint {
         match tiling.unwrap_relative(false) {
             viz::RelativeTo::Self_ => Transform::identity(),
-            viz::RelativeTo::Parent => state.transform.invert().unwrap(),
+            viz::RelativeTo::Parent => {
+                state.transform.invert().unwrap()
+            }
         }
     } else {
         Transform::identity()
@@ -128,7 +132,11 @@ pub fn shape_paint_transform(
 }
 
 /// Calculate the size of the shape's fill.
-fn shape_fill_size(state: RenderState, paint: &viz::Paint, shape: &viz::Shape) -> Size {
+fn shape_fill_size(
+    state: RenderState,
+    paint: &viz::Paint,
+    shape: &viz::Shape,
+) -> Size {
     let mut shape_size = shape.geometry.bbox_size();
     // Edge cases for strokes.
     if shape_size.x.to_pt() == 0.0 {
@@ -149,15 +157,19 @@ fn shape_fill_size(state: RenderState, paint: &viz::Paint, shape: &viz::Shape) -
     }
 }
 
-pub fn convert_geometry_to_path(geometry: &viz::Geometry) -> kurbo::BezPath {
+pub fn convert_geometry_to_path(
+    geometry: &viz::Geometry,
+) -> kurbo::BezPath {
     match geometry {
         viz::Geometry::Line(p) => {
-            kurbo::Line::new((0.0, 0.0), (p.x.to_pt(), p.y.to_pt())).to_path(0.01)
-        }
-        viz::Geometry::Rect(rect) => {
-            kurbo::Rect::from_origin_size((0.0, 0.0), (rect.x.to_pt(), rect.y.to_pt()))
+            kurbo::Line::new((0.0, 0.0), (p.x.to_pt(), p.y.to_pt()))
                 .to_path(0.01)
         }
+        viz::Geometry::Rect(rect) => kurbo::Rect::from_origin_size(
+            (0.0, 0.0),
+            (rect.x.to_pt(), rect.y.to_pt()),
+        )
+        .to_path(0.01),
 
         viz::Geometry::Curve(curve) => convert_curve(curve),
     }
@@ -168,8 +180,12 @@ pub fn convert_curve(path: &viz::Curve) -> kurbo::BezPath {
 
     for item in &path.0 {
         match item {
-            viz::CurveItem::Move(p) => bezpath.move_to((p.x.to_pt(), p.y.to_pt())),
-            viz::CurveItem::Line(p) => bezpath.line_to((p.x.to_pt(), p.y.to_pt())),
+            viz::CurveItem::Move(p) => {
+                bezpath.move_to((p.x.to_pt(), p.y.to_pt()))
+            }
+            viz::CurveItem::Line(p) => {
+                bezpath.line_to((p.x.to_pt(), p.y.to_pt()))
+            }
             viz::CurveItem::Cubic(p1, p2, p3) => bezpath.curve_to(
                 (p1.x.to_pt(), p1.y.to_pt()),
                 (p2.x.to_pt(), p2.y.to_pt()),

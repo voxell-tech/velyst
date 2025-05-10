@@ -1,7 +1,9 @@
 use typst::diag::EcoString;
-use typst::foundations::{self, Bytes, Content, Derived, IntoValue, Label, OneOrMultiple, Packed};
+use typst::foundations::{
+    self, Bytes, Content, Derived, Label, OneOrMultiple, Packed,
+};
 use typst::loading::DataSource;
-use typst::syntax::{Span, Spanned};
+use typst::syntax::Spanned;
 use typst::{layout, math, model, text, visualize};
 use unicode_math_class::MathClass;
 
@@ -43,7 +45,7 @@ macro_rules! sequence {
 }
 
 /// Create an array of values with the signature of:
-/// <code>[[foundations::Value]]</code>
+/// <code>[[foundations::Value], ..]</code>
 ///
 /// # Example
 /// ```
@@ -63,7 +65,7 @@ macro_rules! values {
 }
 
 /// Create an array of named values with the signature of:
-/// <code>[(&[str], [foundations::Value])]</code>
+/// <code>[(&[str], [foundations::Value]), ..]</code>
 ///
 /// # Example
 /// ```
@@ -94,12 +96,18 @@ macro_rules! named_values {
 // }
 
 /// [foundations::ContextElem]
-pub fn context(func: foundations::Func, args: &mut foundations::Args) -> foundations::ContextElem {
+pub fn context(
+    func: foundations::Func,
+    args: &mut foundations::Args,
+) -> foundations::ContextElem {
     foundations::ContextElem::new(func.with(args))
 }
 
 pub trait FuncCall {
-    fn call(self, positional_args: &[foundations::Value]) -> foundations::ContextElem;
+    fn call(
+        self,
+        positional_args: &[foundations::Value],
+    ) -> foundations::ContextElem;
 
     fn call_with_named(
         self,
@@ -109,8 +117,14 @@ pub trait FuncCall {
 }
 
 impl FuncCall for foundations::Func {
-    fn call(self, positional_args: &[foundations::Value]) -> foundations::ContextElem {
-        let mut args = foundations::Args::new(self.span(), positional_args.iter().cloned());
+    fn call(
+        self,
+        positional_args: &[foundations::Value],
+    ) -> foundations::ContextElem {
+        let mut args = foundations::Args::new(
+            self.span(),
+            positional_args.iter().cloned(),
+        );
 
         context(self, &mut args)
     }
@@ -120,7 +134,10 @@ impl FuncCall for foundations::Func {
         positional_args: &[foundations::Value],
         named_args: &[(&str, foundations::Value)],
     ) -> foundations::ContextElem {
-        let mut args = foundations::Args::new(self.span(), positional_args.iter().cloned());
+        let mut args = foundations::Args::new(
+            self.span(),
+            positional_args.iter().cloned(),
+        );
 
         for (name, value) in named_args {
             args.items.push(foundations::Arg {
@@ -131,35 +148,6 @@ impl FuncCall for foundations::Func {
         }
 
         context(self, &mut args)
-    }
-}
-
-pub struct SpannedArgs {
-    span: Span,
-    args: foundations::Args,
-}
-
-impl SpannedArgs {
-    pub fn new(span: Span) -> Self {
-        Self {
-            span,
-            args: foundations::Args {
-                span,
-                items: [].into(),
-            },
-        }
-    }
-
-    pub fn push(&mut self, value: impl IntoValue) {
-        self.args.push(self.span, value.into_value());
-    }
-
-    pub fn push_named(&mut self, name: &str, value: impl IntoValue) {
-        self.args.items.push(foundations::Arg {
-            span: self.span,
-            name: Some(name.into()),
-            value: Spanned::new(value.into_value(), self.span),
-        })
     }
 }
 
@@ -203,7 +191,11 @@ fn_elem!(
     model::BibliographyElem,
     bibliography = Derived<OneOrMultiple<DataSource>, model::Bibliography>
 );
-fn_elem!(numbered_list, model::EnumElem, Vec<Packed<model::EnumItem>>);
+fn_elem!(
+    numbered_list,
+    model::EnumElem,
+    Vec<Packed<model::EnumItem>>
+);
 fn_elem!(bullet_list, model::ListElem, Vec<Packed<model::ListItem>>);
 fn_elem_empty!(parbreak, model::ParbreakElem);
 fn_elem!(par, model::ParElem, Content);
@@ -283,16 +275,23 @@ pub fn solid(color: impl Into<visualize::Color>) -> visualize::Paint {
 }
 
 /// [visualize::Paint::Gradient]
-pub fn gradient(gradient: impl Into<visualize::Gradient>) -> visualize::Paint {
+pub fn gradient(
+    gradient: impl Into<visualize::Gradient>,
+) -> visualize::Paint {
     visualize::Paint::Gradient(gradient.into())
 }
 
 /// [visualize::Paint::Tiling]
-pub fn tiling(tiling: impl Into<visualize::Tiling>) -> visualize::Paint {
+pub fn tiling(
+    tiling: impl Into<visualize::Tiling>,
+) -> visualize::Paint {
     visualize::Paint::Tiling(tiling.into())
 }
 
 /// [visualize::Stroke]
-pub fn stroke(paint: visualize::Paint, thickness: layout::Length) -> visualize::Stroke {
+pub fn stroke(
+    paint: visualize::Paint,
+    thickness: layout::Length,
+) -> visualize::Stroke {
     visualize::Stroke::from_pair(paint, thickness)
 }

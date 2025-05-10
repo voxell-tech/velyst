@@ -11,11 +11,15 @@ use chrono::{DateTime, Datelike, Local, Timelike};
 use fonts::TypstFonts;
 use typst::Library;
 use typst::comemo::{Track, Validate};
-use typst::diag::{FileError, FileResult, PackageError, SourceDiagnostic};
+use typst::diag::{
+    FileError, FileResult, PackageError, Severity, SourceDiagnostic,
+};
 use typst::engine::{Engine, Route, Sink, Traced};
-use typst::foundations::{Bytes, Content, Datetime, Module, StyleChain};
+use typst::foundations::{
+    Bytes, Content, Datetime, Module, StyleChain,
+};
 use typst::introspection::Introspector;
-use typst::layout::{Abs, Axes, Frame, Region, Size};
+use typst::layout::{Frame, Region};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -126,22 +130,23 @@ impl VelystWorld<'_> {
         }
     }
 
-    pub fn layout_frame(&self, content: &Content, region: Option<Region>) -> Option<Frame> {
-        const INF_REGION: Region = Region {
-            size: Size::new(Abs::inf(), Abs::inf()),
-            expand: Axes::new(false, false),
-        };
-
+    pub fn layout_frame(
+        &self,
+        content: &Content,
+        region: Region,
+    ) -> Option<Frame> {
         let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
         let introspector = Introspector::default();
-        let constraint = <Introspector as Validate>::Constraint::new();
+        let constraint =
+            <Introspector as Validate>::Constraint::new();
         let traced = Traced::default();
         let mut sink = Sink::new();
 
         // Relayout until all introspections stabilize.
         // If that doesn't happen within five attempts, we give up.
+        // TODO: Implement the loop to support counter & states.
         let frame = {
             // Clear delayed errors.
             sink.delayed();
@@ -163,9 +168,14 @@ impl VelystWorld<'_> {
                 content,
                 locator,
                 styles,
-                region.unwrap_or(INF_REGION),
+                region,
             )
         };
+
+        // Log delayed errors.
+        for delay in sink.delayed() {
+            log_diagnostic(delay);
+        }
 
         match frame {
             Ok(frame) => {
@@ -224,7 +234,10 @@ impl typst::World for VelystWorld<'_> {
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
         let naive = match offset {
             None => self.date_time.naive_local(),
-            Some(o) => self.date_time.naive_utc() + chrono::Duration::hours(o),
+            Some(o) => {
+                self.date_time.naive_utc()
+                    + chrono::Duration::hours(o)
+            }
         };
 
         Datetime::from_ymd_hms(
@@ -334,7 +347,9 @@ impl<T: Clone> SlotCell<T> {
         let fingerprint = typst::utils::hash128(&result);
 
         // If the file contents didn't change, yield the old processed data.
-        if mem::replace(&mut self.fingerprint, fingerprint) == fingerprint {
+        if mem::replace(&mut self.fingerprint, fingerprint)
+            == fingerprint
+        {
             if let Some(data) = &self.data {
                 return data.clone();
             }
@@ -350,7 +365,10 @@ impl<T: Clone> SlotCell<T> {
 
 /// Resolves the path of a file id on the system, downloading a package if
 /// necessary.
-fn system_path(project_root: &Path, id: FileId) -> FileResult<PathBuf> {
+fn system_path(
+    project_root: &Path,
+    id: FileId,
+) -> FileResult<PathBuf> {
     // Determine the root path relative to which the file path
     // will be resolved.
     if id.package().is_some() {
@@ -387,17 +405,19 @@ fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
 }
 
 fn log_diagnostic(diagnostic: SourceDiagnostic) {
-    let mut log_msg = String::from("Typst compiler:\n");
+    let mut log_msg = String::new();
+    log_msg.push('\n');
     log_msg.push_str(&diagnostic.message);
     log_msg.push('\n');
     log_msg.push_str(&format!("In file: {:?}", diagnostic.span.id()));
     log_msg.push('\n');
     log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
     log_msg.push('\n');
-    log_msg.push_str(&format!("Hints: {}", diagnostic.hints.join("\n")));
+    log_msg
+        .push_str(&format!("Hints: {}", diagnostic.hints.join("\n")));
 
     match diagnostic.severity {
-        typst::diag::Severity::Error => error!(log_msg),
-        typst::diag::Severity::Warning => warn!(log_msg),
+        Severity::Error => error!("{log_msg}"),
+        Severity::Warning => warn!("{log_msg}"),
     }
 }

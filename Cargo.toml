@@ -58,7 +58,7 @@ smallvec = { workspace = true }
 
 [features]
 default = ["embed-fonts"]
-embed-fonts = ["dep:typst-assets"]
+embed-fonts = ["dep:typst-assets", "typst-assets/fonts"]
 
 [dev-dependencies]
 bevy = { workspace = true, features = ["file_watcher"] }

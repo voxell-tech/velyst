@@ -10,8 +10,6 @@ use typst_vello::TypstScene;
 use crate::asset::{VelystModules, VelystSourceHandle};
 use crate::world::VelystWorld;
 
-// pub use velyst_macros::TypstFunc;
-
 pub struct VelystRendererPlugin;
 
 impl Plugin for VelystRendererPlugin {
@@ -34,7 +32,9 @@ impl Plugin for VelystRendererPlugin {
                 (check_source_ready, compile_velyst_func)
                     .chain()
                     .in_set(VelystSet::Compile),
-                layout_content.in_set(VelystSet::Layout),
+                (layout_content, update_node)
+                    .chain()
+                    .in_set(VelystSet::Layout),
                 render_scene.in_set(VelystSet::Render),
             ),
         );
@@ -42,11 +42,17 @@ impl Plugin for VelystRendererPlugin {
 }
 
 pub trait TypstFuncAppExt {
-    fn register_typst_func<Func: TypstFuncComp>(&mut self) -> &mut Self;
+    fn register_typst_func<Func: TypstFuncComp>(
+        &mut self,
+    ) -> &mut Self;
 }
 
 impl TypstFuncAppExt for App {
-    fn register_typst_func<Func: TypstFuncComp>(&mut self) -> &mut Self {
+    /// Spawns the necessary components for rendering a [`TypstFunc`]
+    /// when it is spawned via a [`VelystFuncBundle`].
+    fn register_typst_func<Func: TypstFuncComp>(
+        &mut self,
+    ) -> &mut Self {
         self.add_systems(
             PostUpdate,
             apply_typst_func::<Func>.in_set(VelystSet::PrepareFunc),
@@ -55,6 +61,7 @@ impl TypstFuncAppExt for App {
     }
 }
 
+/// Spawn [`VelystFunc`] for a newly added [`TypstFuncComp`].
 fn spawn_velyst_func<Func: TypstFuncComp>(
     trigger: Trigger<OnAdd, Func>,
     mut commands: Commands,
@@ -69,6 +76,7 @@ fn spawn_velyst_func<Func: TypstFuncComp>(
     }
 }
 
+/// Apply name and arguments from a [`TypstFunc`] to [`VelystFunc`].
 fn apply_typst_func<Func: TypstFuncComp>(
     mut q_funcs: Query<(&Func, &mut VelystFunc), Changed<Func>>,
 ) {
@@ -77,6 +85,7 @@ fn apply_typst_func<Func: TypstFuncComp>(
     }
 }
 
+/// Compile a [`VelystFunc`] into a [`VelystContent`].
 fn compile_velyst_func(
     mut commands: Commands,
     mut q_funcs: Query<
@@ -88,13 +97,19 @@ fn compile_velyst_func(
             Entity,
         ),
         (
-            Or<(Changed<VelystFunc>, Changed<Visibility>)>,
+            Or<(
+                Changed<VelystFunc>,
+                Changed<Visibility>,
+                Changed<VelystSourceHandle>, // TODO: Use AssetChanged in 0.16.
+                Added<VelystSourceReady>,
+            )>,
             With<VelystSourceReady>,
         ),
     >,
     modules: Res<VelystModules>,
 ) {
-    for (func, mut content, handle, viz, entity) in q_funcs.iter_mut() {
+    for (func, mut content, handle, viz, entity) in q_funcs.iter_mut()
+    {
         if viz == Visibility::Hidden {
             continue;
         }
@@ -103,10 +118,16 @@ fn compile_velyst_func(
             match module.scope().get_func(func.name) {
                 Ok(typst_func) => {
                     content.0 = typst_func
-                        .call_with_named(&func.positional_args, &func.named_args)
+                        .call_with_named(
+                            &func.positional_args,
+                            &func.named_args,
+                        )
                         .pack();
                 }
-                Err(err) => error!("Unable to get typst function {}: {err}", func.name),
+                Err(err) => error!(
+                    "Unable to get typst function {}: {err}",
+                    func.name
+                ),
             }
         } else {
             // Check again for module availability next frame.
@@ -117,12 +138,43 @@ fn compile_velyst_func(
 
 fn check_source_ready(
     mut commands: Commands,
-    mut q_funcs: Query<(&VelystSourceHandle, Entity), Without<VelystSourceReady>>,
+    mut q_funcs: Query<
+        (&VelystSourceHandle, Entity),
+        Without<VelystSourceReady>,
+    >,
     modules: Res<VelystModules>,
 ) {
     for (handle, entity) in q_funcs.iter_mut() {
         if modules.contains_key(&handle.id()) {
             commands.entity(entity).insert(VelystSourceReady);
+        }
+    }
+}
+
+/// Update [`Node`] from [`ComputedVelystNode`] if
+/// it's set to [`Val::Auto`] in [`VelystNode`].
+fn update_node(
+    mut q_nodes: Query<
+        (&mut Node, &VelystSize, &ComputedVelystSize),
+        Or<(Changed<VelystSize>, Changed<ComputedVelystSize>)>,
+    >,
+) {
+    for (mut node, velyst_node, computed_velyst_size) in
+        q_nodes.iter_mut()
+    {
+        if let Val::Auto = velyst_node.width {
+            // Use computed width if it's in auto mode.
+            node.width = Val::Px(computed_velyst_size.x);
+        } else {
+            // Otherwise, use the user defined width.
+            node.width = velyst_node.width;
+        }
+
+        // Same goes to height.
+        if let Val::Auto = velyst_node.height {
+            node.height = Val::Px(computed_velyst_size.y);
+        } else {
+            node.height = velyst_node.height;
         }
     }
 }
@@ -135,27 +187,63 @@ fn layout_content(
             &VelystContent,
             &mut VelystScene,
             &Visibility,
+            // Optionals because it might be in world space.
+            Option<&VelystSize>,
             Option<&ComputedNode>,
+            Option<&mut ComputedVelystSize>,
         ),
-        Or<(Changed<VelystContent>, Changed<Visibility>)>,
+        Or<(
+            Changed<VelystContent>,
+            Changed<Visibility>,
+            Changed<VelystSize>,
+            Changed<ComputedNode>,
+        )>,
     >,
 ) {
-    for (content, mut scene, viz, node) in q_contents.iter_mut() {
+    for (
+        content,
+        mut scene,
+        viz,
+        velyst_node,
+        computed_node,
+        computed_velyst_node,
+    ) in q_contents.iter_mut()
+    {
         if viz == Visibility::Hidden {
             continue;
         }
+        let size = computed_node.map(|n| n.size().as_dvec2());
+        let width = velyst_node.and_then(|n| match n.width {
+            Val::Auto => None,
+            _ => size.map(|s| s.x),
+        });
+        let height = velyst_node.and_then(|n| match n.height {
+            Val::Auto => None,
+            _ => size.map(|s| s.y),
+        });
+
         if let Some(frame) = world.layout_frame(
             &content.0,
-            // Constraint to node size if it exists.
-            node.map(|node| {
-                let size = node.size().as_dvec2();
-                Region::new(
-                    Size::new(Abs::pt(size.x), Abs::pt(size.y)),
-                    Axes::splat(false),
-                )
-            }),
+            Region::new(
+                Size::new(
+                    width.map_or(Abs::inf(), Abs::pt),
+                    height.map_or(Abs::inf(), Abs::pt),
+                ),
+                Axes::splat(false),
+            ),
         ) {
             scene.0 = TypstScene::from_frame(&frame);
+
+            // Write to [`ComputedVelystNode`] so that it reflects to [`Node`].
+            if let Some(mut computed_velyst_node) =
+                computed_velyst_node
+            {
+                let size = frame.size();
+                computed_velyst_node.0 = Vec2::new(
+                    size.x.to_pt() as f32,
+                    size.y.to_pt() as f32,
+                );
+            }
         }
     }
 
@@ -170,7 +258,9 @@ fn render_scene(
         Or<(Changed<VelystScene>, Changed<Visibility>)>,
     >,
 ) {
-    for (mut velyst_scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (mut velyst_scene, mut vello_scene, viz) in
+        q_scenes.iter_mut()
+    {
         if viz == Visibility::Hidden {
             continue;
         }
@@ -187,6 +277,7 @@ pub struct VelystFunc {
 }
 
 impl VelystFunc {
+    /// Apply name and arguments.
     pub fn apply_typst_func<F: TypstFunc>(&mut self, func: &F) {
         self.name = F::NAME;
         func.apply_positional_args(&mut self.positional_args);
@@ -209,6 +300,21 @@ pub struct VelystContent(pub Content);
 #[derive(Component, Default, Deref, DerefMut)]
 #[require(VelloScene)]
 pub struct VelystScene(pub TypstScene);
+
+/// Width and height of the Typst region.
+/// Use [`Val::Auto`] for auto sizing.
+#[derive(Component, Default)]
+#[require(ComputedVelystSize, Node)]
+pub struct VelystSize {
+    /// Width of the Typst region.
+    pub width: Val,
+    /// Height of the Typst region.
+    pub height: Val,
+}
+
+/// The size of the node as width and height in physical pixels.
+#[derive(Component, Default, Deref)]
+pub struct ComputedVelystSize(pub(crate) Vec2);
 
 pub trait TypstFunc {
     const NAME: &str;
@@ -233,6 +339,9 @@ impl<T: TypstFunc + Component> TypstFuncComp for T {}
 /// use bevy::prelude::*;
 ///
 /// typst_func!(
+///     // The literal function name from the Typst scope,
+///     // usually from the source file.
+///     "button",
 ///     /// A button function from Typst.
 ///     #[derive(Component, Reflect)]
 ///     #[reflect(Component)]
@@ -252,9 +361,6 @@ impl<T: TypstFunc + Component> TypstFuncComp for T {}
 ///         #[reflect(ignore)]
 ///         icon_label: String,
 ///     },
-///     // The literal function name from the Typst scope,
-///     // usually from the source file.
-///     "button"
 /// );
 /// ```
 ///
@@ -262,16 +368,19 @@ impl<T: TypstFunc + Component> TypstFuncComp for T {}
 ///
 /// ```
 /// use velyst::typst_func;
-/// typst_func!(struct EmptyFunc {}, "empty");
+/// typst_func!("empty", struct EmptyFunc {});
 /// ```
 #[macro_export]
 macro_rules! typst_func {
     (
+        // The literal function name from the Typst scope,
+        // usually from the source file.
+        $str_name:literal,
         // Attributes.
         $( #[$attr:meta] )*
         $vis:vis struct $struct_name:ident
         // Lifetimes and generics.
-        $(< $( $generic:tt $( : $bound:tt $(+ $_bound:tt )* )? ),+ >)? {},
+        $(< $( $generic:tt $( : $bound:tt $(+ $_bound:tt )* )? ),+ >)? {}$(,)?
         // Positional args
         $(
             positional_args {
@@ -280,7 +389,7 @@ macro_rules! typst_func {
                     $( #[$positional_attr:meta] )*
                     $positional_arg:ident: $positional_type:ty
                 ),*$(,)?
-            },
+            }$(,)?
         )?
         // Named args.
         $(
@@ -289,9 +398,8 @@ macro_rules! typst_func {
                     $( #[$named_attr:meta] )*
                     $named_arg:ident: $named_type:ty
                 ),*$(,)?
-            },
+            }$(,)?
         )?
-        $str_name:literal
     ) => {
         // Define the struct.
         // Attributes.
@@ -321,8 +429,8 @@ macro_rules! typst_func {
             const NAME: &'static str = $str_name;
 
             fn apply_positional_args(&self, args: &mut Vec<$crate::typst::foundations::Value>) {
+                args.clear();
                 $($(
-                    args.clear();
                     args.push(
                         $crate::typst::foundations::IntoValue::into_value(
                             self.$positional_arg.clone()
@@ -332,8 +440,8 @@ macro_rules! typst_func {
             }
 
             fn apply_named_args(&self, args: &mut Vec<(&'static str, $crate::typst::foundations::Value)>) {
+                args.clear();
                 $($(
-                    args.clear();
                     if let Some(arg) = self.$named_arg.as_ref() {
                         args.push(
                             (stringify!($named_arg),

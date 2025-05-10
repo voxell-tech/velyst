@@ -15,7 +15,9 @@ struct TypstPathArgs {
 
 struct TypstPathValue(syn::Expr);
 
-fn convert_typst_path(attrs: Vec<syn::Attribute>) -> darling::Result<TypstPathValue> {
+fn convert_typst_path(
+    attrs: Vec<syn::Attribute>,
+) -> darling::Result<TypstPathValue> {
     let mut filtered = attrs
         .into_iter()
         .filter(|a| a.path().is_ident("typst_path"));
@@ -25,7 +27,9 @@ fn convert_typst_path(attrs: Vec<syn::Attribute>) -> darling::Result<TypstPathVa
         .ok_or(darling::Error::custom("#[typst_path] is required"))?;
 
     if filtered.next().is_some() {
-        return Err(darling::Error::custom("#[typst_path] can only occur once"));
+        return Err(darling::Error::custom(
+            "#[typst_path] can only occur once",
+        ));
     }
 
     let val = attr.meta.require_name_value()?.value.clone();

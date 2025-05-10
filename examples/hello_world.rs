@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
-use foundations::IntoValue;
 use velyst::prelude::*;
 
 fn main() {
@@ -26,7 +25,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         VelloView,
     ));
 
-    let handle = VelystSourceHandle(asset_server.load("typst/hello_world.typ"));
+    let handle = VelystSourceHandle(
+        asset_server.load("typst/hello_world.typ"),
+    );
     commands.spawn((
         VelystFuncBundle {
             handle,
@@ -46,8 +47,8 @@ fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
 }
 
 typst_func!(
+    "main",
     #[derive(Component, Default)]
     struct MainFunc {},
     positional_args { animate: f64 },
-    "main"
 );
