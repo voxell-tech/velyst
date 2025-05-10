@@ -2,8 +2,8 @@ use paste::paste;
 use typst::diag::HintedString;
 use typst::foundations::Symbol;
 use typst::foundations::{
-    Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue, Func, Label, Module, Scope,
-    Smart, Str, Styles, Type, Version,
+    Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue,
+    Func, Label, Module, Scope, Smart, Str, Styles, Type, Version,
 };
 use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel};
 use typst::visualize::{Color, Gradient, Tiling};
@@ -73,7 +73,10 @@ pub trait ScopeExt {
     /// - Variable type does not match the desired value type.
     fn get_value_unchecked<T: FromValue>(&self, var: &str) -> T;
 
-    fn get_value<T: FromValue>(&self, var: &str) -> Result<T, ScopeError>;
+    fn get_value<T: FromValue>(
+        &self,
+        var: &str,
+    ) -> Result<T, ScopeError>;
 
     fn_get_value!(
         (get_bool, bool),
@@ -110,16 +113,19 @@ impl ScopeExt for Scope {
         self.get(var).unwrap().read().clone().cast::<T>().unwrap()
     }
 
-    fn get_value<T: FromValue>(&self, var: &str) -> Result<T, ScopeError> {
-        self.get(var)
-            .ok_or(ScopeError::VariableNotFound)
-            .and_then(|value| {
+    fn get_value<T: FromValue>(
+        &self,
+        var: &str,
+    ) -> Result<T, ScopeError> {
+        self.get(var).ok_or(ScopeError::VariableNotFound).and_then(
+            |value| {
                 value
                     .read()
                     .clone()
                     .cast::<T>()
                     .map_err(ScopeError::ValueCastFailed)
-            })
+            },
+        )
     }
 }
 
@@ -127,4 +133,23 @@ impl ScopeExt for Scope {
 pub enum ScopeError {
     VariableNotFound,
     ValueCastFailed(HintedString),
+}
+
+impl std::fmt::Display for ScopeError {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        match self {
+            ScopeError::VariableNotFound => {
+                f.pad("Variable not found!")
+            }
+            ScopeError::ValueCastFailed(hinted_string) => write!(
+                f,
+                "Cast fail! {}\n{}",
+                hinted_string.message(),
+                hinted_string.hints().join("\n")
+            ),
+        }
+    }
 }

@@ -2,17 +2,31 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use bevy::prelude::*;
 use bevy_vello::vello_svg::usvg::fontdb::{Database, Source};
 use typst::foundations::Bytes;
 use typst::text::{Font, FontBook, FontInfo};
+use typst::utils::LazyHash;
 
 /// Searches for fonts.
-#[derive(Debug, Default, Clone)]
-pub struct FontSearcher {
+#[derive(Resource, Debug, Clone)]
+pub struct TypstFonts {
     /// Metadata about all discovered fonts.
-    pub book: FontBook,
+    pub book: LazyHash<FontBook>,
     /// Slots that the fonts are loaded into.
     pub fonts: Vec<FontSlot>,
+}
+
+impl Default for TypstFonts {
+    fn default() -> Self {
+        let mut fonts = Self {
+            book: LazyHash::new(FontBook::new()),
+            fonts: Vec::new(),
+        };
+
+        fonts.search(&[]);
+        fonts
+    }
 }
 
 /// Holds details about the location of a font and lazily load the font itself.
@@ -39,7 +53,7 @@ impl FontSlot {
     }
 }
 
-impl FontSearcher {
+impl TypstFonts {
     /// Search everything that is available.
     pub fn search(&mut self, font_paths: &[PathBuf]) {
         let mut db = Database::new();
@@ -54,7 +68,9 @@ impl FontSearcher {
 
         for face in db.faces() {
             let path = match &face.source {
-                Source::File(path) | Source::SharedFile(path, _) => path,
+                Source::File(path) | Source::SharedFile(path, _) => {
+                    path
+                }
                 // We never add binary sources to the database, so there
                 // shouln't be any.
                 Source::Binary(_) => continue,

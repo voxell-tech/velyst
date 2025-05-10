@@ -1,406 +1,483 @@
-use std::marker::PhantomData;
-
-use crate::prelude::*;
-use crate::typst_element::prelude::*;
 use bevy::prelude::*;
-use bevy::render::view::RenderLayers;
-use bevy::utils::HashMap;
+use bevy::ui::UiSystem;
 use bevy_vello::prelude::*;
-use smallvec::SmallVec;
+use typst::foundations::{Content, NativeElement, Value};
+use typst::layout::{Abs, Axes, Region, Size};
+use typst_element::elem::FuncCall;
+use typst_element::prelude::ScopeExt;
 use typst_vello::TypstScene;
+
+use crate::asset::{VelystModules, VelystSourceHandle};
+use crate::world::VelystWorld;
 
 pub struct VelystRendererPlugin;
 
 impl Plugin for VelystRendererPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
-            Update,
+            PostUpdate,
             (
-                VelystSet::AssetLoading,
+                VelystSet::PrepareFunc,
                 VelystSet::Compile,
-                VelystSet::Layout,
+                VelystSet::Layout.in_set(UiSystem::PostLayout),
+                VelystSet::PostLayout,
                 VelystSet::Render,
             )
                 .chain(),
         );
-    }
-}
 
-/// Velyst rendering pipeline.
-#[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum VelystSet {
-    /// Loading and reloading of [`TypstAsset`].
-    AssetLoading,
-    /// Compile [`TypstFunc`] into a [`TypstContent`].
-    Compile,
-    /// Layout [`Content`] into a [`TypstScene`] which gets stored inside [`VelystScene`].
-    Layout,
-    /// Render [`TypstScene`] into a [`VelloScene`].
-    Render,
-}
-
-pub trait VelystAppExt {
-    /// Load [`TypstAsset`] using [`TypstPath::path()`] and detect changes made towards the asset.
-    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self;
-
-    /// Compile [`TypstFunc`] into [`TypstContent`].
-    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self;
-
-    /// Layout [`TypstContent`] into [`VelystScene`] and render it into a [`VelloScene`].
-    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
-}
-
-impl VelystAppExt for App {
-    fn register_typst_asset<P: TypstPath>(&mut self) -> &mut Self {
-        self.add_systems(
-            PreStartup,
-            load_typst_asset::<P>.in_set(VelystSet::AssetLoading),
-        )
-        .add_systems(
-            Update,
-            asset_change_detection::<P>.in_set(VelystSet::AssetLoading),
-        )
-    }
-
-    fn compile_typst_func<P: TypstPath, F: TypstFunc>(&mut self) -> &mut Self {
-        self.init_resource::<TypstContent<F>>().add_systems(
-            Update,
-            compile_typst_func::<P, F>
-                .run_if(
-                    // Asset and function needs to exists first.
-                    resource_exists::<TypstAssetHandle<P>>
-                        .and(resource_exists::<F>)
-                        .and(
-                            // Any changes to the asset or the function will cause a content recompilation.
-                            resource_changed::<TypstAssetHandle<P>>.or(resource_changed::<F>),
-                        ),
-                )
-                .in_set(VelystSet::Compile),
-        )
-    }
-
-    fn render_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
-        self.init_resource::<VelystScene<F>>().add_systems(
-            Update,
+        app.add_systems(
+            PostUpdate,
             (
-                // Layout
-                layout_typst_content::<F>
-                    .run_if(resource_exists_and_changed::<TypstContent<F>>)
+                (check_source_ready, compile_velyst_func)
+                    .chain()
+                    .in_set(VelystSet::Compile),
+                (layout_content, update_node)
+                    .chain()
                     .in_set(VelystSet::Layout),
-                // Render
-                (render_velyst_scene::<F>, construct_interaction_tree::<F>)
-                    .run_if(resource_exists_and_changed::<VelystScene<F>>)
-                    .in_set(VelystSet::Render),
+                render_scene.in_set(VelystSet::Render),
             ),
-        )
-    }
-}
-
-fn load_typst_asset<P: TypstPath>(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let typst_handle = TypstAssetHandle::<P>::new(asset_server.load(P::path()));
-    commands.insert_resource(typst_handle);
-}
-
-fn asset_change_detection<P: TypstPath>(
-    mut asset_evr: EventReader<AssetEvent<TypstAsset>>,
-    mut typst_handle: ResMut<TypstAssetHandle<P>>,
-) {
-    for asset_evt in asset_evr.read() {
-        match asset_evt {
-            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
-                let handle = typst_handle.clone_weak();
-                if *id == handle.id() {
-                    typst_handle.set_changed();
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-/// System implementation for compiling [`TypstFunc`] into [`TypstContent`].
-fn compile_typst_func<P: TypstPath, F: TypstFunc>(
-    context: TypstContext<P>,
-    mut content: ResMut<TypstContent<F>>,
-    func: Res<F>,
-) {
-    if let Some(scope) = context.get_scope() {
-        let new_content = func.compile(scope);
-        **content = new_content;
-    } else if context.is_loaded() {
-        error!("Unable to get scope for #{}().", func.func_name());
-    }
-}
-
-/// System implementation for layouting [`TypstContent`] into [`VelystScene`].
-fn layout_typst_content<F: TypstFunc>(
-    content: Res<TypstContent<F>>,
-    world: Res<TypstWorldRef>,
-    mut scene: ResMut<VelystScene<F>>,
-) {
-    // TODO: Optimize this system (currently the bottleneck).
-    match world.layout_frame(&content) {
-        Ok(frame) => {
-            let new_scene = TypstScene::from_frame(&frame);
-            **scene = new_scene;
-        }
-        Err(err) => error!("{err:#?}"),
-    }
-}
-
-/// System implementation for rendering [`VelystScene`] into [`VelloScene`].
-fn render_velyst_scene<F: TypstFunc>(
-    mut commands: Commands,
-    mut q_scenes: Query<(&mut VelloScene, &mut Node, &mut Visibility)>,
-    mut scene: ResMut<VelystScene<F>>,
-    func: Res<F>,
-) {
-    let scene = scene.bypass_change_detection();
-
-    if let Some((mut vello_scene, mut node, mut viz)) =
-        scene.entity.and_then(|e| q_scenes.get_mut(e).ok())
-    {
-        // Scene
-        **vello_scene = scene.render().into();
-        let size = scene.size();
-        // Style
-        node.width = Val::Px(size.x as f32);
-        node.height = Val::Px(size.y as f32);
-        // Visibility
-        *viz = scene.visibility;
-    } else {
-        scene.entity = Some(
-            commands
-                .spawn((
-                    VelloScene::from(scene.render()),
-                    Node::DEFAULT,
-                    scene.visibility,
-                    func.render_layers(),
-                ))
-                .id(),
         );
     }
 }
 
-/// Construct the interaction tree using bevy ui nodes.
-fn construct_interaction_tree<F: TypstFunc>(
+pub trait TypstFuncAppExt {
+    fn register_typst_func<Func: TypstFuncComp>(
+        &mut self,
+    ) -> &mut Self;
+}
+
+impl TypstFuncAppExt for App {
+    /// Spawns the necessary components for rendering a [`TypstFunc`]
+    /// when it is spawned via a [`VelystFuncBundle`].
+    fn register_typst_func<Func: TypstFuncComp>(
+        &mut self,
+    ) -> &mut Self {
+        self.add_systems(
+            PostUpdate,
+            apply_typst_func::<Func>.in_set(VelystSet::PrepareFunc),
+        )
+        .add_observer(spawn_velyst_func::<Func>)
+    }
+}
+
+/// Spawn [`VelystFunc`] for a newly added [`TypstFuncComp`].
+fn spawn_velyst_func<Func: TypstFuncComp>(
+    trigger: Trigger<OnAdd, Func>,
     mut commands: Commands,
-    mut q_nodes: Query<(&mut Node, &mut Transform, &mut ZIndex, &mut Visibility)>,
-    mut scene: ResMut<VelystScene<F>>,
+    mut q_func: Query<&Func, Without<VelystFunc>>,
 ) {
-    let scene = scene.bypass_change_detection();
+    let entity = trigger.entity();
 
-    let Some(root_entity) = scene.entity else {
-        return;
-    };
+    if let Ok(func) = q_func.get_mut(entity) {
+        let mut velyst_func = VelystFunc::default();
+        velyst_func.apply_typst_func(func);
+        commands.entity(entity).insert(velyst_func);
+    }
+}
 
-    scene.reset_cached_entities_to_unused();
-    let mut computed_transforms = Vec::with_capacity(scene.groups_len());
+/// Apply name and arguments from a [`TypstFunc`] to [`VelystFunc`].
+fn apply_typst_func<Func: TypstFuncComp>(
+    mut q_funcs: Query<(&Func, &mut VelystFunc), Changed<Func>>,
+) {
+    for (func, mut velyst_func) in q_funcs.iter_mut() {
+        velyst_func.apply_typst_func(func);
+    }
+}
 
-    for i in 0..scene.groups_len() {
-        let group = scene.get_group(i);
-
-        // Calculate accumulated transform from the group hierarchy.
-        let transform = match group.parent() {
-            Some(parent_index) => {
-                let transform = computed_transforms[parent_index] * group.transform();
-                computed_transforms.push(transform);
-                transform
-            }
-            None => {
-                computed_transforms.push(group.transform());
-                group.transform()
-            }
-        };
-
-        let Some(label) = group.label() else {
+/// Compile a [`VelystFunc`] into a [`VelystContent`].
+fn compile_velyst_func(
+    mut commands: Commands,
+    mut q_funcs: Query<
+        (
+            &VelystFunc,
+            &mut VelystContent,
+            &VelystSourceHandle,
+            &Visibility,
+            Entity,
+        ),
+        (
+            Or<(
+                Changed<VelystFunc>,
+                Changed<Visibility>,
+                Changed<VelystSourceHandle>, // TODO: Use AssetChanged in 0.16.
+                Added<VelystSourceReady>,
+            )>,
+            With<VelystSourceReady>,
+        ),
+    >,
+    modules: Res<VelystModules>,
+) {
+    for (func, mut content, handle, viz, entity) in q_funcs.iter_mut()
+    {
+        if viz == Visibility::Hidden {
             continue;
-        };
+        }
 
-        let coeffs = transform.as_coeffs();
-        let left = Val::Px(coeffs[4] as f32);
-        let top = Val::Px(coeffs[5] as f32);
-        let width = Val::Px(group.size().x as f32);
-        let height = Val::Px(group.size().y as f32);
-        let scale = Vec3::new(coeffs[0] as f32, coeffs[3] as f32, 0.0);
-
-        // Reuse cached nodes when available, otherwise, spawn a new one.
-        if let Some((mut node, mut transform, mut z_index, mut viz)) = scene
-            .cached_entities
-            .get_mut(&label)
-            .and_then(|entities| entities.iter_mut().find(|(_, used)| *used == false))
-            .and_then(|(entity, used)| {
-                *used = true;
-                q_nodes.get_mut(*entity).ok()
-            })
-        {
-            // Style
-            node.left = left;
-            node.top = top;
-            node.width = width;
-            node.height = height;
-            // Scale
-            transform.scale = scale;
-            // ZIndex
-            *z_index = ZIndex(i as i32);
-            // Visibility
-            *viz = Visibility::Inherited;
+        if let Some(module) = modules.get(&handle.id()) {
+            match module.scope().get_func(func.name) {
+                Ok(typst_func) => {
+                    content.0 = typst_func
+                        .call_with_named(
+                            &func.positional_args,
+                            &func.named_args,
+                        )
+                        .pack();
+                }
+                Err(err) => error!(
+                    "Unable to get typst function {}: {err}",
+                    func.name
+                ),
+            }
         } else {
-            let new_entity = commands
-                .spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        left,
-                        top,
-                        width,
-                        height,
-                        ..default()
-                    },
-                    Transform::from_scale(scale),
-                    ZIndex(i as i32),
-                    Interaction::default(),
-                    TypstLabel(label),
-                ))
-                .set_parent(root_entity)
-                .id();
-
-            match scene.cached_entities.get_mut(&label) {
-                Some(entities) => {
-                    entities.push((new_entity, true));
-                }
-                None => {
-                    scene
-                        .cached_entities
-                        .insert(label, SmallVec::from_buf([(new_entity, true)]));
-                }
-            }
-        }
-    }
-
-    // Hide unused cached nodes
-    for entities in scene.cached_entities.values() {
-        for (entity, used) in entities {
-            match *used {
-                true => continue,
-                false => {
-                    commands.entity(*entity).insert(Visibility::Hidden);
-                }
-            }
+            // Check again for module availability next frame.
+            commands.entity(entity).remove::<VelystSourceReady>();
         }
     }
 }
 
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstAssetHandle<P: TypstPath>(#[deref] Handle<TypstAsset>, PhantomData<P>);
-
-impl<P: TypstPath> TypstAssetHandle<P> {
-    pub fn new(handle: Handle<TypstAsset>) -> Self {
-        Self(handle, PhantomData)
+fn check_source_ready(
+    mut commands: Commands,
+    mut q_funcs: Query<
+        (&VelystSourceHandle, Entity),
+        Without<VelystSourceReady>,
+    >,
+    modules: Res<VelystModules>,
+) {
+    for (handle, entity) in q_funcs.iter_mut() {
+        if modules.contains_key(&handle.id()) {
+            commands.entity(entity).insert(VelystSourceReady);
+        }
     }
 }
 
-#[derive(bevy::ecs::system::SystemParam)]
-pub struct TypstContext<'w, P: TypstPath> {
-    pub handle: Res<'w, TypstAssetHandle<P>>,
-    pub assets: Res<'w, Assets<TypstAsset>>,
-}
+/// Update [`Node`] from [`ComputedVelystSize`] if
+/// it's set to [`Val::Auto`] in [`VelystSize`].
+fn update_node(
+    mut q_nodes: Query<
+        (&mut Node, &VelystSize, &ComputedVelystSize),
+        Or<(Changed<VelystSize>, Changed<ComputedVelystSize>)>,
+    >,
+) {
+    for (mut node, velyst_node, computed_velyst_size) in
+        q_nodes.iter_mut()
+    {
+        if let Val::Auto = velyst_node.width {
+            // Use computed width if it's in auto mode.
+            node.width = Val::Px(computed_velyst_size.x);
+        } else {
+            // Otherwise, use the user defined width.
+            node.width = velyst_node.width;
+        }
 
-impl<P: TypstPath> TypstContext<'_, P> {
-    pub fn is_loaded(&self) -> bool {
-        self.assets.contains(&**self.handle)
-    }
-
-    pub fn get_scope(&self) -> Option<&foundations::Scope> {
-        self.assets
-            .get(&**self.handle)
-            .map(|asset| asset.module().scope())
-    }
-}
-
-#[derive(Resource, Deref, DerefMut)]
-pub struct TypstContent<F: TypstFunc>(#[deref] Content, PhantomData<F>);
-
-impl<F: TypstFunc> TypstContent<F> {
-    pub fn new(content: Content) -> Self {
-        Self(content, PhantomData)
-    }
-}
-
-impl<F: TypstFunc> Default for TypstContent<F> {
-    fn default() -> Self {
-        Self(Content::default(), PhantomData)
+        // Same goes to height.
+        if let Val::Auto = velyst_node.height {
+            node.height = Val::Px(computed_velyst_size.y);
+        } else {
+            node.height = velyst_node.height;
+        }
     }
 }
 
-/// Storage of a [`TypstScene`] in a resource as well as
-/// caching the render and interaction entities.
-#[derive(Resource, Deref, DerefMut)]
-pub struct VelystScene<F: TypstFunc> {
-    #[deref]
-    /// Underlying [`TypstScene`] data.
-    scene: TypstScene,
-    /// Visibility of the scene.
-    pub visibility: Visibility,
-    /// Entity that contains [`VelloSceneBundle`] for rendering the typst scene.
-    entity: Option<Entity>,
-    /// Cached entities mapped by [`TypLabel`].
+/// Layout [`Content`] into a [`VelystScene`].
+fn layout_content(
+    world: VelystWorld,
+    mut q_contents: Query<
+        (
+            &VelystContent,
+            &mut VelystScene,
+            &Visibility,
+            // Optionals because it might be in world space.
+            Option<&VelystSize>,
+            Option<&ComputedNode>,
+            Option<&mut ComputedVelystSize>,
+        ),
+        Or<(
+            Changed<VelystContent>,
+            Changed<Visibility>,
+            Changed<VelystSize>,
+            Changed<ComputedNode>,
+        )>,
+    >,
+) {
+    for (
+        content,
+        mut scene,
+        viz,
+        velyst_node,
+        computed_node,
+        computed_velyst_node,
+    ) in q_contents.iter_mut()
+    {
+        if viz == Visibility::Hidden {
+            continue;
+        }
+        let size = computed_node.map(|n| n.size().as_dvec2());
+        let width = velyst_node.and_then(|n| match n.width {
+            Val::Auto => None,
+            _ => size.map(|s| s.x),
+        });
+        let height = velyst_node.and_then(|n| match n.height {
+            Val::Auto => None,
+            _ => size.map(|s| s.y),
+        });
+
+        if let Some(frame) = world.layout_frame(
+            &content.0,
+            Region::new(
+                Size::new(
+                    width.map_or(Abs::inf(), Abs::pt),
+                    height.map_or(Abs::inf(), Abs::pt),
+                ),
+                Axes::splat(false),
+            ),
+        ) {
+            scene.0 = TypstScene::from_frame(&frame);
+
+            // Write to [`ComputedVelystNode`] so that it reflects to [`Node`].
+            if let Some(mut computed_velyst_node) =
+                computed_velyst_node
+            {
+                let size = frame.size();
+                computed_velyst_node.0 = Vec2::new(
+                    size.x.to_pt() as f32,
+                    size.y.to_pt() as f32,
+                );
+            }
+        }
+    }
+
+    // Clear cache regularly to prevent memory build ups.
+    typst::comemo::evict(4);
+}
+
+/// Render [`VelystScene`] into a [`VelloScene`].
+fn render_scene(
+    mut q_scenes: Query<
+        (&mut VelystScene, &mut VelloScene, &Visibility),
+        Or<(Changed<VelystScene>, Changed<Visibility>)>,
+    >,
+) {
+    for (mut velyst_scene, mut vello_scene, viz) in
+        q_scenes.iter_mut()
+    {
+        if viz == Visibility::Hidden {
+            continue;
+        }
+        *vello_scene = VelloScene::from(velyst_scene.render());
+    }
+}
+
+#[derive(Component, Default)]
+#[require(VelystContent)]
+pub struct VelystFunc {
+    pub name: &'static str,
+    pub positional_args: Vec<Value>,
+    pub named_args: Vec<(&'static str, Value)>,
+}
+
+impl VelystFunc {
+    /// Apply name and arguments.
+    pub fn apply_typst_func<F: TypstFunc>(&mut self, func: &F) {
+        self.name = F::NAME;
+        func.apply_positional_args(&mut self.positional_args);
+        func.apply_named_args(&mut self.named_args);
+    }
+}
+
+/// Marker component that is inserted when the [module][typst::foundations::Module]
+/// needed from [`VelystModules`] for the [`VelystSourceHandle`] is ready.
+///
+/// Will be removed when the [module][typst::foundations::Module]
+/// needed becomes unavailable again.
+#[derive(Component)]
+pub struct VelystSourceReady;
+
+#[derive(Component, Default, Deref, DerefMut)]
+#[require(VelystScene)]
+pub struct VelystContent(pub Content);
+
+#[derive(Component, Default, Deref, DerefMut)]
+#[require(VelloScene)]
+pub struct VelystScene(pub TypstScene);
+
+/// Width and height of the Typst region inside a ui [`Node`].
+/// Use [`Val::Auto`] for auto sizing.
+#[derive(Component, Default)]
+#[require(ComputedVelystSize, Node)]
+pub struct VelystSize {
+    /// Width of the Typst region.
+    pub width: Val,
+    /// Height of the Typst region.
+    pub height: Val,
+}
+
+/// The size of the node as width and height in physical pixels.
+#[derive(Component, Default, Deref)]
+pub struct ComputedVelystSize(pub(crate) Vec2);
+
+pub trait TypstFunc {
+    const NAME: &str;
+
+    fn apply_positional_args(&self, args: &mut Vec<Value>);
+
+    fn apply_named_args(&self, args: &mut Vec<(&'static str, Value)>);
+}
+
+pub trait TypstFuncComp: TypstFunc + Component {}
+
+impl<T: TypstFunc + Component> TypstFuncComp for T {}
+
+/// Helper macro for creating Typst function struct with
+/// [`TypstFunc`] trait implementation.
+///
+/// # Example
+///
+/// ```
+/// use velyst::typst_func;
+/// use velyst::typst::foundations::IntoValue;
+/// use bevy::prelude::*;
+///
+/// typst_func!(
+///     // The literal function name from the Typst scope,
+///     // usually from the source file.
+///     "button",
+///     /// A button function from Typst.
+///     #[derive(Component, Reflect)]
+///     #[reflect(Component)]
+///     pub(super) struct ButtonFunc<T: IntoValue + Clone> {},
+///     // Positional arguments, order matters here!
+///     positional_args {
+///         /// Label size.
+///         size: f64,
+///         custom_data: T,
+///         /// Button label.
+///         #[reflect(ignore)]
+///         label: String,
+///     },
+///     // Named arguments, order doesn't really matters here.
+///     named_args {
+///         icon_index: u32,
+///         #[reflect(ignore)]
+///         icon_label: String,
+///     },
+/// );
+/// ```
+///
+/// Arguments can be also omitted if there aren't any:
+///
+/// ```
+/// use velyst::typst_func;
+/// typst_func!("empty", struct EmptyFunc {});
+/// ```
+#[macro_export]
+macro_rules! typst_func {
+    (
+        // The literal function name from the Typst scope,
+        // usually from the source file.
+        $str_name:literal,
+        // Attributes.
+        $( #[$attr:meta] )*
+        $vis:vis struct $struct_name:ident
+        // Lifetimes and generics.
+        $(< $( $generic:tt $( : $bound:tt $(+ $_bound:tt )* )? ),+ >)? {}$(,)?
+        // Positional args
+        $(
+            positional_args {
+                // Optional positional args.
+                $(
+                    $( #[$positional_attr:meta] )*
+                    $positional_arg:ident: $positional_type:ty
+                ),*$(,)?
+            }$(,)?
+        )?
+        // Named args.
+        $(
+            named_args {
+                $(
+                    $( #[$named_attr:meta] )*
+                    $named_arg:ident: $named_type:ty
+                ),*$(,)?
+            }$(,)?
+        )?
+    ) => {
+        // Define the struct.
+        // Attributes.
+        $( #[$attr] )*
+        $vis struct $struct_name
+        // Lifetimes and generics.
+        $(< $( $generic $( : $bound $(+ $_bound )* )? ),+ >)? {
+            // Positional ags
+            $($(
+                $( #[$positional_attr] )*
+                $positional_arg: $positional_type,
+            )*)?
+            // Optional named args.
+            $($(
+                $( #[$named_attr] )*
+                $named_arg: Option<$named_type>,
+            )*)?
+        }
+
+        // Implement Typst func.
+        // Lifetimes and generics.
+        impl $(< $( $generic $( : $bound $(+ $_bound )* )? ),+ >)?
+        $crate::renderer::TypstFunc for $struct_name
+        // Bounds are not requeired.
+        $(< $( $generic ),+ >)?
+        {
+            const NAME: &'static str = $str_name;
+
+            fn apply_positional_args(&self, args: &mut Vec<$crate::typst::foundations::Value>) {
+                args.clear();
+                $($(
+                    args.push(
+                        $crate::typst::foundations::IntoValue::into_value(
+                            self.$positional_arg.clone()
+                        )
+                    );
+                )*)?
+            }
+
+            fn apply_named_args(&self, args: &mut Vec<(&'static str, $crate::typst::foundations::Value)>) {
+                args.clear();
+                $($(
+                    if let Some(arg) = self.$named_arg.as_ref() {
+                        args.push(
+                            (stringify!($named_arg),
+                            $crate::typst::foundations::IntoValue::into_value(arg.clone()))
+                        );
+                    }
+                )*)?
+            }
+        }
+    };
+}
+
+#[derive(Bundle)]
+pub struct VelystFuncBundle<Func: TypstFuncComp> {
+    pub handle: VelystSourceHandle,
+    pub func: Func,
+}
+
+// #[derive(Component, Deref, DerefMut)]
+// pub struct TypstLabel(TypLabel);
+
+/// Velyst rendering pipeline.
+#[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum VelystSet {
+    /// Applying data to [`VelystFunc`] should happen here.
     ///
-    /// - First element stores the cached entity itself.
-    /// - Second element denotes whether it's used up or not.
-    cached_entities: HashMap<TypLabel, SmallVec<[(Entity, bool); 1]>>, // TODO: Use SmallVec
-    phantom: PhantomData<F>,
-}
-
-impl<F: TypstFunc> VelystScene<F> {
-    pub fn new(scene: TypstScene) -> Self {
-        Self { scene, ..default() }
-    }
-
-    /// Resets all cached entities to unused.
-    fn reset_cached_entities_to_unused(&mut self) {
-        for entities in self.cached_entities.values_mut() {
-            for (_, used) in entities.iter_mut() {
-                *used = false;
-            }
-        }
-    }
-}
-
-impl<F: TypstFunc> Default for VelystScene<F> {
-    fn default() -> Self {
-        Self {
-            scene: default(),
-            visibility: Visibility::Inherited,
-            entity: None,
-            cached_entities: default(),
-            phantom: PhantomData,
-        }
-    }
-}
-
-#[derive(Component, Deref, DerefMut)]
-pub struct TypstLabel(TypLabel);
-
-pub trait TypstFunc: Resource {
-    fn func_name(&self) -> &str;
-
-    fn render_layers(&self) -> RenderLayers {
-        RenderLayers::layer(0)
-    }
-
-    fn content(&self, func: foundations::Func) -> Content;
-
-    fn compile(&self, scope: &foundations::Scope) -> Content {
-        match scope.get_func(self.func_name()) {
-            Ok(func) => self.content(func),
-            Err(err) => {
-                warn!("{err:#?}");
-                Content::empty()
-            }
-        }
-    }
-}
-
-pub trait TypstPath: Send + Sync + 'static {
-    fn path() -> &'static str;
+    /// Data from registered [`TypstFunc`] is applied to [`VelystFunc`] here.
+    PrepareFunc,
+    /// Compile [`VelystFunc`] into a [`VelystContent`].
+    ///
+    /// Custom compilation could also happen here.
+    Compile,
+    /// Layout [`VelystContent`] into a [`VelystScene`].
+    Layout,
+    /// Post processing of [`VelystScene`] should happen here.
+    PostLayout,
+    /// Render [`VelystScene`] into a [`VelloScene`].
+    Render,
 }

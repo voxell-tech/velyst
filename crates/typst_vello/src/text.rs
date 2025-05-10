@@ -8,7 +8,10 @@ use vello::{kurbo, peniko};
 
 use crate::{
     RenderState,
-    utils::{convert_fixed_stroke, convert_paint_to_brush, convert_transform},
+    utils::{
+        convert_fixed_stroke, convert_paint_to_brush,
+        convert_transform,
+    },
 };
 
 #[derive(Default, Debug, Clone)]
@@ -76,7 +79,10 @@ pub fn render_text(
 ) -> TextScene {
     let mut text_scene = TextScene {
         transform: local_transform.map(|transform| {
-            convert_transform(transform.pre_concat(Transform::scale(Ratio::one(), -Ratio::one())))
+            convert_transform(transform.pre_concat(Transform::scale(
+                Ratio::one(),
+                -Ratio::one(),
+            )))
         }),
         fill: TextFill {
             brush: convert_paint_to_brush(&text.fill, state.size),
@@ -102,8 +108,14 @@ pub fn render_text(
         let glyph_path = render_outline_glyph(
             text,
             state
-                .pre_concat(Transform::scale(Ratio::one(), -Ratio::one()))
-                .pre_translate(typst::layout::Point::new(Abs::pt(offset), Abs::zero())),
+                .pre_concat(Transform::scale(
+                    Ratio::one(),
+                    -Ratio::one(),
+                ))
+                .pre_translate(typst::layout::Point::new(
+                    Abs::pt(offset),
+                    Abs::zero(),
+                )),
             id,
             scale,
             offset_transform,
@@ -128,10 +140,13 @@ fn render_outline_glyph(
 ) -> Option<GlyphPath> {
     Some(GlyphPath {
         transform: convert_transform(local_transform),
-        path: convert_outline_glyph_to_path(&text.font, glyph_id, scale)?,
+        path: convert_outline_glyph_to_path(
+            &text.font, glyph_id, scale,
+        )?,
         fill_transform: {
             let transform = text_paint_transform(state, &text.fill);
-            (transform.is_identity() == false).then_some(convert_transform(transform))
+            (transform.is_identity() == false)
+                .then_some(convert_transform(transform))
         },
         stroke_transform: text
             .stroke
@@ -142,25 +157,38 @@ fn render_outline_glyph(
     })
 }
 
-fn text_paint_transform(state: RenderState, paint: &viz::Paint) -> Transform {
+fn text_paint_transform(
+    state: RenderState,
+    paint: &viz::Paint,
+) -> Transform {
     match paint {
         viz::Paint::Solid(_) => Transform::identity(),
-        viz::Paint::Gradient(gradient) => match gradient.unwrap_relative(true) {
-            viz::RelativeTo::Self_ => Transform::identity(),
-            viz::RelativeTo::Parent => Transform::scale(
-                Ratio::new(state.size.x.to_pt()),
-                Ratio::new(state.size.y.to_pt()),
-            )
-            .post_concat(state.transform.invert().unwrap()),
-        },
-        viz::Paint::Tiling(tiling) => match tiling.unwrap_relative(true) {
-            viz::RelativeTo::Self_ => Transform::identity(),
-            viz::RelativeTo::Parent => state.transform.invert().unwrap(),
-        },
+        viz::Paint::Gradient(gradient) => {
+            match gradient.unwrap_relative(true) {
+                viz::RelativeTo::Self_ => Transform::identity(),
+                viz::RelativeTo::Parent => Transform::scale(
+                    Ratio::new(state.size.x.to_pt()),
+                    Ratio::new(state.size.y.to_pt()),
+                )
+                .post_concat(state.transform.invert().unwrap()),
+            }
+        }
+        viz::Paint::Tiling(tiling) => {
+            match tiling.unwrap_relative(true) {
+                viz::RelativeTo::Self_ => Transform::identity(),
+                viz::RelativeTo::Parent => {
+                    state.transform.invert().unwrap()
+                }
+            }
+        }
     }
 }
 
-fn convert_outline_glyph_to_path(font: &Font, id: GlyphId, scale: f64) -> Option<kurbo::BezPath> {
+fn convert_outline_glyph_to_path(
+    font: &Font,
+    id: GlyphId,
+    scale: f64,
+) -> Option<kurbo::BezPath> {
     let mut builder = GlyphPathBuilder(kurbo::BezPath::new(), scale);
     font.ttf().outline_glyph(id, &mut builder)?;
     Some(builder.0)
@@ -204,7 +232,15 @@ impl OutlineBuilder for GlyphPathBuilder {
         );
     }
 
-    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+    fn curve_to(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        x: f32,
+        y: f32,
+    ) {
         let scale = self.scale();
         self.path_mut().curve_to(
             (scale * x1 as f64, scale * y1 as f64),
