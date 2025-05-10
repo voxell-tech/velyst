@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
 use velyst::prelude::*;
@@ -23,6 +25,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let handle =
         VelystSourceHandle(asset_server.load("typst/game_ui.typ"));
 
+    // Colors.
+    const RED: &str = "#FF6188";
+    const GREEN: &str = "#A9DC76";
+    const PURPLE: &str = "#AB9DF2";
+
+    let green = viz::Color::from_str(GREEN).unwrap();
+    let purple = viz::Color::from_str(PURPLE).unwrap();
+    let red = viz::Color::from_str(RED).unwrap();
+
     commands
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -30,9 +41,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             flex_direction: FlexDirection::Column,
             padding: UiRect::all(Val::VMin(6.0)),
             justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
             ..default()
         })
         .with_children(|builder| {
+            // Title.
             builder.spawn((
                 VelystFuncBundle {
                     handle: handle.clone(),
@@ -48,12 +61,43 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     ..default()
                 },
             ));
+
+            // Buttons.
             builder.spawn((
                 VelystFuncBundle {
                     handle: handle.clone(),
-                    func: ButtonFunc::text("Start").with_fill(
-                        viz::Color::from_u8(0, 255, 0, 255),
-                    ),
+                    func: ButtonFunc::text("Start").with_fill(green),
+                },
+                VelystSize {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                },
+                Node {
+                    padding: UiRect::all(Val::Vh(4.0)),
+                    ..default()
+                },
+                Button,
+            ));
+            builder.spawn((
+                VelystFuncBundle {
+                    handle: handle.clone(),
+                    func: ButtonFunc::text("Settings")
+                        .with_fill(purple),
+                },
+                VelystSize {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                },
+                Node {
+                    padding: UiRect::all(Val::Vh(4.0)),
+                    ..default()
+                },
+                Button,
+            ));
+            builder.spawn((
+                VelystFuncBundle {
+                    handle: handle.clone(),
+                    func: ButtonFunc::text("Exit").with_fill(red),
                 },
                 VelystSize {
                     width: Val::Auto,
@@ -102,7 +146,11 @@ fn button_interaction(
     mut q_buttons: Query<(&mut ButtonFunc, &Interaction)>,
 ) {
     for (mut func, interaction) in q_buttons.iter_mut() {
-        func.hovered = *interaction == Interaction::Hovered;
+        func.interaction_state = match interaction {
+            Interaction::Pressed => 2,
+            Interaction::Hovered => 1,
+            Interaction::None => 0,
+        };
     }
 }
 
@@ -148,7 +196,7 @@ typst_func!(
     struct ButtonFunc {},
     positional_args {
         body: Content,
-        hovered: bool,
+        interaction_state: u8,
     },
     named_args {
         fill: viz::Color,

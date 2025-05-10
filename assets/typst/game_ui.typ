@@ -7,12 +7,13 @@
   body
 }
 
-#let button(body, hovered, fill: base7, size: default_size) = {
-  set text(size: size, fill: if hovered { base0 } else { fill })
+#let button(body, interaction_state, fill: base7, size: default_size) = {
+  set text(size: size, fill: fill)
   box(
     inset: 0.7em,
-    fill: if hovered { fill } else { none },
-    radius: 0.4em,
+    fill: if interaction_state != 0 { base4 } else { none },
+    stroke: if interaction_state == 2 { fill + 0.15em } else { none },
+    radius: 0.6em,
   )[#body]
 }
 
