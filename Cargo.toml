@@ -43,7 +43,6 @@ readme.workspace = true
 # Local dependencies
 typst_element = { path = "crates/typst_element", version = "0.1.0" }
 typst_vello = { path = "crates/typst_vello", version = "0.1.0" }
-velyst_macros = { path = "crates/velyst_macros", version = "0.1.0" }
 
 bevy = { workspace = true }
 bevy_vello = { workspace = true }
