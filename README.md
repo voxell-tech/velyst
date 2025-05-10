@@ -66,6 +66,8 @@ typst_func!(
 );
 ```
 
+*Associated example [here](./examples/center_box.rs)!*
+
 ## Interactions
 
 Velyst is also compatible with `bevy_ui` interactions.
