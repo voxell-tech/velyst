@@ -151,8 +151,8 @@ fn check_source_ready(
     }
 }
 
-/// Update [`Node`] from [`ComputedVelystNode`] if
-/// it's set to [`Val::Auto`] in [`VelystNode`].
+/// Update [`Node`] from [`ComputedVelystSize`] if
+/// it's set to [`Val::Auto`] in [`VelystSize`].
 fn update_node(
     mut q_nodes: Query<
         (&mut Node, &VelystSize, &ComputedVelystSize),
