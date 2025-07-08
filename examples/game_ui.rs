@@ -132,14 +132,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn perf_metrics(
     time: Res<Time>,
     mut q_func: Query<&mut PerfMetricsFunc>,
-) {
-    let Ok(mut func) = q_func.get_single_mut() else {
-        return;
-    };
+) -> Result {
+    let mut func = q_func.single_mut()?;
 
     func.fps = (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
     func.elapsed_time =
         (time.elapsed_secs_f64() * 100.0).round() / 100.0;
+
+    Ok(())
 }
 
 fn button_interaction(
