@@ -67,7 +67,7 @@ fn spawn_velyst_func<Func: TypstFuncComp>(
     mut commands: Commands,
     mut q_func: Query<&Func, Without<VelystFunc>>,
 ) {
-    let entity = trigger.entity();
+    let entity = trigger.target();
 
     if let Ok(func) = q_func.get_mut(entity) {
         let mut velyst_func = VelystFunc::default();

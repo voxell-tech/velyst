@@ -4,9 +4,9 @@ use std::time::Duration;
 use std::{fs, mem};
 
 use bevy::ecs::system::SystemParam;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::time::common_conditions::on_timer;
-use bevy::utils::HashMap;
 use chrono::{DateTime, Datelike, Local, Timelike};
 use fonts::TypstFonts;
 use typst::Library;
