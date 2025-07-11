@@ -33,10 +33,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             handle,
             func: MainFunc::default(),
         },
-        Node {
+        VelystSize {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
-            ..default()
         },
     ));
 }
