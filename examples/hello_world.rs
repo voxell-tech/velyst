@@ -33,17 +33,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             handle,
             func: MainFunc::default(),
         },
-        Node {
+        VelystSize {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
-            ..default()
         },
     ));
 }
 
-fn main_func(mut func: Query<&mut MainFunc>, time: Res<Time>) {
-    let mut func = func.single_mut();
+fn main_func(
+    mut func: Query<&mut MainFunc>,
+    time: Res<Time>,
+) -> Result {
+    let mut func = func.single_mut()?;
     func.animate = time.elapsed_secs_f64();
+
+    Ok(())
 }
 
 typst_func!(

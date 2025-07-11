@@ -15,6 +15,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
 
     commands.spawn(VelloSvgHandle(
-        asset_server.load("images/health.svg"),
+        asset_server.load("images/voxell_logo.svg"),
     ));
 }

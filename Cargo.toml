@@ -11,8 +11,8 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.15.2", default-features = false }
-bevy_vello = "0.7.1"
+bevy = { version = "0.16.1", default-features = false }
+bevy_vello = "0.10.3"
 # Typst dependencies
 typst = "0.13.1"
 typst-eval = "0.13.1"
@@ -44,8 +44,8 @@ readme.workspace = true
 typst_element = { path = "crates/typst_element", version = "0.1.0" }
 typst_vello = { path = "crates/typst_vello", version = "0.1.0" }
 
-bevy = { workspace = true }
-bevy_vello = { workspace = true }
+bevy = { workspace = true, features = ["bevy_log"] }
+bevy_vello = { workspace = true, features = ["svg"] }
 typst = { workspace = true }
 typst-eval = { workspace = true }
 typst-layout = { workspace = true }

@@ -1,7 +1,7 @@
 use bevy::asset::io::Reader;
 use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use typst::foundations::Module;
 use typst::syntax::{FileId, Source, VirtualPath};
 
