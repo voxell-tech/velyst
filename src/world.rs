@@ -9,8 +9,7 @@ use bevy::prelude::*;
 use bevy::time::common_conditions::on_timer;
 use chrono::{DateTime, Datelike, Local, Timelike};
 use fonts::TypstFonts;
-use typst::Library;
-use typst::comemo::{Track, Validate};
+use typst::comemo::{Constraint, Track};
 use typst::diag::{
     FileError, FileResult, PackageError, Severity, SourceDiagnostic,
 };
@@ -23,6 +22,7 @@ use typst::layout::{Frame, Region};
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
+use typst::{Library, LibraryExt};
 
 pub mod fonts;
 
@@ -65,8 +65,16 @@ impl Default for TypstRoot {
 }
 
 /// Typst's standard library.
-#[derive(Resource, Default, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct TypstLibrary(LazyHash<Library>);
+
+impl Default for TypstLibrary {
+    fn default() -> Self {
+        let library = Library::default();
+
+        Self(LazyHash::new(library))
+    }
+}
 
 /// The current datetime if requested. This is stored here to ensure it is
 /// always the same within one frame. Reset between frames.
@@ -139,8 +147,8 @@ impl VelystWorld<'_> {
         let styles = StyleChain::new(&world.library().styles);
 
         let introspector = Introspector::default();
-        let constraint =
-            <Introspector as Validate>::Constraint::new();
+        let constraint = Constraint::default();
+
         let traced = Traced::default();
         let mut sink = Sink::new();
 

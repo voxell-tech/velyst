@@ -142,13 +142,15 @@ pub fn convert_paint_to_brush(
 }
 
 pub fn convert_color(color: &viz::Color) -> peniko::Color {
-    let channels = color.to_rgb().to_vec4_u8();
-    peniko::Color::from_rgba8(
-        channels[0],
-        channels[1],
-        channels[2],
-        channels[3],
-    )
+    let rgb = color.to_rgb();
+
+    // Extract and convert
+    let r = (rgb.color.red.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let g = (rgb.color.green.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let b = (rgb.color.blue.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let a = (rgb.alpha.clamp(0.0, 1.0) * 255.0).round() as u8;
+
+    peniko::Color::from_rgba8(r, g, b, a)
 }
 
 pub fn convert_transform(transform: Transform) -> kurbo::Affine {

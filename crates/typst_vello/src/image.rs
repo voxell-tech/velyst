@@ -72,6 +72,10 @@ pub fn render_image(
 
             ImageScene { transform, scene }
         }
+        viz::ImageKind::Pdf(_) => {
+            // TODO: Handle embedded PDF images
+            ImageScene::default()
+        }
     }
 }
 
