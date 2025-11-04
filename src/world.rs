@@ -70,9 +70,7 @@ pub struct TypstLibrary(LazyHash<Library>);
 
 impl Default for TypstLibrary {
     fn default() -> Self {
-        let library = Library::default();
-
-        Self(LazyHash::new(library))
+        Self(LazyHash::new(Library::default()))
     }
 }
 

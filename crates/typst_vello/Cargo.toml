@@ -14,7 +14,6 @@ smallvec = { workspace = true }
 ahash = "0.8.11"
 ttf-parser = "0.25.1"
 hayro = "0.4"
-hayro-interpret = "0.4"
 
 [lints]
 workspace = true
