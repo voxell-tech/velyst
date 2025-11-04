@@ -86,11 +86,15 @@ pub fn render_image(
             let target_px_w = (size.x.to_pt().ceil() as u32).max(1);
             let target_px_h = (size.y.to_pt().ceil() as u32).max(1);
 
-            let mut settings = hayro::RenderSettings::default();
-            settings.width =
-                Some(target_px_w.try_into().unwrap_or(u16::MAX));
-            settings.height =
-                Some(target_px_h.try_into().unwrap_or(u16::MAX));
+            let settings = hayro::RenderSettings {
+                width: Some(
+                    target_px_w.try_into().unwrap_or(u16::MAX),
+                ),
+                height: Some(
+                    target_px_h.try_into().unwrap_or(u16::MAX),
+                ),
+                ..Default::default()
+            };
 
             let pixmap = hayro::render(
                 page,
