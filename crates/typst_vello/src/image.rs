@@ -72,9 +72,51 @@ pub fn render_image(
 
             ImageScene { transform, scene }
         }
-        viz::ImageKind::Pdf(_) => {
-            // TODO: Handle embedded PDF images
-            ImageScene::default()
+        viz::ImageKind::Pdf(pdf_img) => {
+            let page = match pdf_img
+                .document()
+                .pdf()
+                .pages()
+                .get(pdf_img.page_index())
+            {
+                Some(p) => p,
+                None => return ImageScene::default(),
+            };
+
+            let target_px_w = (size.x.to_pt().ceil() as u32).max(1);
+            let target_px_h = (size.y.to_pt().ceil() as u32).max(1);
+
+            let mut settings = hayro::RenderSettings::default();
+            settings.width =
+                Some(target_px_w.try_into().unwrap_or(u16::MAX));
+            settings.height =
+                Some(target_px_h.try_into().unwrap_or(u16::MAX));
+
+            let pixmap = hayro::render(
+                page,
+                &hayro::InterpreterSettings::default(),
+                &settings,
+            );
+            let rgba = pixmap.clone().take_u8();
+
+            let peniko_image = peniko::Image::new(
+                peniko::Blob::new(Arc::new(rgba)),
+                peniko::ImageFormat::Rgba8,
+                pixmap.width().into(),
+                pixmap.height().into(),
+            );
+
+            let mut scene = vello::Scene::new();
+            scene.draw_image(&peniko_image, kurbo::Affine::IDENTITY);
+
+            let (page_w, page_h) = page.render_dimensions();
+            let transform = convert_transform(local_transform)
+                .pre_scale_non_uniform(
+                    size.x.to_pt() / page_w as f64,
+                    size.y.to_pt() / page_h as f64,
+                );
+
+            ImageScene { transform, scene }
         }
     }
 }
