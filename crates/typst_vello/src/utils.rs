@@ -142,7 +142,7 @@ pub fn convert_paint_to_brush(
 }
 
 pub fn convert_color(color: &viz::Color) -> peniko::Color {
-    let channels = color.to_rgb().to_vec4_u8();
+    let channels = color.to_vec4_u8();
     peniko::Color::from_rgba8(
         channels[0],
         channels[1],

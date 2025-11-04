@@ -1,8 +1,8 @@
 use typst::diag::EcoString;
 use typst::foundations::{
-    self, Bytes, Content, Derived, Label, OneOrMultiple, Packed,
+    self, Content, Derived, Label, OneOrMultiple, Packed,
 };
-use typst::loading::DataSource;
+use typst::loading::{DataSource, Loaded};
 use typst::syntax::Spanned;
 use typst::{layout, math, model, text, visualize};
 use unicode_math_class::MathClass;
@@ -218,7 +218,7 @@ fn_elem!(raw, text::RawElem, text::RawContent);
 
 // Symbols
 pub fn symbol(c: char) -> foundations::Symbol {
-    foundations::Symbol::single(c)
+    foundations::Symbol::runtime_char(c)
 }
 
 // Math
@@ -255,7 +255,7 @@ fn_elem!(primes, math::PrimesElem, usize);
 fn_elem!(
     image,
     visualize::ImageElem,
-    source = Derived<DataSource, Bytes>
+    source = Derived<DataSource, Loaded>
 );
 fn_elem_empty!(line, visualize::LineElem);
 fn_elem_empty!(rect, visualize::RectElem);
