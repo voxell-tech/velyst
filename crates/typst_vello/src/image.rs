@@ -33,22 +33,26 @@ pub fn render_image(
         viz::ImageKind::Raster(raster) => {
             let mut scene = vello::Scene::new();
 
-            let image = peniko::Image::new(
-                peniko::Blob::new(Arc::new(
+            let width = raster.width();
+            let height = raster.height();
+
+            let image_data = peniko::ImageData {
+                data: peniko::Blob::new(Arc::new(
                     raster.dynamic().to_rgba8().into_vec(),
                 )),
-                peniko::ImageFormat::Rgba8,
-                raster.width(),
-                raster.height(),
-            );
+                format: peniko::ImageFormat::Rgba8,
+                alpha_type: peniko::ImageAlphaType::Alpha,
+                width,
+                height,
+            };
 
-            scene.draw_image(&image, kurbo::Affine::IDENTITY);
-            let (width, height) =
-                (raster.width() as f64, raster.height() as f64);
+            let brush = peniko::ImageBrush::new(image_data);
+            scene.draw_image(&brush, kurbo::Affine::IDENTITY);
+
             let transform = convert_transform(local_transform)
                 .pre_scale_non_uniform(
-                    size.x.to_pt() / width,
-                    size.y.to_pt() / height,
+                    size.x.to_pt() / width as f64,
+                    size.y.to_pt() / height as f64,
                 );
 
             ImageScene { transform, scene }
@@ -83,6 +87,8 @@ pub fn render_image(
                 None => return ImageScene::default(),
             };
 
+            let mut scene = vello::Scene::new();
+
             let target_px_w = (size.x.to_pt().ceil() as u32).max(1);
             let target_px_h = (size.y.to_pt().ceil() as u32).max(1);
 
@@ -103,15 +109,16 @@ pub fn render_image(
             );
             let rgba = pixmap.clone().take_u8();
 
-            let peniko_image = peniko::Image::new(
-                peniko::Blob::new(Arc::new(rgba)),
-                peniko::ImageFormat::Rgba8,
-                pixmap.width().into(),
-                pixmap.height().into(),
-            );
+            let image_data = peniko::ImageData {
+                data: peniko::Blob::new(Arc::new(rgba)),
+                format: peniko::ImageFormat::Rgba8,
+                alpha_type: peniko::ImageAlphaType::Alpha,
+                width: pixmap.width().into(),
+                height: pixmap.height().into(),
+            };
 
-            let mut scene = vello::Scene::new();
-            scene.draw_image(&peniko_image, kurbo::Affine::IDENTITY);
+            let brush = peniko::ImageBrush::new(image_data);
+            scene.draw_image(&brush, kurbo::Affine::IDENTITY);
 
             let (page_w, page_h) = page.render_dimensions();
             let transform = convert_transform(local_transform)
