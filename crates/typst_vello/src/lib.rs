@@ -17,7 +17,7 @@ use typst::{
     },
 };
 use utils::convert_transform;
-use vello::{kurbo, peniko};
+use vello::kurbo;
 
 pub mod image;
 pub mod shape;
@@ -85,15 +85,8 @@ impl TypstScene {
 
             let mut pushed_clip = false;
             if let Some(clip_path) = &group.clip_path {
-                scene.push_layer(
-                    peniko::BlendMode::new(
-                        peniko::Mix::Clip,
-                        peniko::Compose::SrcOver,
-                    ),
-                    1.0,
-                    group.transform,
-                    clip_path,
-                );
+                scene.push_clip_layer(group.transform, clip_path);
+
                 pushed_clip = true;
             }
 

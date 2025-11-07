@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::ui::UiSystem;
+use bevy::ui::UiSystems;
 use bevy_vello::prelude::*;
 use typst::foundations::{Content, NativeElement, Value};
 use typst::layout::{Abs, Axes, Region, Size};
@@ -19,7 +19,7 @@ impl Plugin for VelystRendererPlugin {
             (
                 VelystSet::PrepareFunc,
                 VelystSet::Compile,
-                VelystSet::Layout.in_set(UiSystem::PostLayout),
+                VelystSet::Layout.in_set(UiSystems::PostLayout),
                 VelystSet::PostLayout,
                 VelystSet::Render,
             )
@@ -63,11 +63,11 @@ impl TypstFuncAppExt for App {
 
 /// Spawn [`VelystFunc`] for a newly added [`TypstFuncComp`].
 fn spawn_velyst_func<Func: TypstFuncComp>(
-    trigger: Trigger<OnAdd, Func>,
+    trigger: On<Add, Func>,
     mut commands: Commands,
     mut q_func: Query<&Func, Without<VelystFunc>>,
 ) {
-    let entity = trigger.target();
+    let entity = trigger.event_target();
 
     if let Ok(func) = q_func.get_mut(entity) {
         let mut velyst_func = VelystFunc::default();
