@@ -21,7 +21,7 @@ impl Plugin for TypstAssetPlugin {
 fn eval_source(
     world: VelystWorld,
     mut q_handles: Query<&mut VelystSourceHandle>,
-    mut evr_asset_event: EventReader<AssetEvent<VelystSource>>,
+    mut evr_asset_event: MessageReader<AssetEvent<VelystSource>>,
     mut modules: ResMut<VelystModules>,
     sources: Res<Assets<VelystSource>>,
 ) {

@@ -11,8 +11,8 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.16.1", default-features = false }
-bevy_vello = "0.10.3"
+bevy = { version = "0.17.2", default-features = false }
+bevy_vello = { git = "https://github.com/linebender/bevy_vello.git", branch = "main" }
 # Typst dependencies
 typst = "0.14.0"
 typst-library = "0.14.0"
