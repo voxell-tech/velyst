@@ -254,17 +254,32 @@ fn layout_content(
 /// Render [`VelystScene`] into a [`VelloScene`].
 fn render_scene(
     mut q_scenes: Query<
-        (&mut VelystScene, &mut VelloScene, &Visibility),
+        (
+            &mut VelystScene,
+            &mut VelloScene,
+            &UiGlobalTransform,
+            &Visibility,
+        ),
         Or<(Changed<VelystScene>, Changed<Visibility>)>,
     >,
 ) {
-    for (mut velyst_scene, mut vello_scene, viz) in
+    for (mut velyst_scene, mut vello_scene, transform, viz) in
         q_scenes.iter_mut()
     {
         if viz == Visibility::Hidden {
             continue;
         }
-        *vello_scene = VelloScene::from(velyst_scene.render());
+
+        vello_scene.reset();
+        // TODO: Handle rotation & scale.
+        // TODO: Remove once bevy_vello supports it.
+        vello_scene.append(
+            &velyst_scene.render(),
+            Some(kurbo::Affine::translate((
+                transform.translation.x as f64,
+                transform.translation.y as f64,
+            ))),
+        );
     }
 }
 
