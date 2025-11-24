@@ -7,11 +7,10 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-typst = { workspace = true }
+typst-library = { workspace = true }
 vello = "0.5.0"
 vello_svg = "0.7.1"
 smallvec = { workspace = true }
-ahash = "0.8.11"
 ttf-parser = "0.25.1"
 hayro = "0.4"
 

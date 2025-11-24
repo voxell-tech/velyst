@@ -1,6 +1,6 @@
 use kurbo::Shape;
-use typst::layout::{Abs, Ratio, Size, Transform};
-use typst::visualize as viz;
+use typst_library::layout::{Abs, Ratio, Size, Transform};
+use typst_library::visualize as viz;
 use vello::{kurbo, peniko};
 
 use crate::{RenderState, utils::*};

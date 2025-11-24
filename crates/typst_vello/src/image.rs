@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use typst::layout::{Size, Transform};
-use typst::visualize as viz;
+use typst_library::layout::{Size, Transform};
+use typst_library::visualize as viz;
 use vello::{kurbo, peniko};
 use vello_svg::usvg;
 
