@@ -1,9 +1,7 @@
 use ttf_parser::{GlyphId, OutlineBuilder};
-use typst::{
-    layout::{Abs, Ratio, Transform},
-    text::{Font, TextItem},
-    visualize as viz,
-};
+use typst_library::layout::{Abs, Ratio, Transform};
+use typst_library::text::{Font, TextItem};
+use typst_library::visualize as viz;
 use vello::{kurbo, peniko};
 
 use crate::{
@@ -112,7 +110,7 @@ pub fn render_text(
                     Ratio::one(),
                     -Ratio::one(),
                 ))
-                .pre_translate(typst::layout::Point::new(
+                .pre_translate(typst_library::layout::Point::new(
                     Abs::pt(offset),
                     Abs::zero(),
                 )),

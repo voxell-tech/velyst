@@ -2,19 +2,15 @@
 //!
 //! A Vello scene drawer for Typst's frames.
 
-pub use typst;
+use std::collections::HashMap;
 
-use ahash::AHashMap;
 use image::{ImageScene, render_image};
 use shape::{ShapeScene, convert_curve, render_shape};
 use smallvec::SmallVec;
 use text::{TextScene, render_text};
-use typst::{
-    foundations::Label,
-    layout::{
-        Frame, FrameItem, FrameKind, GroupItem, Point, Size,
-        Transform,
-    },
+use typst_library::foundations::Label;
+use typst_library::layout::{
+    Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
 };
 use utils::convert_transform;
 use vello::{kurbo, peniko};
@@ -30,7 +26,7 @@ pub mod utils;
 pub struct TypstScene {
     size: kurbo::Vec2,
     group_scenes: Vec<TypstGroupScene>,
-    group_map: AHashMap<Label, SmallVec<[usize; 1]>>,
+    group_map: HashMap<Label, SmallVec<[usize; 1]>>,
 }
 
 impl TypstScene {

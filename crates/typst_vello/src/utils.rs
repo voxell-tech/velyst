@@ -1,7 +1,7 @@
 use std::f32::consts::TAU;
 
-use typst::layout::{Quadrant, Size, Transform};
-use typst::visualize as viz;
+use typst_library::layout::{Quadrant, Size, Transform};
+use typst_library::visualize as viz;
 use vello::{kurbo, peniko};
 
 pub fn convert_fixed_stroke(
