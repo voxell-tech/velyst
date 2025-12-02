@@ -676,6 +676,7 @@ dependencies = [
  "bevy_time",
  "bevy_transform",
  "bevy_ui",
+ "bevy_ui_render",
  "bevy_utils",
  "bevy_window",
  "bevy_winit",
@@ -1145,6 +1146,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_ui_render"
+version = "0.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adae9770089e04339d003afe7abe7153fe71600d81c828f964c7ac329b04d5b9"
+dependencies = [
+ "bevy_app",
+ "bevy_asset",
+ "bevy_camera",
+ "bevy_color",
+ "bevy_core_pipeline",
+ "bevy_derive",
+ "bevy_ecs",
+ "bevy_image",
+ "bevy_math",
+ "bevy_mesh",
+ "bevy_platform",
+ "bevy_reflect",
+ "bevy_render",
+ "bevy_shader",
+ "bevy_sprite",
+ "bevy_sprite_render",
+ "bevy_text",
+ "bevy_transform",
+ "bevy_ui",
+ "bevy_utils",
+ "bytemuck",
+ "derive_more",
+ "tracing",
+]
+
+[[package]]
 name = "bevy_utils"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1158,7 +1190,7 @@ dependencies = [
 [[package]]
 name = "bevy_vello"
 version = "0.10.3"
-source = "git+https://github.com/linebender/bevy_vello.git?branch=main#120e0e7554cfc1799a21dbea2914a25703bf0c3b"
+source = "git+https://github.com/linebender/bevy_vello.git?branch=main#ee1ad56890b18d1681be7ea10365efddc6e16a1b"
 dependencies = [
  "bevy",
  "thiserror 2.0.17",
