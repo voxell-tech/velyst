@@ -9,7 +9,7 @@ readme.workspace = true
 [dependencies]
 typst = { workspace = true }
 unicode-math-class = { workspace = true }
-paste = "1.0"
+paste = { workspace = true }
 
 [lints]
 workspace = true
