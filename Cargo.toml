@@ -12,18 +12,26 @@ readme = "README.md"
 [workspace.dependencies]
 # Bevy dependencies
 bevy = { version = "0.17.2", default-features = false }
-bevy_vello = { git = "https://github.com/linebender/bevy_vello.git", branch = "main" }
+bevy_vello = { git = "https://github.com/linebender/bevy_vello.git", rev = "ee1ad56" }
+# Vello dependencies
+vello = "0.6.0"
+vello_svg = "0.8.0"
 # Typst dependencies
 typst = "0.14.0"
 typst-library = "0.14.0"
 typst-eval = "0.14.0"
 typst-layout = "0.14.0"
 typst-assets = "0.14.0"
-unicode-math-class = "0.1" # in sync with typst
-# Common dependencies
+# In sync with Typst:
+unicode-math-class = "0.1"
+ttf-parser = "0.25.1"
+hayro = "0.4"
+# Other
+chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
 ecow = { version = "0.2", features = ["serde"] }
 thiserror = "1"
 smallvec = "1"
+paste = "1"
 
 [workspace.lints.clippy]
 redundant_type_annotations = "warn"
@@ -51,7 +59,7 @@ typst = { workspace = true }
 typst-eval = { workspace = true }
 typst-layout = { workspace = true }
 typst-assets = { workspace = true, optional = true }
-chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
+chrono = { workspace = true }
 ecow = { workspace = true }
 thiserror = { workspace = true }
 smallvec = { workspace = true }

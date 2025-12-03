@@ -8,11 +8,11 @@ readme.workspace = true
 
 [dependencies]
 typst-library = { workspace = true }
-vello = "0.6.0"
-vello_svg = "0.8.0"
+vello = { workspace = true }
+vello_svg = { workspace = true }
 smallvec = { workspace = true }
-ttf-parser = "0.25.1"
-hayro = "0.4"
+ttf-parser = { workspace = true }
+hayro = { workspace = true }
 
 [lints]
 workspace = true

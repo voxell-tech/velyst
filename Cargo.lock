@@ -1177,7 +1177,7 @@ dependencies = [
 [[package]]
 name = "bevy_vello"
 version = "0.10.3"
-source = "git+https://github.com/linebender/bevy_vello.git?branch=main#ee1ad56890b18d1681be7ea10365efddc6e16a1b"
+source = "git+https://github.com/linebender/bevy_vello.git?rev=ee1ad56#ee1ad56890b18d1681be7ea10365efddc6e16a1b"
 dependencies = [
  "bevy",
  "thiserror 2.0.17",
