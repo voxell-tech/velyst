@@ -5,12 +5,17 @@ use typst::foundations::{
     Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue,
     Func, Label, Module, Scope, Smart, Str, Styles, Type, Version,
 };
-use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel};
+use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel, Sizing};
 use typst::visualize::{Color, Gradient, Tiling};
 
 pub trait UnitExt: Sized {
     fn length(self) -> Length;
+
     fn rel(self) -> Rel;
+
+    fn sizing(self) -> Sizing {
+        Sizing::Rel(self.rel())
+    }
 
     fn smart_length(self) -> Smart<Length> {
         Smart::Custom(self.length())
