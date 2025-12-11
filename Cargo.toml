@@ -53,7 +53,7 @@ readme.workspace = true
 typst_element = { path = "crates/typst_element", version = "0.1.0" }
 typst_vello = { path = "crates/typst_vello", version = "0.1.0" }
 
-bevy = { workspace = true, features = ["bevy_log", "x11", "wayland"] }
+bevy = { workspace = true, features = ["bevy_log"] }
 bevy_vello = { workspace = true, features = ["svg"] }
 typst = { workspace = true }
 typst-eval = { workspace = true }

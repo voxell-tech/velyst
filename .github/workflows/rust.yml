@@ -49,7 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev libwayland-dev
-      - run: cargo doc --workspace --all-features --no-deps --document-private-items
+      - run: cargo doc --workspace --all-features --no-deps --document-private-items --features="bevy/wayland"
         env:
           RUSTDOCFLAGS: -D warnings
     
