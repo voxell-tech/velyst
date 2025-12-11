@@ -149,7 +149,7 @@ fn check_source_ready(
     }
 }
 
-/// Layout [`Content`] into a [`VelystScene`].
+/// Layout [`Content`] into a [`UiVelystScene`].
 fn layout_content(
     world: VelystWorld,
     mut q_contents: Query<
@@ -216,7 +216,7 @@ fn layout_content(
     typst::comemo::evict(4);
 }
 
-/// Render [`VelystScene`] into a [`UiVelloScene`].
+/// Render [`UiVelystScene`] into a [`UiVelloScene`].
 fn render_scene(
     mut q_scenes: Query<
         (&mut UiVelystScene, &mut UiVelloScene, &Visibility),
@@ -424,10 +424,10 @@ pub enum VelystSet {
     ///
     /// Custom compilation could also happen here.
     Compile,
-    /// Layout [`VelystContent`] into a [`VelystScene`].
+    /// Layout [`VelystContent`] into a [`UiVelystScene`].
     Layout,
-    /// Post processing of [`VelystScene`] should happen here.
+    /// Post processing of [`UiVelystScene`] should happen here.
     PostLayout,
-    /// Render [`VelystScene`] into a [`VelloScene`].
+    /// Render [`UiVelystScene`] into a [`UiVelloScene`].
     Render,
 }
