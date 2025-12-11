@@ -24,7 +24,7 @@ To get started rendering a simple box, create a function inside a `.typ` file:
 
 Then, in your `.rs` file, load your Typst asset file and register your function.
 
-```rs
+```rust no_run
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
 use velyst::prelude::*;
@@ -52,9 +52,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             handle,
             func: MainFunc::default(),
         },
-        VelystSize {
+        Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
+            ..default()
         },
     ));
 }

@@ -1,6 +1,6 @@
 #import "styles/monokai_pro.typ": *
 
-#let default_size = 16pt
+#let default_size = 24pt
 
 #let lbl(body, fill: base7, size: default_size) = {
   set text(size: size, fill: fill)

@@ -11,8 +11,8 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.17.2", default-features = false }
-bevy_vello = { git = "https://github.com/linebender/bevy_vello.git", rev = "ee1ad56" }
+bevy = { version = "0.17.3", default-features = false }
+bevy_vello = "0.11.0"
 # Vello dependencies
 vello = "0.6.0"
 vello_svg = "0.8.0"
@@ -69,7 +69,11 @@ default = ["embed-fonts"]
 embed-fonts = ["dep:typst-assets", "typst-assets/fonts"]
 
 [dev-dependencies]
-bevy = { workspace = true, features = ["file_watcher"] }
+bevy = { workspace = true, features = [
+  "file_watcher",
+  "x11",
+  "wayland",
+] }
 bevy_vello = { workspace = true, features = ["svg"] }
 
 [lints]

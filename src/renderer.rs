@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::ui::UiSystems;
+use bevy::ui::{ContentSize, UiSystems};
 use bevy_vello::prelude::*;
 use typst::foundations::{Content, NativeElement, Value};
 use typst::layout::{Abs, Axes, Region, Size};
@@ -32,9 +32,7 @@ impl Plugin for VelystRendererPlugin {
                 (check_source_ready, compile_velyst_func)
                     .chain()
                     .in_set(VelystSet::Compile),
-                (layout_content, update_node)
-                    .chain()
-                    .in_set(VelystSet::Layout),
+                layout_content.in_set(VelystSet::Layout),
                 render_scene.in_set(VelystSet::Render),
             ),
         );
@@ -151,51 +149,22 @@ fn check_source_ready(
     }
 }
 
-/// Update [`Node`] from [`ComputedVelystSize`] if
-/// it's set to [`Val::Auto`] in [`VelystSize`].
-fn update_node(
-    mut q_nodes: Query<
-        (&mut Node, &VelystSize, &ComputedVelystSize),
-        Or<(Changed<VelystSize>, Changed<ComputedVelystSize>)>,
-    >,
-) {
-    for (mut node, velyst_node, computed_velyst_size) in
-        q_nodes.iter_mut()
-    {
-        if let Val::Auto = velyst_node.width {
-            // Use computed width if it's in auto mode.
-            node.width = Val::Px(computed_velyst_size.x);
-        } else {
-            // Otherwise, use the user defined width.
-            node.width = velyst_node.width;
-        }
-
-        // Same goes to height.
-        if let Val::Auto = velyst_node.height {
-            node.height = Val::Px(computed_velyst_size.y);
-        } else {
-            node.height = velyst_node.height;
-        }
-    }
-}
-
-/// Layout [`Content`] into a [`VelystScene`].
+/// Layout [`Content`] into a [`UiVelystScene`].
 fn layout_content(
     world: VelystWorld,
     mut q_contents: Query<
         (
             &VelystContent,
-            &mut VelystScene,
+            &mut UiVelystScene,
             &Visibility,
-            // Optionals because it might be in world space.
-            Option<&VelystSize>,
-            Option<&ComputedNode>,
-            Option<&mut ComputedVelystSize>,
+            &Node,
+            &ComputedNode,
+            &mut ContentSize,
+            &ComputedUiRenderTargetInfo,
         ),
         Or<(
             Changed<VelystContent>,
             Changed<Visibility>,
-            Changed<VelystSize>,
             Changed<ComputedNode>,
         )>,
     >,
@@ -204,46 +173,42 @@ fn layout_content(
         content,
         mut scene,
         viz,
-        velyst_node,
+        node,
         computed_node,
-        computed_velyst_node,
+        mut content_size,
+        target_info,
     ) in q_contents.iter_mut()
     {
+        let scale_factor = target_info.scale_factor();
+        if scale_factor == 0.0 {
+            continue;
+        }
+
         if viz == Visibility::Hidden {
             continue;
         }
-        let size = computed_node.map(|n| n.size().as_dvec2());
-        let width = velyst_node.and_then(|n| match n.width {
-            Val::Auto => None,
-            _ => size.map(|s| s.x),
-        });
-        let height = velyst_node.and_then(|n| match n.height {
-            Val::Auto => None,
-            _ => size.map(|s| s.y),
-        });
+
+        let mut size = Size::splat(Abs::inf());
+
+        if node.width != Val::Auto {
+            size.x =
+                Abs::pt((computed_node.size.x / scale_factor) as f64);
+        }
+        if node.height != Val::Auto {
+            size.y =
+                Abs::pt((computed_node.size.y / scale_factor) as f64);
+        }
 
         if let Some(frame) = world.layout_frame(
             &content.0,
-            Region::new(
-                Size::new(
-                    width.map_or(Abs::inf(), Abs::pt),
-                    height.map_or(Abs::inf(), Abs::pt),
-                ),
-                Axes::splat(false),
-            ),
+            Region::new(size, Axes::splat(false)),
         ) {
             scene.0 = TypstScene::from_frame(&frame);
 
-            // Write to [`ComputedVelystNode`] so that it reflects to [`Node`].
-            if let Some(mut computed_velyst_node) =
-                computed_velyst_node
-            {
-                let size = frame.size();
-                computed_velyst_node.0 = Vec2::new(
-                    size.x.to_pt() as f32,
-                    size.y.to_pt() as f32,
-                );
-            }
+            let Axes { x, y } = frame.size();
+            let size = Vec2::new(x.to_pt() as f32, y.to_pt() as f32)
+                * scale_factor;
+            *content_size = ContentSize::fixed_size(size);
         }
     }
 
@@ -251,11 +216,11 @@ fn layout_content(
     typst::comemo::evict(4);
 }
 
-/// Render [`VelystScene`] into a [`VelloScene`].
+/// Render [`UiVelystScene`] into a [`UiVelloScene`].
 fn render_scene(
     mut q_scenes: Query<
-        (&mut VelystScene, &mut VelloScene, &Visibility),
-        Or<(Changed<VelystScene>, Changed<Visibility>)>,
+        (&mut UiVelystScene, &mut UiVelloScene, &Visibility),
+        Or<(Changed<UiVelystScene>, Changed<Visibility>)>,
     >,
 ) {
     for (mut velyst_scene, mut vello_scene, viz) in
@@ -264,7 +229,7 @@ fn render_scene(
         if viz == Visibility::Hidden {
             continue;
         }
-        *vello_scene = VelloScene::from(velyst_scene.render());
+        *vello_scene = UiVelloScene::from(velyst_scene.render());
     }
 }
 
@@ -294,27 +259,12 @@ impl VelystFunc {
 pub struct VelystSourceReady;
 
 #[derive(Component, Default, Deref, DerefMut)]
-#[require(VelystScene)]
+#[require(UiVelystScene)]
 pub struct VelystContent(pub Content);
 
 #[derive(Component, Default, Deref, DerefMut)]
-#[require(VelloScene)]
-pub struct VelystScene(pub TypstScene);
-
-/// Width and height of the Typst region inside a ui [`Node`].
-/// Use [`Val::Auto`] for auto sizing.
-#[derive(Component, Default)]
-#[require(ComputedVelystSize, Node)]
-pub struct VelystSize {
-    /// Width of the Typst region.
-    pub width: Val,
-    /// Height of the Typst region.
-    pub height: Val,
-}
-
-/// The size of the node as width and height in physical pixels.
-#[derive(Component, Default, Deref)]
-pub struct ComputedVelystSize(pub(crate) Vec2);
+#[require(UiVelloScene, ContentSize)]
+pub struct UiVelystScene(pub TypstScene);
 
 pub trait TypstFunc {
     const NAME: &str;
@@ -474,10 +424,10 @@ pub enum VelystSet {
     ///
     /// Custom compilation could also happen here.
     Compile,
-    /// Layout [`VelystContent`] into a [`VelystScene`].
+    /// Layout [`VelystContent`] into a [`UiVelystScene`].
     Layout,
-    /// Post processing of [`VelystScene`] should happen here.
+    /// Post processing of [`UiVelystScene`] should happen here.
     PostLayout,
-    /// Render [`VelystScene`] into a [`VelloScene`].
+    /// Render [`UiVelystScene`] into a [`UiVelloScene`].
     Render,
 }
