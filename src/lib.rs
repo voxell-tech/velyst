@@ -76,9 +76,8 @@ pub mod prelude {
         VelystModules, VelystSource, VelystSourceHandle,
     };
     pub use crate::renderer::{
-        ComputedVelystSize, TypstFuncAppExt, VelystFunc,
-        VelystFuncBundle, VelystScene, VelystSet, VelystSize,
-        VelystSourceReady,
+        TypstFuncAppExt, UiVelystScene, VelystFunc, VelystFuncBundle,
+        VelystSet, VelystSourceReady,
     };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;

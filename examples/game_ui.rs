@@ -34,6 +34,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let purple = viz::Color::from_str(PURPLE).unwrap();
     let red = viz::Color::from_str(RED).unwrap();
 
+    // let debug_bg = BackgroundColor(Srgba::RED.with_alpha(0.2).into());
+    let debug_bg = BackgroundColor::DEFAULT;
+
     commands
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -47,79 +50,73 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_children(|builder| {
             // Title.
             builder.spawn((
+                debug_bg,
                 VelystFuncBundle {
                     handle: handle.clone(),
                     func: LabelFunc::title("Title"),
                 },
-                VelystSize {
+                Node {
                     width: Val::Auto,
                     height: Val::Auto,
-                },
-                Node {
-                    padding: UiRect::all(Val::Vh(4.0)),
-                    margin: UiRect::vertical(Val::Vh(6.0)),
+                    margin: UiRect::vertical(Val::Vh(10.0)),
                     ..default()
                 },
             ));
 
             // Buttons.
             builder.spawn((
+                debug_bg,
                 VelystFuncBundle {
                     handle: handle.clone(),
                     func: ButtonFunc::text("Start").with_fill(green),
                 },
-                VelystSize {
+                Node {
                     width: Val::Auto,
                     height: Val::Auto,
-                },
-                Node {
-                    padding: UiRect::all(Val::Vh(4.0)),
+                    margin: UiRect::all(Val::Vh(2.0)),
                     ..default()
                 },
                 Button,
             ));
             builder.spawn((
+                debug_bg,
                 VelystFuncBundle {
                     handle: handle.clone(),
                     func: ButtonFunc::text("Settings")
                         .with_fill(purple),
                 },
-                VelystSize {
+                Node {
                     width: Val::Auto,
                     height: Val::Auto,
-                },
-                Node {
-                    padding: UiRect::all(Val::Vh(4.0)),
+                    margin: UiRect::all(Val::Vh(2.0)),
                     ..default()
                 },
                 Button,
             ));
             builder.spawn((
+                debug_bg,
                 VelystFuncBundle {
                     handle: handle.clone(),
                     func: ButtonFunc::text("Exit").with_fill(red),
                 },
-                VelystSize {
+                Node {
                     width: Val::Auto,
                     height: Val::Auto,
-                },
-                Node {
-                    padding: UiRect::all(Val::Vh(4.0)),
+                    margin: UiRect::all(Val::Vh(2.0)),
                     ..default()
                 },
                 Button,
             ));
 
             builder.spawn((
+                debug_bg,
                 VelystFuncBundle {
                     handle,
                     func: PerfMetricsFunc::default(),
                 },
-                VelystSize {
+                Node {
                     width: Val::Auto,
                     height: Val::Auto,
-                },
-                Node {
                     position_type: PositionType::Absolute,
                     bottom: Val::Px(0.0),
                     right: Val::Px(0.0),
