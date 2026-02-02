@@ -13,7 +13,7 @@ use typst_library::layout::{
     Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
 };
 use utils::convert_transform;
-use vello::kurbo;
+use vello::{kurbo, peniko};
 
 pub mod image;
 pub mod shape;
@@ -81,7 +81,11 @@ impl TypstScene {
 
             let mut pushed_clip = false;
             if let Some(clip_path) = &group.clip_path {
-                scene.push_clip_layer(group.transform, clip_path);
+                scene.push_clip_layer(
+                    peniko::Fill::NonZero,
+                    group.transform,
+                    clip_path,
+                );
 
                 pushed_clip = true;
             }

@@ -11,23 +11,27 @@ readme = "README.md"
 
 [workspace.dependencies]
 # Bevy dependencies
-bevy = { version = "0.17.3", default-features = false }
-bevy_vello = "0.11.0"
+bevy = { version = "0.18.0", default-features = false, features = [
+  "default_app",
+  "2d_bevy_render",
+  "ui_bevy_render",
+] }
+bevy_vello = "0.13.1"
 # Vello dependencies
-vello = "0.6.0"
-vello_svg = "0.8.0"
+vello = "0.7.0"
+vello_svg = "0.9.0"
 # Typst dependencies
-typst = "0.14.0"
-typst-library = "0.14.0"
-typst-eval = "0.14.0"
-typst-layout = "0.14.0"
-typst-assets = "0.14.0"
+typst = "0.14.2"
+typst-library = "0.14.2"
+typst-eval = "0.14.2"
+typst-layout = "0.14.2"
+typst-assets = "0.14.2"
 # In sync with Typst:
 unicode-math-class = "0.1"
-ttf-parser = "0.25.1"
+ttf-parser = "0.25"
 hayro = "0.4"
 # Other
-chrono = { version = "0.4.24", default-features = false, features = ["clock", "std"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 ecow = { version = "0.2", features = ["serde"] }
 thiserror = "1"
 smallvec = "1"
@@ -61,7 +65,6 @@ typst-layout = { workspace = true }
 typst-assets = { workspace = true, optional = true }
 chrono = { workspace = true }
 ecow = { workspace = true }
-thiserror = { workspace = true }
 smallvec = { workspace = true }
 
 [features]
@@ -69,11 +72,7 @@ default = ["embed-fonts"]
 embed-fonts = ["dep:typst-assets", "typst-assets/fonts"]
 
 [dev-dependencies]
-bevy = { workspace = true, features = [
-  "file_watcher",
-  "x11",
-  "wayland",
-] }
+bevy = { workspace = true, features = ["file_watcher", "default_platform"] }
 bevy_vello = { workspace = true, features = ["svg"] }
 
 [lints]
