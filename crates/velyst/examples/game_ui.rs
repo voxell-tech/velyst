@@ -142,10 +142,7 @@ fn perf_metrics(
 }
 
 fn button_interaction(
-    mut q_buttons: Query<(
-        &mut VelystFunc<ButtonFunc>,
-        &Interaction,
-    )>,
+    mut q_buttons: Query<(&mut VelystFunc<ButtonFunc>, &Interaction)>,
 ) {
     for (mut func, interaction) in q_buttons.iter_mut() {
         func.data.interaction_state = match interaction {
