@@ -22,12 +22,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             asset_server.load("typst/box.typ"),
             MainFunc::default(),
         ),
-        UiScene,
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            ..default()
-        },
+        WorldScene::default(),
     ));
 }
 
