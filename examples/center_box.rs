@@ -17,14 +17,12 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
 
-    let handle =
-        VelystSourceHandle(asset_server.load("typst/box.typ"));
-
     commands.spawn((
-        VelystFuncBundle {
-            handle,
-            func: MainFunc::default(),
-        },
+        VelystFunc::new(
+            asset_server.load("typst/box.typ"),
+            MainFunc::default(),
+        ),
+        UiScene,
         Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
@@ -35,6 +33,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 typst_func!(
     "main",
-    #[derive(Component, Default)]
+    #[derive(Default)]
     struct MainFunc {},
 );

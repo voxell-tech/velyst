@@ -20,7 +20,6 @@ impl Plugin for TypstAssetPlugin {
 
 fn eval_source(
     world: VelystWorld,
-    mut q_handles: Query<&mut VelystSourceHandle>,
     mut evr_asset_event: MessageReader<AssetEvent<VelystSource>>,
     mut modules: ResMut<VelystModules>,
     sources: Res<Assets<VelystSource>>,
@@ -36,7 +35,7 @@ fn eval_source(
                 };
 
                 // Reset the file slots if this is the first compilation in this frame.
-                if reset == false {
+                if !reset {
                     let mut file_slots =
                         world.file_slots.lock().unwrap();
                     for slot in file_slots.values_mut() {
@@ -47,13 +46,6 @@ fn eval_source(
 
                 if let Some(module) = world.eval_source(&source.0) {
                     modules.insert(*id, module);
-                }
-
-                // TODO: Replace with AssetChanged in 0.16.
-                for mut handle in q_handles.iter_mut() {
-                    if handle.id() == *id {
-                        handle.set_changed();
-                    }
                 }
             }
             AssetEvent::Removed { id }
@@ -72,14 +64,6 @@ pub struct VelystModules(HashMap<AssetId<VelystSource>, Module>);
 #[derive(Asset, TypePath, Deref)]
 pub struct VelystSource(pub(super) Source);
 
-#[derive(Component, Deref, DerefMut, Clone)]
-pub struct VelystSourceHandle(pub Handle<VelystSource>);
-
-impl From<VelystSourceHandle> for AssetId<VelystSource> {
-    fn from(value: VelystSourceHandle) -> Self {
-        value.id()
-    }
-}
 
 #[derive(Default)]
 pub struct VelystSourceLoader;

@@ -22,8 +22,8 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
 
-    let handle =
-        VelystSourceHandle(asset_server.load("typst/game_ui.typ"));
+    let handle: Handle<VelystSource> =
+        asset_server.load("typst/game_ui.typ");
 
     // Colors.
     const RED: &str = "#FF6188";
@@ -51,10 +51,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             // Title.
             builder.spawn((
                 debug_bg,
-                VelystFuncBundle {
-                    handle: handle.clone(),
-                    func: LabelFunc::title("Title"),
-                },
+                VelystFunc::new(
+                    handle.clone(),
+                    LabelFunc::title("Title"),
+                ),
+                UiScene,
                 Node {
                     width: Val::Auto,
                     height: Val::Auto,
@@ -66,10 +67,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             // Buttons.
             builder.spawn((
                 debug_bg,
-                VelystFuncBundle {
-                    handle: handle.clone(),
-                    func: ButtonFunc::text("Start").with_fill(green),
-                },
+                VelystFunc::new(
+                    handle.clone(),
+                    ButtonFunc::text("Start").with_fill(green),
+                ),
+                UiScene,
                 Node {
                     width: Val::Auto,
                     height: Val::Auto,
@@ -80,11 +82,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
             builder.spawn((
                 debug_bg,
-                VelystFuncBundle {
-                    handle: handle.clone(),
-                    func: ButtonFunc::text("Settings")
-                        .with_fill(purple),
-                },
+                VelystFunc::new(
+                    handle.clone(),
+                    ButtonFunc::text("Settings").with_fill(purple),
+                ),
+                UiScene,
                 Node {
                     width: Val::Auto,
                     height: Val::Auto,
@@ -95,10 +97,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
             builder.spawn((
                 debug_bg,
-                VelystFuncBundle {
-                    handle: handle.clone(),
-                    func: ButtonFunc::text("Exit").with_fill(red),
-                },
+                VelystFunc::new(
+                    handle.clone(),
+                    ButtonFunc::text("Exit").with_fill(red),
+                ),
+                UiScene,
                 Node {
                     width: Val::Auto,
                     height: Val::Auto,
@@ -110,10 +113,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
             builder.spawn((
                 debug_bg,
-                VelystFuncBundle {
-                    handle,
-                    func: PerfMetricsFunc::default(),
-                },
+                VelystFunc::new(handle, PerfMetricsFunc::default()),
+                UiScene,
                 Node {
                     width: Val::Auto,
                     height: Val::Auto,
@@ -128,22 +129,26 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn perf_metrics(
     time: Res<Time>,
-    mut q_func: Query<&mut PerfMetricsFunc>,
+    mut q_func: Query<&mut VelystFunc<PerfMetricsFunc>>,
 ) -> Result {
     let mut func = q_func.single_mut()?;
 
-    func.fps = (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
-    func.elapsed_time =
+    func.data.fps =
+        (1.0 / time.delta_secs_f64() * 100.0).round() / 100.0;
+    func.data.elapsed_time =
         (time.elapsed_secs_f64() * 100.0).round() / 100.0;
 
     Ok(())
 }
 
 fn button_interaction(
-    mut q_buttons: Query<(&mut ButtonFunc, &Interaction)>,
+    mut q_buttons: Query<(
+        &mut VelystFunc<ButtonFunc>,
+        &Interaction,
+    )>,
 ) {
     for (mut func, interaction) in q_buttons.iter_mut() {
-        func.interaction_state = match interaction {
+        func.data.interaction_state = match interaction {
             Interaction::Pressed => 2,
             Interaction::Hovered => 1,
             Interaction::None => 0,
@@ -153,7 +158,7 @@ fn button_interaction(
 
 typst_func!(
     "perf_metrics",
-    #[derive(Component, Default)]
+    #[derive(Default)]
     struct PerfMetricsFunc {},
     positional_args {
         fps: f64,
@@ -163,7 +168,7 @@ typst_func!(
 
 typst_func!(
     "lbl",
-    #[derive(Component, Default)]
+    #[derive(Default)]
     struct LabelFunc {},
     positional_args { body: Content },
     named_args {
@@ -189,7 +194,7 @@ impl LabelFunc {
 
 typst_func!(
     "button",
-    #[derive(Component, Default)]
+    #[derive(Default)]
     struct ButtonFunc {},
     positional_args {
         body: Content,
