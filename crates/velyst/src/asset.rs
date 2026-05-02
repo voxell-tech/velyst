@@ -65,7 +65,7 @@ pub struct VelystModules(HashMap<AssetId<VelystSource>, Module>);
 pub struct VelystSource(pub(super) Source);
 
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct VelystSourceLoader;
 
 impl AssetLoader for VelystSourceLoader {
@@ -84,7 +84,7 @@ impl AssetLoader for VelystSourceLoader {
         let mut text = String::new();
         reader.read_to_string(&mut text).await?;
 
-        let path = load_context.asset_path().to_string();
+        let path = load_context.path().to_string();
         let source = Source::new(
             FileId::new(None, VirtualPath::new(&path)),
             text,
