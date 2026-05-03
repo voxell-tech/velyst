@@ -22,8 +22,7 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
 
-    let handle: Handle<VelystSource> =
-        asset_server.load("typst/game_ui.typ");
+    let handle = asset_server.load("typst/game_ui.typ");
 
     // Colors.
     const RED: &str = "#FF6188";
