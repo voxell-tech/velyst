@@ -36,8 +36,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ),
         UiScene,
         Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
+            width: percent(100.0),
+            height: percent(100.0),
             ..default()
         },
     ));

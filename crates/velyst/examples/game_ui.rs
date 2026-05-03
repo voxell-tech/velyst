@@ -39,10 +39,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands
         .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
+            width: percent(100.0),
+            height: percent(100.0),
             flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::VMin(6.0)),
+            padding: UiRect::all(vmin(6.0)),
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..default()
@@ -57,9 +57,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ),
                 UiScene,
                 Node {
-                    width: Val::Auto,
-                    height: Val::Auto,
-                    margin: UiRect::vertical(Val::Vh(10.0)),
+                    width: auto(),
+                    height: auto(),
+                    margin: UiRect::vertical(vh(10.0)),
                     ..default()
                 },
             ));
@@ -71,9 +71,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     VelystFunc::new(handle.clone(), func),
                     UiScene,
                     Node {
-                        width: Val::Auto,
-                        height: Val::Auto,
-                        margin: UiRect::all(Val::Vh(2.0)),
+                        width: auto(),
+                        height: auto(),
+                        margin: UiRect::all(vh(2.0)),
                         ..default()
                     },
                     Button,
@@ -91,11 +91,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 VelystFunc::new(handle, PerfMetricsFunc::default()),
                 UiScene,
                 Node {
-                    width: Val::Auto,
-                    height: Val::Auto,
+                    width: auto(),
+                    height: auto(),
                     position_type: PositionType::Absolute,
-                    bottom: Val::Px(0.0),
-                    right: Val::Px(0.0),
+                    bottom: px(0.0),
+                    right: px(0.0),
                     ..default()
                 },
             ));
