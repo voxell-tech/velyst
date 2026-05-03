@@ -21,10 +21,8 @@ To get started rendering a simple box, create a function inside a `.typ` file:
 
 ```typ
 #let main() = {
-  box(width: 100%, height: 100%)[
-    #place(center + horizon)[
-      #box(width: 10em, height: 10em, fill: white)
-    ]
+  place(center + horizon)[
+    #box(width: 10em, height: 10em, fill: white)
   ]
 }
 ```

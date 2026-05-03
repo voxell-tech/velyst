@@ -65,51 +65,26 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ));
 
             // Buttons.
-            builder.spawn((
-                debug_bg,
-                VelystFunc::new(
-                    handle.clone(),
-                    ButtonFunc::text("Start").with_fill(green),
-                ),
-                UiScene,
-                Node {
-                    width: Val::Auto,
-                    height: Val::Auto,
-                    margin: UiRect::all(Val::Vh(2.0)),
-                    ..default()
-                },
-                Button,
-            ));
-            builder.spawn((
-                debug_bg,
-                VelystFunc::new(
-                    handle.clone(),
-                    ButtonFunc::text("Settings").with_fill(purple),
-                ),
-                UiScene,
-                Node {
-                    width: Val::Auto,
-                    height: Val::Auto,
-                    margin: UiRect::all(Val::Vh(2.0)),
-                    ..default()
-                },
-                Button,
-            ));
-            builder.spawn((
-                debug_bg,
-                VelystFunc::new(
-                    handle.clone(),
-                    ButtonFunc::text("Exit").with_fill(red),
-                ),
-                UiScene,
-                Node {
-                    width: Val::Auto,
-                    height: Val::Auto,
-                    margin: UiRect::all(Val::Vh(2.0)),
-                    ..default()
-                },
-                Button,
-            ));
+            let mut create_button = |func: ButtonFunc| {
+                builder.spawn((
+                    debug_bg,
+                    VelystFunc::new(handle.clone(), func),
+                    UiScene,
+                    Node {
+                        width: Val::Auto,
+                        height: Val::Auto,
+                        margin: UiRect::all(Val::Vh(2.0)),
+                        ..default()
+                    },
+                    Button,
+                ));
+            };
+
+            create_button(ButtonFunc::text("Start").with_fill(green));
+            create_button(
+                ButtonFunc::text("Settings").with_fill(purple),
+            );
+            create_button(ButtonFunc::text("Exit").with_fill(red));
 
             builder.spawn((
                 debug_bg,
@@ -142,7 +117,10 @@ fn perf_metrics(
 }
 
 fn button_interaction(
-    mut q_buttons: Query<(&mut VelystFunc<ButtonFunc>, &Interaction)>,
+    mut q_buttons: Query<
+        (&mut VelystFunc<ButtonFunc>, &Interaction),
+        Changed<Interaction>,
+    >,
 ) {
     for (mut func, interaction) in q_buttons.iter_mut() {
         func.data.interaction_state = match interaction {
@@ -182,11 +160,6 @@ impl LabelFunc {
             ..default()
         }
     }
-
-    // pub fn with_fill(mut self, fill: viz::Color) -> Self {
-    //     self.fill = Some(fill);
-    //     self
-    // }
 }
 
 typst_func!(

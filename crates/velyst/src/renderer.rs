@@ -1,3 +1,4 @@
+use bevy::asset::AsAssetId;
 use bevy::camera::primitives::Aabb;
 use bevy::prelude::*;
 use bevy::ui::{ContentSize, UiSystems};
@@ -314,6 +315,14 @@ pub struct VelystFunc<F: TypstFunc> {
     pub data: F,
 }
 
+impl<F: TypstFunc> AsAssetId for VelystFunc<F> {
+    type Asset = VelystSource;
+
+    fn as_asset_id(&self) -> AssetId<Self::Asset> {
+        self.handle.id()
+    }
+}
+
 impl<F: TypstFunc> VelystFunc<F> {
     pub fn new(handle: Handle<VelystSource>, data: F) -> Self {
         Self { handle, data }
@@ -472,7 +481,7 @@ macro_rules! typst_func {
         // Lifetimes and generics.
         impl $(< $( $generic $( : $bound $(+ $_bound )* )? ),+ >)?
         $crate::renderer::TypstFunc for $struct_name
-        // Bounds are not requeired.
+        // Bounds are not required.
         $(< $( $generic ),+ >)?
         {
             const NAME: &'static str = $str_name;
