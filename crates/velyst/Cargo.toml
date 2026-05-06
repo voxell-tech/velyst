@@ -9,10 +9,10 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-typst_element = { path = "../typst_element", version = "0.1.0" }
-typst_vello = { path = "../typst_vello", version = "0.1.0" }
+typst_element = { workspace = true }
+typst_vello = { workspace = true }
 
-bevy = { workspace = true, features = ["bevy_log"] }
+bevy = { workspace = true, features = ["2d"] }
 bevy_vello = { workspace = true, features = ["svg"] }
 typst = { workspace = true }
 typst-eval = { workspace = true }
