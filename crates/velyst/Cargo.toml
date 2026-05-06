@@ -1,0 +1,39 @@
+[package]
+name = "velyst"
+description = "A Typst integration for Vello and Bevy."
+exclude = ["/assets/", "/.github/", "/examples/"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[dependencies]
+typst_element = { workspace = true }
+typst_vello = { workspace = true }
+
+bevy = { workspace = true, features = ["2d"] }
+bevy_vello = { workspace = true, features = ["svg"] }
+typst = { workspace = true }
+typst-eval = { workspace = true }
+typst-layout = { workspace = true }
+typst-assets = { workspace = true, optional = true }
+chrono = { workspace = true }
+ecow = { workspace = true }
+thiserror = { workspace = true }
+smallvec = { workspace = true }
+
+[features]
+default = ["embed-fonts"]
+embed-fonts = ["dep:typst-assets", "typst-assets/fonts"]
+
+[dev-dependencies]
+bevy = { workspace = true, features = [
+  "file_watcher",
+  "x11",
+  "wayland",
+] }
+bevy_vello = { workspace = true, features = ["svg"] }
+
+[lints]
+workspace = true

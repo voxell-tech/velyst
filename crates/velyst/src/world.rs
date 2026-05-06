@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::{fs, mem};
 
+use bevy::asset::io::file::FileAssetReader;
 use bevy::ecs::system::SystemParam;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
@@ -56,11 +57,8 @@ pub struct TypstRoot(PathBuf);
 
 impl Default for TypstRoot {
     fn default() -> Self {
-        let default_path = AssetPlugin::default().file_path;
-        let mut root_path = PathBuf::from(".");
-        root_path.push(default_path);
-
-        Self(root_path)
+        let base = FileAssetReader::get_base_path();
+        Self(base.join(AssetPlugin::default().file_path))
     }
 }
 

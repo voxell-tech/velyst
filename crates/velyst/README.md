@@ -1,5 +1,12 @@
 # Velyst
 
+[![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/voxell-tech/velyst#license)
+[![Crates.io](https://img.shields.io/crates/v/velyst.svg)](https://crates.io/crates/velyst)
+[![Downloads](https://img.shields.io/crates/d/velyst.svg)](https://crates.io/crates/velyst)
+[![Docs](https://docs.rs/velyst/badge.svg)](https://docs.rs/velyst/latest/velyst/)
+[![CI](https://github.com/voxell-tech/velyst/workflows/CI/badge.svg)](https://github.com/voxell-tech/velyst/actions)
+[![Discord](https://img.shields.io/discord/442334985471655946.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/Mhnyp6VYEQ)
+
 Interactive [Typst](https://typst.app) content creator using [Vello](https://github.com/linebender/vello) and [Bevy](https://bevyengine.org).
 
 ![hello world](./.github/assets/hello_world.gif)
@@ -14,10 +21,8 @@ To get started rendering a simple box, create a function inside a `.typ` file:
 
 ```typ
 #let main() = {
-  box(width: 100%, height: 100%)[
-    #place(center + horizon)[
-      #box(width: 10em, height: 10em, fill: white)
-    ]
+  place(center + horizon)[
+    #box(width: 10em, height: 10em, fill: white)
   ]
 }
 ```
@@ -44,25 +49,18 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Camera2d, VelloView));
 
-    let handle =
-        VelystSourceHandle(asset_server.load("typst/box.typ"));
-
     commands.spawn((
-        VelystFuncBundle {
-            handle,
-            func: MainFunc::default(),
-        },
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            ..default()
-        },
+        VelystFunc::new(
+            asset_server.load("typst/box.typ"),
+            MainFunc::default(),
+        ),
+        WorldScene::default(),
     ));
 }
 
 typst_func!(
     "main",
-    #[derive(Component, Default)]
+    #[derive(Default)]
     struct MainFunc {},
 );
 ```
