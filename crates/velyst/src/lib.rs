@@ -28,23 +28,6 @@ pub mod func;
 pub mod renderer;
 pub mod world;
 
-/// Velyst rendering pipeline.
-#[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum VelystSet {
-    /// Custom data preparation before compilation should happen here.
-    PrepareFunc,
-    /// Compile [`func::VelystFunc`] into [`func::VelystContent`].
-    ///
-    /// One system per registered [`func::TypstFunc`] type runs here.
-    Compile,
-    /// Layout [`func::VelystContent`] into a [`renderer::VelystScene`].
-    Layout,
-    /// Post processing of [`renderer::VelystScene`] should happen here.
-    PostLayout,
-    /// Render [`renderer::VelystScene`] into a [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
-    Render,
-}
-
 /// Plugin for loading and rendering [Typst][typst] content.
 pub struct VelystPlugin;
 
@@ -68,4 +51,21 @@ impl Plugin for VelystPlugin {
             VelystRendererPlugin,
         ));
     }
+}
+
+/// Velyst rendering pipeline.
+#[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum VelystSet {
+    /// Custom data preparation before compilation should happen here.
+    PrepareFunc,
+    /// Compile [`func::VelystFunc`] into [`func::VelystContent`].
+    ///
+    /// One system per registered [`func::TypstFunc`] type runs here.
+    Compile,
+    /// Layout [`func::VelystContent`] into a [`renderer::VelystScene`].
+    Layout,
+    /// Post processing of [`renderer::VelystScene`] should happen here.
+    PostLayout,
+    /// Render [`renderer::VelystScene`] into a [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
+    Render,
 }
