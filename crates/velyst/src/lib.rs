@@ -4,17 +4,20 @@ extern crate self as velyst;
 
 use asset::TypstAssetPlugin;
 use bevy::prelude::*;
-use renderer::VelystRendererPlugin;
+use bevy::ui::UiSystems;
+use renderer::{VelystRendererPlugin, VelystSet};
 use world::VelystWorldPlugin;
 
 pub use {typst, typst_element, typst_vello};
 
 pub mod prelude {
     pub use crate::asset::{VelystModules, VelystSource};
+    pub use crate::func::{
+        TypstFunc, TypstFuncAppExt, TypstValue, VelystContent,
+        VelystFunc, VelystSourceReady,
+    };
     pub use crate::renderer::{
-        TypstFunc, TypstFuncAppExt, TypstValue, UiScene,
-        VelystContent, VelystFunc, VelystScene, VelystSet,
-        VelystSourceReady, WorldScene,
+        UiScene, VelystScene, VelystSet, WorldScene,
     };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;
@@ -22,6 +25,7 @@ pub mod prelude {
 }
 
 pub mod asset;
+pub mod func;
 pub mod renderer;
 pub mod world;
 
@@ -30,6 +34,18 @@ pub struct VelystPlugin;
 
 impl Plugin for VelystPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(
+            PostUpdate,
+            (
+                VelystSet::PrepareFunc,
+                VelystSet::Compile,
+                VelystSet::Layout.in_set(UiSystems::PostLayout),
+                VelystSet::PostLayout,
+                VelystSet::Render,
+            )
+                .chain(),
+        );
+
         app.add_plugins((
             TypstAssetPlugin,
             VelystWorldPlugin,
