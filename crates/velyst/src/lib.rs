@@ -8,7 +8,7 @@ use bevy::ui::UiSystems;
 use renderer::VelystRendererPlugin;
 use world::VelystWorldPlugin;
 
-pub use {typst, typst_element, typst_vello};
+pub use {typst, typst_element};
 
 pub mod prelude {
     pub use crate::VelystSet;
@@ -62,10 +62,10 @@ pub enum VelystSet {
     ///
     /// One system per registered [`func::TypstFunc`] type runs here.
     Compile,
-    /// Layout [`func::VelystContent`] into a [`renderer::VelystScene`].
+    /// Layout [`func::VelystContent`] and render into [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
     Layout,
-    /// Post processing of [`renderer::VelystScene`] should happen here.
+    /// Post-layout hook for downstream systems.
     PostLayout,
-    /// Render [`renderer::VelystScene`] into a [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
+    /// Hook for downstream rendering systems.
     Render,
 }

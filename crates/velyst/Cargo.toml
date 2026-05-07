@@ -10,7 +10,9 @@ readme = "README.md"
 
 [dependencies]
 typst_element = { workspace = true }
-typst_vello = { workspace = true }
+imaging = { workspace = true, features = ["std"] }
+imaging_vello = { workspace = true }
+typst_imaging = { workspace = true }
 
 bevy = { workspace = true, features = ["2d"] }
 bevy_vello = { workspace = true, features = ["svg"] }

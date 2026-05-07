@@ -104,6 +104,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "alsa"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1897,6 +1903,9 @@ name = "color"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a18ef4657441fb193b65f34dc39b3781f0dfec23d3bd94d0eeb4e88cde421edb"
+dependencies = [
+ "libm",
+]
 
 [[package]]
 name = "color_quant"
@@ -2819,7 +2828,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
- "windows 0.58.0",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -2999,6 +3008,17 @@ dependencies = [
  "foldhash 0.2.0",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
 ]
 
 [[package]]
@@ -3453,6 +3473,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09e54e57b4c48b40f7aec75635392b12b3421fa26fe8b4332e63138ed278459c"
 
 [[package]]
+name = "imaging"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "kurbo 0.13.0",
+ "peniko",
+]
+
+[[package]]
+name = "imaging_vello"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "imaging",
+ "imaging_wgpu",
+ "kurbo 0.13.0",
+ "peniko",
+ "vello",
+]
+
+[[package]]
+name = "imaging_wgpu"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "imaging",
+ "wgpu",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3569,6 +3619,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanva"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.17.0",
+ "imaging",
+ "peniko",
+ "smallvec",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3635,6 +3695,7 @@ checksum = "7564e90fe3c0d5771e1f0bc95322b21baaeaa0d9213fa6a0b61c99f8b17b3bfb"
 dependencies = [
  "arrayvec",
  "euclid",
+ "libm",
  "smallvec",
 ]
 
@@ -6247,6 +6308,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "typst_imaging"
+version = "0.1.0"
+dependencies = [
+ "imaging",
+ "peniko",
+ "typst-library",
+]
+
+[[package]]
 name = "typst_vello"
 version = "0.1.0"
 dependencies = [
@@ -6568,6 +6638,8 @@ dependencies = [
  "bevy_vello",
  "chrono",
  "ecow",
+ "imaging",
+ "imaging_vello",
  "smallvec",
  "thiserror 1.0.69",
  "typst",
@@ -6575,7 +6647,7 @@ dependencies = [
  "typst-eval",
  "typst-layout",
  "typst_element",
- "typst_vello",
+ "typst_imaging",
 ]
 
 [[package]]
