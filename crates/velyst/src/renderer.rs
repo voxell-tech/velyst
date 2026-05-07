@@ -5,6 +5,7 @@ use bevy_vello::prelude::*;
 use typst::layout::{Abs, Axes, Region, Size};
 use typst_vello::TypstScene;
 
+use crate::VelystSet;
 use crate::func::VelystContent;
 use crate::world::VelystWorld;
 
@@ -231,21 +232,4 @@ pub struct WorldScene {
     pub width: Option<f64>,
     /// Optional height constraint for Typst layout (in points).
     pub height: Option<f64>,
-}
-
-/// Velyst rendering pipeline.
-#[derive(SystemSet, Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum VelystSet {
-    /// Custom data preparation before compilation should happen here.
-    PrepareFunc,
-    /// Compile [`VelystFunc`] into [`VelystContent`].
-    ///
-    /// One system per registered [`TypstFunc`] type runs here.
-    Compile,
-    /// Layout [`VelystContent`] into a [`VelystScene`].
-    Layout,
-    /// Post processing of [`VelystScene`] should happen here.
-    PostLayout,
-    /// Render [`VelystScene`] into a [`UiVelloScene`] or [`VelloScene2d`].
-    Render,
 }

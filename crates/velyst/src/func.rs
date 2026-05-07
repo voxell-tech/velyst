@@ -4,8 +4,9 @@ use typst::foundations::{Content, IntoValue, NativeElement, Value};
 use typst_element::elem::FuncCall;
 use typst_element::prelude::ScopeExt;
 
+use crate::VelystSet;
 use crate::asset::{VelystModules, VelystSource};
-use crate::renderer::{VelystScene, VelystSet};
+use crate::renderer::VelystScene;
 
 pub trait TypstFuncAppExt {
     fn register_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
