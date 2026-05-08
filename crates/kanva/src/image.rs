@@ -1,4 +1,7 @@
-use peniko::{ImageData, kurbo::{Affine, Vec2}};
+use peniko::{
+    ImageData,
+    kurbo::{Affine, Vec2},
+};
 
 #[derive(Debug, Clone)]
 pub struct KanvaImage {

@@ -1,6 +1,8 @@
 use imaging::{ClipRef, ContextRef, PaintSink};
 use peniko::kurbo::Affine;
-use typst_library::layout::{Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform};
+use typst_library::layout::{
+    Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
+};
 
 pub mod convert;
 pub mod image;
@@ -13,20 +15,39 @@ pub fn render_frame(frame: &Frame, sink: &mut impl PaintSink) {
     render_items(frame, sink, state);
 }
 
-fn render_items(frame: &Frame, sink: &mut impl PaintSink, state: RenderState) {
+fn render_items(
+    frame: &Frame,
+    sink: &mut impl PaintSink,
+    state: RenderState,
+) {
     for (pos, item) in frame.items() {
         let pos = *pos;
         match item {
-            FrameItem::Group(group) => render_group(group, sink, state, pos),
+            FrameItem::Group(group) => {
+                render_group(group, sink, state, pos)
+            }
             FrameItem::Text(text) => {
-                text::render_text(text, sink, state.pre_translate(pos));
+                text::render_text(
+                    text,
+                    sink,
+                    state.pre_translate(pos),
+                );
             }
             FrameItem::Shape(shape, _) => {
-                shape::render_shape(shape, sink, state.pre_translate(pos));
+                shape::render_shape(
+                    shape,
+                    sink,
+                    state.pre_translate(pos),
+                );
             }
             FrameItem::Image(image, size, _) => {
                 if !size.any(|p| p.to_pt() == 0.0) {
-                    image::render_image(image, *size, sink, state.pre_translate(pos));
+                    image::render_image(
+                        image,
+                        *size,
+                        sink,
+                        state.pre_translate(pos),
+                    );
                 }
             }
             FrameItem::Link(_, _) | FrameItem::Tag(_) => {}
@@ -34,9 +55,15 @@ fn render_items(frame: &Frame, sink: &mut impl PaintSink, state: RenderState) {
     }
 }
 
-fn render_group(group: &GroupItem, sink: &mut impl PaintSink, state: RenderState, pos: Point) {
+fn render_group(
+    group: &GroupItem,
+    sink: &mut impl PaintSink,
+    state: RenderState,
+    pos: Point,
+) {
     let group_affine = convert::convert_transform(
-        Transform::translate(pos.x, pos.y).pre_concat(group.transform),
+        Transform::translate(pos.x, pos.y)
+            .pre_concat(group.transform),
     );
 
     let state = match group.frame.kind() {
@@ -83,19 +110,32 @@ pub(crate) struct RenderState {
 impl RenderState {
     pub fn new(size: Size, transform: Transform) -> Self {
         let affine = convert::convert_transform(transform);
-        Self { transform: affine, container_transform: affine, size }
+        Self {
+            transform: affine,
+            container_transform: affine,
+            size,
+        }
     }
 
     pub fn pre_translate(self, pos: Point) -> Self {
-        self.pre_concat(Affine::translate((pos.x.to_pt(), pos.y.to_pt())))
+        self.pre_concat(Affine::translate((
+            pos.x.to_pt(),
+            pos.y.to_pt(),
+        )))
     }
 
     pub fn pre_concat(self, t: Affine) -> Self {
-        Self { transform: self.transform * t, ..self }
+        Self {
+            transform: self.transform * t,
+            ..self
+        }
     }
 
     pub fn with_container(self, container: Affine) -> Self {
-        Self { container_transform: container, ..self }
+        Self {
+            container_transform: container,
+            ..self
+        }
     }
 
     pub fn with_size(self, size: Size) -> Self {

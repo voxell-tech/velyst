@@ -42,7 +42,8 @@ pub fn convert_fixed_stroke(stroke: &viz::FixedStroke) -> Stroke {
         ..Default::default()
     };
     if let Some(dash) = &stroke.dash {
-        s.dash_pattern = dash.array.iter().map(|d| d.to_pt()).collect();
+        s.dash_pattern =
+            dash.array.iter().map(|d| d.to_pt()).collect();
         s.dash_offset = dash.phase.to_pt();
     }
     s
@@ -59,7 +60,9 @@ pub fn convert_paint(
     container_transform: Affine,
 ) -> (Brush, Option<Affine>) {
     match paint {
-        viz::Paint::Solid(c) => (Brush::Solid(convert_color(c)), None),
+        viz::Paint::Solid(c) => {
+            (Brush::Solid(convert_color(c)), None)
+        }
         viz::Paint::Gradient(gradient) => {
             let ratio = size.aspect_ratio();
             let stops: Vec<_> = gradient
@@ -67,24 +70,33 @@ pub fn convert_paint(
                 .iter()
                 .map(|(color, ratio)| peniko::ColorStop {
                     offset: ratio.get() as f32,
-                    color: peniko::color::DynamicColor::from_alpha_color(
-                        convert_color(color),
-                    ),
+                    color:
+                        peniko::color::DynamicColor::from_alpha_color(
+                            convert_color(color),
+                        ),
                 })
                 .collect();
 
-            let brush_transform = match gradient.unwrap_relative(false) {
-                viz::RelativeTo::Self_ => None,
-                viz::RelativeTo::Parent => {
-                    let inv = container_transform.inverse();
-                    Some(inv * Affine::scale_non_uniform(size.x.to_pt(), size.y.to_pt()))
-                }
-            };
+            let brush_transform =
+                match gradient.unwrap_relative(false) {
+                    viz::RelativeTo::Self_ => None,
+                    viz::RelativeTo::Parent => {
+                        let inv = container_transform.inverse();
+                        Some(
+                            inv * Affine::scale_non_uniform(
+                                size.x.to_pt(),
+                                size.y.to_pt(),
+                            ),
+                        )
+                    }
+                };
 
             let gradient = match gradient {
                 viz::Gradient::Linear(linear) => {
-                    let angle =
-                        viz::Gradient::correct_aspect_ratio(linear.angle, ratio);
+                    let angle = viz::Gradient::correct_aspect_ratio(
+                        linear.angle,
+                        ratio,
+                    );
                     let (sin, cos) = (angle.sin(), angle.cos());
                     let length = sin.abs() + cos.abs();
                     let (start, end) = match angle.quadrant() {
@@ -112,8 +124,10 @@ pub fn convert_paint(
                         radial.focal_center.x.get(),
                         radial.focal_center.y.get(),
                     );
-                    let end_center =
-                        (radial.center.x.get(), radial.center.y.get());
+                    let end_center = (
+                        radial.center.x.get(),
+                        radial.center.y.get(),
+                    );
                     peniko::Gradient::new_two_point_radial(
                         start_center,
                         radial.focal_radius.get() as f32,
@@ -123,16 +137,21 @@ pub fn convert_paint(
                     .with_stops(stops.as_slice())
                 }
                 viz::Gradient::Conic(conic) => {
-                    let angle = -(viz::Gradient::correct_aspect_ratio(
-                        conic.angle,
-                        ratio,
-                    )
-                    .to_rad() as f32)
-                        .rem_euclid(TAU);
+                    let angle =
+                        -(viz::Gradient::correct_aspect_ratio(
+                            conic.angle,
+                            ratio,
+                        )
+                        .to_rad() as f32)
+                            .rem_euclid(TAU);
                     let center =
                         (conic.center.x.get(), conic.center.y.get());
-                    peniko::Gradient::new_sweep(center, angle, TAU - angle)
-                        .with_stops(stops.as_slice())
+                    peniko::Gradient::new_sweep(
+                        center,
+                        angle,
+                        TAU - angle,
+                    )
+                    .with_stops(stops.as_slice())
                 }
             };
             (Brush::Gradient(gradient), brush_transform)
@@ -146,18 +165,18 @@ pub fn convert_paint(
 
 pub fn convert_geometry(geometry: &viz::Geometry) -> BezPath {
     match geometry {
-        viz::Geometry::Line(p) => {
-            peniko::kurbo::Line::new(
+        viz::Geometry::Line(p) => peniko::kurbo::Line::new(
+            (0.0, 0.0),
+            (p.x.to_pt(), p.y.to_pt()),
+        )
+        .to_path(0.1),
+        viz::Geometry::Rect(size) => {
+            peniko::kurbo::Rect::from_origin_size(
                 (0.0, 0.0),
-                (p.x.to_pt(), p.y.to_pt()),
+                (size.x.to_pt(), size.y.to_pt()),
             )
             .to_path(0.1)
         }
-        viz::Geometry::Rect(size) => peniko::kurbo::Rect::from_origin_size(
-            (0.0, 0.0),
-            (size.x.to_pt(), size.y.to_pt()),
-        )
-        .to_path(0.1),
         viz::Geometry::Curve(curve) => convert_curve(curve),
     }
 }
@@ -166,8 +185,12 @@ pub fn convert_curve(curve: &viz::Curve) -> BezPath {
     let mut path = BezPath::new();
     for item in &curve.0 {
         match item {
-            viz::CurveItem::Move(p) => path.move_to((p.x.to_pt(), p.y.to_pt())),
-            viz::CurveItem::Line(p) => path.line_to((p.x.to_pt(), p.y.to_pt())),
+            viz::CurveItem::Move(p) => {
+                path.move_to((p.x.to_pt(), p.y.to_pt()))
+            }
+            viz::CurveItem::Line(p) => {
+                path.line_to((p.x.to_pt(), p.y.to_pt()))
+            }
             viz::CurveItem::Cubic(p1, p2, p3) => path.curve_to(
                 (p1.x.to_pt(), p1.y.to_pt()),
                 (p2.x.to_pt(), p2.y.to_pt()),
@@ -194,20 +217,33 @@ pub fn shape_brush_transform(
     }
 
     match paint {
-        viz::Paint::Gradient(gradient) => match gradient.unwrap_relative(false) {
-            viz::RelativeTo::Self_ => Some(Affine::scale_non_uniform(
-                shape_size.x.to_pt(),
-                shape_size.y.to_pt(),
-            )),
-            viz::RelativeTo::Parent => {
-                let inv = container_transform.inverse();
-                Some(inv * Affine::scale_non_uniform(size.x.to_pt(), size.y.to_pt()))
+        viz::Paint::Gradient(gradient) => {
+            match gradient.unwrap_relative(false) {
+                viz::RelativeTo::Self_ => {
+                    Some(Affine::scale_non_uniform(
+                        shape_size.x.to_pt(),
+                        shape_size.y.to_pt(),
+                    ))
+                }
+                viz::RelativeTo::Parent => {
+                    let inv = container_transform.inverse();
+                    Some(
+                        inv * Affine::scale_non_uniform(
+                            size.x.to_pt(),
+                            size.y.to_pt(),
+                        ),
+                    )
+                }
             }
-        },
-        viz::Paint::Tiling(tiling) => match tiling.unwrap_relative(false) {
-            viz::RelativeTo::Self_ => None,
-            viz::RelativeTo::Parent => Some(container_transform.inverse()),
-        },
+        }
+        viz::Paint::Tiling(tiling) => {
+            match tiling.unwrap_relative(false) {
+                viz::RelativeTo::Self_ => None,
+                viz::RelativeTo::Parent => {
+                    Some(container_transform.inverse())
+                }
+            }
+        }
         viz::Paint::Solid(_) => None,
     }
 }

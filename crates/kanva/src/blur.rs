@@ -1,4 +1,7 @@
-use peniko::{Color, kurbo::{Affine, Rect}};
+use peniko::{
+    Color,
+    kurbo::{Affine, Rect},
+};
 
 #[derive(Debug, Clone)]
 pub struct KanvaBlurredRect {

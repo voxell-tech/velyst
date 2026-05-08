@@ -1,4 +1,7 @@
-use peniko::{BlendMode, kurbo::{BezPath, Stroke}};
+use peniko::{
+    BlendMode,
+    kurbo::{BezPath, Stroke},
+};
 
 #[derive(Debug, Clone)]
 pub struct Layer {

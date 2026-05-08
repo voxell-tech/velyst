@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use imaging::{FillRef, GeometryRef, PaintSink};
 use peniko::kurbo::Rect;
-use peniko::{Blob, Brush, ImageAlphaType, ImageBrush, ImageData, ImageFormat};
+use peniko::{
+    Blob, Brush, ImageAlphaType, ImageBrush, ImageData, ImageFormat,
+};
 use typst_library::layout::Size;
 use typst_library::visualize::{Image, ImageKind};
 
@@ -29,12 +31,10 @@ pub(crate) fn render_image(
             };
 
             let brush = Brush::Image(ImageBrush::new(image_data));
-            let transform = state
-                .transform
-                .pre_scale_non_uniform(
-                    size.x.to_pt() / width as f64,
-                    size.y.to_pt() / height as f64,
-                );
+            let transform = state.transform.pre_scale_non_uniform(
+                size.x.to_pt() / width as f64,
+                size.y.to_pt() / height as f64,
+            );
 
             sink.fill(FillRef {
                 transform,

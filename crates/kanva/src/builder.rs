@@ -59,7 +59,8 @@ impl KanvaBuilder {
     pub fn end_group(&mut self) {
         if self.stack.len() > 1 {
             let index = self.stack.pop().unwrap();
-            self.kanva.nodes[index].subtree_end = self.kanva.nodes.len();
+            self.kanva.nodes[index].subtree_end =
+                self.kanva.nodes.len();
         }
     }
 
@@ -146,7 +147,9 @@ mod tests {
             path,
             fill: Some(KanvaFill {
                 style: Fill::NonZero,
-                brush: Brush::Solid(Color::from_rgba8(255, 0, 0, 255)),
+                brush: Brush::Solid(Color::from_rgba8(
+                    255, 0, 0, 255,
+                )),
                 transform: None,
             }),
             stroke: None,
@@ -156,7 +159,8 @@ mod tests {
 
     #[test]
     fn new_has_single_root_node() {
-        let kanva = KanvaBuilder::new(Vec2::new(100.0, 100.0)).build();
+        let kanva =
+            KanvaBuilder::new(Vec2::new(100.0, 100.0)).build();
         assert_eq!(kanva.nodes.len(), 1);
         assert!(kanva.nodes[0].parent.is_none());
     }
@@ -227,8 +231,13 @@ mod tests {
         builder.begin_group(Some("g".into()), Affine::IDENTITY, None);
         let kanva = builder.build();
 
-        let mut builder2 = KanvaBuilder::rebuild(kanva, Vec2::new(200.0, 200.0));
-        builder2.begin_group(Some("fresh".into()), Affine::IDENTITY, None);
+        let mut builder2 =
+            KanvaBuilder::rebuild(kanva, Vec2::new(200.0, 200.0));
+        builder2.begin_group(
+            Some("fresh".into()),
+            Affine::IDENTITY,
+            None,
+        );
         let kanva2 = builder2.build();
 
         assert_eq!(kanva2.shapes.len(), 0);

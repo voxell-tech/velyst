@@ -126,7 +126,11 @@ mod tests {
     #[test]
     fn labeled_group_is_queryable() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(Some("title".into()), Default::default(), None);
+        builder.begin_group(
+            Some("title".into()),
+            Default::default(),
+            None,
+        );
         let kanva = builder.build();
         let hits = kanva.query("title");
         assert_eq!(hits.len(), 1);
@@ -135,16 +139,25 @@ mod tests {
 
     #[test]
     fn query_unknown_label_returns_empty() {
-        let kanva = KanvaBuilder::new(Vec2::new(100.0, 100.0)).build();
+        let kanva =
+            KanvaBuilder::new(Vec2::new(100.0, 100.0)).build();
         assert!(kanva.query("nope").is_empty());
     }
 
     #[test]
     fn multiple_groups_share_label() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(Some("item".into()), Default::default(), None);
+        builder.begin_group(
+            Some("item".into()),
+            Default::default(),
+            None,
+        );
         builder.end_group();
-        builder.begin_group(Some("item".into()), Default::default(), None);
+        builder.begin_group(
+            Some("item".into()),
+            Default::default(),
+            None,
+        );
         let kanva = builder.build();
         assert_eq!(kanva.query("item"), &[1, 2]);
     }

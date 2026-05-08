@@ -2,8 +2,8 @@ use alloc::vec::Vec;
 
 use imaging::record::Glyph;
 use imaging::{
-    BlurredRoundedRect, ClipRef, Composite, ContextRef, FillRef, GeometryRef, GlyphRunRef,
-    PaintSink, StrokeRef,
+    BlurredRoundedRect, ClipRef, Composite, ContextRef, FillRef,
+    GeometryRef, GlyphRunRef, PaintSink, StrokeRef,
 };
 use peniko::kurbo::Affine;
 use peniko::{Brush, ImageBrush, Style};
@@ -15,9 +15,13 @@ impl Kanva {
     pub fn render(&self, sink: &mut impl PaintSink) {
         // Pass 1: accumulate world-space transforms.
         // Parent index < child index is guaranteed by the builder.
-        let mut transforms: Vec<Affine> = Vec::with_capacity(self.nodes.len());
+        let mut transforms: Vec<Affine> =
+            Vec::with_capacity(self.nodes.len());
         for node in &self.nodes {
-            let parent_tf = node.parent.map(|p| transforms[p]).unwrap_or(Affine::IDENTITY);
+            let parent_tf = node
+                .parent
+                .map(|p| transforms[p])
+                .unwrap_or(Affine::IDENTITY);
             transforms.push(parent_tf * node.transform);
         }
 
@@ -46,11 +50,15 @@ impl Kanva {
             if let Some(layer) = &node.layer {
                 if let Some(clip) = &layer.clip {
                     let clip_ref = match &clip.stroke {
-                        None => ClipRef::fill(GeometryRef::Path(&clip.path)).with_transform(tf),
-                        Some(stroke) => {
-                            ClipRef::stroke(GeometryRef::Path(&clip.path), stroke)
-                                .with_transform(tf)
-                        }
+                        None => ClipRef::fill(GeometryRef::Path(
+                            &clip.path,
+                        ))
+                        .with_transform(tf),
+                        Some(stroke) => ClipRef::stroke(
+                            GeometryRef::Path(&clip.path),
+                            stroke,
+                        )
+                        .with_transform(tf),
                     };
                     sink.push_clip(clip_ref);
                     clip_stack.push(node.subtree_end);
@@ -99,10 +107,15 @@ impl Kanva {
                         brush: (&run.brush).into(),
                         composite: Composite::default(),
                     },
-                    &mut run.glyphs.iter().map(|g| Glyph { id: g.id, x: g.x, y: g.y }),
+                    &mut run.glyphs.iter().map(|g| Glyph {
+                        id: g.id,
+                        x: g.x,
+                        y: g.y,
+                    }),
                 );
                 if let Some(stroke) = &run.stroke {
-                    let stroke_style = Style::Stroke(stroke.style.clone());
+                    let stroke_style =
+                        Style::Stroke(stroke.style.clone());
                     sink.glyph_run(
                         GlyphRunRef {
                             font: &run.font,
@@ -116,7 +129,11 @@ impl Kanva {
                             brush: (&stroke.brush).into(),
                             composite: Composite::default(),
                         },
-                        &mut run.glyphs.iter().map(|g| Glyph { id: g.id, x: g.x, y: g.y }),
+                        &mut run.glyphs.iter().map(|g| Glyph {
+                            id: g.id,
+                            x: g.x,
+                            y: g.y,
+                        }),
                     );
                 }
             }
@@ -160,16 +177,19 @@ impl Kanva {
             for &ii in &node.images {
                 let image = &self.images[ii];
                 let item_tf = tf * image.transform;
-                let brush = Brush::Image(ImageBrush::new(image.data.clone()));
+                let brush =
+                    Brush::Image(ImageBrush::new(image.data.clone()));
                 sink.fill(FillRef {
                     transform: item_tf,
                     fill_rule: peniko::Fill::NonZero,
                     brush: (&brush).into(),
                     brush_transform: None,
-                    shape: GeometryRef::from(peniko::kurbo::Rect::from_origin_size(
-                        (0.0, 0.0),
-                        (image.size.x, image.size.y),
-                    )),
+                    shape: GeometryRef::from(
+                        peniko::kurbo::Rect::from_origin_size(
+                            (0.0, 0.0),
+                            (image.size.x, image.size.y),
+                        ),
+                    ),
                     composite: Composite::default(),
                 });
             }

@@ -48,7 +48,8 @@ impl PaintSink for KanvaBuilder {
     fn pop_clip(&mut self) {
         if self.stack.len() > 1 {
             let index = self.stack.pop().unwrap();
-            self.kanva.nodes[index].subtree_end = self.kanva.nodes.len();
+            self.kanva.nodes[index].subtree_end =
+                self.kanva.nodes.len();
         }
     }
 
@@ -77,7 +78,8 @@ impl PaintSink for KanvaBuilder {
     fn pop_group(&mut self) {
         if self.stack.len() > 1 {
             let index = self.stack.pop().unwrap();
-            self.kanva.nodes[index].subtree_end = self.kanva.nodes.len();
+            self.kanva.nodes[index].subtree_end =
+                self.kanva.nodes.len();
         }
     }
 

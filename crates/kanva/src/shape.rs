@@ -1,4 +1,7 @@
-use peniko::{Brush, Fill, kurbo::{Affine, BezPath, Stroke}};
+use peniko::{
+    Brush, Fill,
+    kurbo::{Affine, BezPath, Stroke},
+};
 
 #[derive(Debug, Clone)]
 pub struct KanvaShape {
