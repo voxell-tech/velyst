@@ -6317,18 +6317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typst_vello"
-version = "0.1.0"
-dependencies = [
- "hayro",
- "smallvec",
- "ttf-parser",
- "typst-library",
- "vello",
- "vello_svg",
-]
-
-[[package]]
 name = "unic-langid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
