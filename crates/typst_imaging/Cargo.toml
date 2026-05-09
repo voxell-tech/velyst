@@ -1,6 +1,6 @@
 [package]
 name = "typst_imaging"
-description = "Renders Typst frames into any imaging PaintSink."
+description = "Typst frame renderer backed by the imaging crate."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
