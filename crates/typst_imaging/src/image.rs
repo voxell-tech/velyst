@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use imaging::{FillRef, GeometryRef, PaintSink};
+use imaging::{Composite, FillRef, GeometryRef, PaintSink};
 use peniko::kurbo::Rect;
 use peniko::{
     Blob, Brush, ImageAlphaType, ImageBrush, ImageData, ImageFormat,
@@ -47,7 +47,7 @@ pub(crate) fn render_image(
                     width as f64,
                     height as f64,
                 )),
-                composite: imaging::Composite::default(),
+                composite: Composite::default(),
             });
         }
         // TODO: SVG and PDF image rendering.

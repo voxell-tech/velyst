@@ -47,22 +47,22 @@ impl Kanva {
                 label_stack.push(node.subtree_end);
             }
 
-            if let Some(layer) = &node.layer {
-                if let Some(clip) = &layer.clip {
-                    let clip_ref = match &clip.stroke {
-                        None => ClipRef::fill(GeometryRef::Path(
-                            &clip.path,
-                        ))
-                        .with_transform(tf),
-                        Some(stroke) => ClipRef::stroke(
-                            GeometryRef::Path(&clip.path),
-                            stroke,
-                        )
-                        .with_transform(tf),
-                    };
-                    sink.push_clip(clip_ref);
-                    clip_stack.push(node.subtree_end);
-                }
+            if let Some(layer) = &node.layer
+                && let Some(clip) = &layer.clip
+            {
+                let clip_ref = match &clip.stroke {
+                    None => {
+                        ClipRef::fill(GeometryRef::Path(&clip.path))
+                            .with_transform(tf)
+                    }
+                    Some(stroke) => ClipRef::stroke(
+                        GeometryRef::Path(&clip.path),
+                        stroke,
+                    )
+                    .with_transform(tf),
+                };
+                sink.push_clip(clip_ref);
+                clip_stack.push(node.subtree_end);
             }
 
             for &si in &node.shapes {

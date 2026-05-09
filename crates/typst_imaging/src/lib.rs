@@ -1,11 +1,12 @@
 use imaging::{ClipRef, ContextRef, PaintSink};
-use peniko::kurbo::Affine;
+use peniko::kurbo::{Affine, Vec2};
 use typst_library::layout::{
     Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
 };
 
 pub mod convert;
 pub mod image;
+pub mod paint;
 pub mod shape;
 pub mod text;
 
@@ -21,34 +22,31 @@ fn render_items(
     state: RenderState,
 ) {
     for (pos, item) in frame.items() {
-        let pos = *pos;
         match item {
             FrameItem::Group(group) => {
-                render_group(group, sink, state, pos)
+                render_group(group, sink, state, *pos);
             }
             FrameItem::Text(text) => {
                 text::render_text(
                     text,
                     sink,
-                    state.pre_translate(pos),
+                    state.pre_translate(*pos),
                 );
             }
             FrameItem::Shape(shape, _) => {
                 shape::render_shape(
                     shape,
                     sink,
-                    state.pre_translate(pos),
+                    state.pre_translate(*pos),
                 );
             }
             FrameItem::Image(image, size, _) => {
-                if !size.any(|p| p.to_pt() == 0.0) {
-                    image::render_image(
-                        image,
-                        *size,
-                        sink,
-                        state.pre_translate(pos),
-                    );
-                }
+                image::render_image(
+                    image,
+                    *size,
+                    sink,
+                    state.pre_translate(*pos),
+                );
             }
             FrameItem::Link(_, _) | FrameItem::Tag(_) => {}
         }
@@ -61,16 +59,23 @@ fn render_group(
     state: RenderState,
     pos: Point,
 ) {
-    let group_affine = convert::convert_transform(
-        Transform::translate(pos.x, pos.y)
-            .pre_concat(group.transform),
-    );
+    let group_transform = convert::convert_transform(group.transform);
 
     let state = match group.frame.kind() {
-        FrameKind::Soft => state.pre_concat(group_affine),
+        FrameKind::Soft => {
+            state.pre_translate(pos).pre_concat(group_transform)
+        }
         FrameKind::Hard => state
-            .pre_concat(group_affine)
-            .with_container(state.transform)
+            .pre_translate(pos)
+            .pre_concat(group_transform)
+            .pre_concat_container(
+                state.container_transform.inverse() * state.transform,
+            )
+            .pre_concat_container(Affine::translate((
+                pos.x.to_pt(),
+                pos.y.to_pt(),
+            )))
+            .pre_concat_container(group_transform)
             .with_size(group.frame.size()),
     };
 
@@ -101,10 +106,10 @@ fn render_group(
 pub(crate) struct RenderState {
     /// Accumulated screen-space transform.
     pub transform: Affine,
-    /// Transform at the most recent hard-frame boundary (for gradient `relative: parent`).
+    /// Transform at the most recent hard-frame boundary.
     pub container_transform: Affine,
     /// Size of the most recent hard frame.
-    pub size: Size,
+    pub container_size: Size,
 }
 
 impl RenderState {
@@ -113,32 +118,42 @@ impl RenderState {
         Self {
             transform: affine,
             container_transform: affine,
-            size,
+            container_size: size,
         }
     }
 
+    /// `pos` is applied before the current transform.
     pub fn pre_translate(self, pos: Point) -> Self {
-        self.pre_concat(Affine::translate((
-            pos.x.to_pt(),
-            pos.y.to_pt(),
-        )))
-    }
-
-    pub fn pre_concat(self, t: Affine) -> Self {
         Self {
-            transform: self.transform * t,
+            transform: self.transform.pre_translate(Vec2::new(
+                pos.x.to_pt(),
+                pos.y.to_pt(),
+            )),
             ..self
         }
     }
 
-    pub fn with_container(self, container: Affine) -> Self {
+    /// `transform` is applied before the current transform.
+    pub fn pre_concat(self, transform: Affine) -> Self {
         Self {
-            container_transform: container,
+            transform: self.transform * transform,
             ..self
         }
     }
 
+    /// Sets the size of the most recent hard frame.
     pub fn with_size(self, size: Size) -> Self {
-        Self { size, ..self }
+        Self {
+            container_size: size,
+            ..self
+        }
+    }
+
+    /// `transform` is applied before the current container transform.
+    fn pre_concat_container(self, transform: Affine) -> Self {
+        Self {
+            container_transform: self.container_transform * transform,
+            ..self
+        }
     }
 }
