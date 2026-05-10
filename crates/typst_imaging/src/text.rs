@@ -17,12 +17,8 @@ pub(crate) fn render_text(
 ) {
     let bytes = text.font.data();
 
-    // TODO(nixon): This is a hack to share the same id for blobs
-    // pointing to the same data. We shud find a better way here.
-    let blob_id = bytes.as_ptr() as u64;
-
     let font_data = FontData::new(
-        Blob::from_raw_parts(Arc::new(bytes.clone()), blob_id),
+        Blob::new(Arc::new(bytes.clone())),
         text.font.index(),
     );
     let font_size = text.size.to_pt() as f32;

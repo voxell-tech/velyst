@@ -20,10 +20,6 @@ pub(crate) fn render_image(
 ) {
     match image.kind() {
         ImageKind::Raster(raster) => {
-            // TODO(nixon): This is a hack to share the same id for blobs
-            // pointing to the same data. We shud find a better way here.
-            let id = raster.data().as_ptr() as u64;
-
             // TODO(nixon): We should optimize this to prevent
             // re-computing and re-allocating image data.
             let rgba = raster.dynamic().to_rgba8();
@@ -35,10 +31,7 @@ pub(crate) fn render_image(
             }
 
             let image_data = ImageData {
-                data: Blob::from_raw_parts(
-                    Arc::new(rgba.into_vec()),
-                    id,
-                ),
+                data: Blob::new(Arc::new(rgba.into_vec())),
                 format: ImageFormat::Rgba8,
                 alpha_type: ImageAlphaType::Alpha,
                 width,
