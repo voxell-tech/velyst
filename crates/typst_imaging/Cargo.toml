@@ -1,0 +1,17 @@
+[package]
+name = "typst_imaging"
+description = "Typst frame renderer backed by the imaging crate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+typst-library = { workspace = true }
+imaging = { workspace = true, features = ["std"] }
+svg_imaging = { workspace = true, features = ["std"] }
+hayro-svg = { workspace = true }
+peniko = { workspace = true }
+
+[lints]
+workspace = true

@@ -2,8 +2,11 @@ use bevy::camera::primitives::Aabb;
 use bevy::prelude::*;
 use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
-use typst::layout::{Abs, Axes, Region, Size};
-use typst_vello::TypstScene;
+use imaging_vello::VelloSceneSink;
+use peniko::kurbo::Rect;
+use typst::layout::{Abs, Axes, Frame, Point, Region, Size};
+use typst_imaging::render_frame;
+use vello::Scene;
 
 use crate::VelystSet;
 use crate::func::VelystContent;
@@ -17,7 +20,7 @@ impl Plugin for VelystRendererPlugin {
             PostUpdate,
             (
                 (
-                    (layout_content, layout_world_content),
+                    (layout_ui_content, layout_world_content),
                     comemo_evict,
                 )
                     .chain()
@@ -30,7 +33,7 @@ impl Plugin for VelystRendererPlugin {
 }
 
 /// Layout [`VelystContent`] into a [`VelystScene`] in UI coordinates.
-fn layout_content(
+fn layout_ui_content(
     world: VelystWorld,
     mut q_contents: Query<
         (
@@ -86,12 +89,13 @@ fn layout_content(
             &content.0,
             Region::new(size, Axes::splat(false)),
         ) {
-            scene.0 = TypstScene::from_frame(&frame);
-
-            let Axes { x, y } = frame.size();
-            let size = Vec2::new(x.to_pt() as f32, y.to_pt() as f32)
-                * scale_factor;
+            let frame_size = frame.size();
+            let size = Vec2::new(
+                frame_size.x.to_pt() as f32,
+                frame_size.y.to_pt() as f32,
+            ) * scale_factor;
             *content_size = ContentSize::fixed_size(size);
+            scene.0 = Some(frame);
         }
     }
 }
@@ -133,16 +137,19 @@ fn layout_world_content(
             size.y = Abs::pt(height);
         }
 
-        if let Some(frame) = world.layout_frame(
+        if let Some(mut frame) = world.layout_frame(
             &content.0,
             Region::new(size, Axes::splat(false)),
         ) {
-            scene.0 = TypstScene::from_frame(&frame);
-
-            let Axes { x, y } = frame.size();
-            let width = x.to_pt() as f32;
-            let height = y.to_pt() as f32;
+            let frame_size = frame.size();
+            let width = frame_size.x.to_pt() as f32;
+            let height = frame_size.y.to_pt() as f32;
             let anchor = world_scene.anchor;
+
+            frame.translate(Point::new(
+                Abs::pt(-width as f64 * anchor.x as f64),
+                Abs::pt(-height as f64 * anchor.y as f64),
+            ));
 
             // Bevy_vello flips Y when rendering world scenes, so the scene
             // occupies [0, width] × [0, -height] in local space.
@@ -158,6 +165,7 @@ fn layout_world_content(
                 center,
                 half_extents,
             };
+            scene.0 = Some(frame);
         }
     }
 }
@@ -170,50 +178,66 @@ fn comemo_evict() {
 /// Render [`VelystScene`] into a [`UiVelloScene`].
 fn render_ui_scene(
     mut q_scenes: Query<
-        (&mut VelystScene, &mut UiVelloScene, &Visibility),
+        (&VelystScene, &mut UiVelloScene, &Visibility),
         (
             Or<(Changed<VelystScene>, Changed<Visibility>)>,
             With<UiScene>,
         ),
     >,
 ) {
-    for (mut scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (scene, mut vello_scene, viz) in q_scenes.iter_mut() {
         if viz == Visibility::Hidden {
             continue;
         }
-        *vello_scene = UiVelloScene::from(scene.render());
+        let Some(frame) = &scene.0 else { continue };
+        *vello_scene = UiVelloScene::from(frame_to_scene(frame));
     }
 }
 
 /// Render [`VelystScene`] into a [`VelloScene2d`].
 fn render_world_scene(
     mut q_scenes: Query<
-        (&mut VelystScene, &mut VelloScene2d, &Visibility),
+        (&VelystScene, &mut VelloScene2d, &Visibility),
         (
             Or<(Changed<VelystScene>, Changed<Visibility>)>,
             With<WorldScene>,
         ),
     >,
 ) {
-    for (mut scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (scene, mut vello_scene, viz) in q_scenes.iter_mut() {
         if viz == Visibility::Hidden {
             continue;
         }
-        *vello_scene = VelloScene2d::from(scene.render());
+        let Some(frame) = &scene.0 else { continue };
+        *vello_scene = VelloScene2d::from(frame_to_scene(frame));
     }
 }
 
-/// The laid-out Typst scene, ready to be rendered.
+fn frame_to_scene(frame: &Frame) -> Scene {
+    let frame_size = frame.size();
+    let surface_clip = Rect::new(
+        0.0,
+        0.0,
+        frame_size.x.to_pt(),
+        frame_size.y.to_pt(),
+    );
+    let mut vello = Scene::new();
+    let mut sink = VelloSceneSink::new(&mut vello, surface_clip);
+    render_frame(frame, &mut sink);
+    let _ = sink.finish();
+    vello
+}
+
+/// The laid-out Typst frame, ready to be rendered.
 ///
 /// Add [`UiScene`] or [`WorldScene`] to control which coordinate space
 /// this entity renders in.
-#[derive(Component, Default, Deref, DerefMut)]
-pub struct VelystScene(pub TypstScene);
+#[derive(Component, Default)]
+pub struct VelystScene(pub Option<Frame>);
 
 /// Marker: render this entity's [`VelystScene`] in Bevy UI coordinates.
 ///
-/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted
-/// automatically.
+/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted automatically.
 #[derive(Component, Default)]
 #[require(VelystScene, UiVelloScene, ContentSize)]
 pub struct UiScene;

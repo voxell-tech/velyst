@@ -2605,9 +2605,9 @@ dependencies = [
 
 [[package]]
 name = "font-types"
-version = "0.11.0"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e4d2d0cf79d38430cc9dc9aadec84774bff2e1ba30ae2bf6c16cfce9385a23"
+checksum = "5b38ad915f6dadd993ced50848a8291a543bd41ca62bc10740d5e64e2ab4cfd7"
 dependencies = [
  "bytemuck",
 ]
@@ -2819,7 +2819,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
- "windows 0.58.0",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -2999,6 +2999,15 @@ dependencies = [
  "foldhash 0.2.0",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+dependencies = [
+ "foldhash 0.2.0",
 ]
 
 [[package]]
@@ -3453,6 +3462,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09e54e57b4c48b40f7aec75635392b12b3421fa26fe8b4332e63138ed278459c"
 
 [[package]]
+name = "imaging"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "kurbo 0.13.0",
+ "peniko",
+]
+
+[[package]]
+name = "imaging_vello"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "imaging",
+ "imaging_wgpu",
+ "kurbo 0.13.0",
+ "peniko",
+ "vello",
+]
+
+[[package]]
+name = "imaging_wgpu"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "imaging",
+ "wgpu",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3797,9 +3836,9 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "2.7.6"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
+checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "memmap2"
@@ -4975,7 +5014,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b634fabf032fab15307ffd272149b622260f55974d9fad689292a5d33df02e5"
 dependencies = [
  "bytemuck",
- "font-types 0.11.0",
+ "font-types 0.11.3",
 ]
 
 [[package]]
@@ -5511,6 +5550,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0193cc4331cfd2f3d2011ef287590868599a2f33c3e69bc22c1a3d3acf9e02fb"
 
 [[package]]
+name = "svg_imaging"
+version = "0.0.1"
+source = "git+https://github.com/forest-rs/imaging?rev=79f02ae#79f02aedf5b65b4cd151ef45d8b40013d7289ee2"
+dependencies = [
+ "hashbrown 0.17.1",
+ "image",
+ "imaging",
+ "kurbo 0.13.0",
+ "peniko",
+ "usvg 0.47.0",
+]
+
+[[package]]
 name = "svgtypes"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5725,7 +5777,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
 ]
 
 [[package]]
@@ -5733,6 +5785,17 @@ name = "tiny-skia-path"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "strict-num",
+]
+
+[[package]]
+name = "tiny-skia-path"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edca365c3faccca67d06593c5980fa6c57687de727a03131735bb85f01fdeeb9"
 dependencies = [
  "arrayref",
  "bytemuck",
@@ -6247,15 +6310,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "typst_vello"
+name = "typst_imaging"
 version = "0.1.0"
 dependencies = [
- "hayro",
- "smallvec",
- "ttf-parser",
+ "hayro-svg",
+ "imaging",
+ "peniko",
+ "svg_imaging",
  "typst-library",
- "vello",
- "vello_svg",
 ]
 
 [[package]]
@@ -6428,7 +6490,7 @@ dependencies = [
  "siphasher",
  "strict-num",
  "svgtypes 0.15.3",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
  "unicode-bidi",
  "unicode-script",
  "unicode-vo",
@@ -6455,7 +6517,35 @@ dependencies = [
  "siphasher",
  "strict-num",
  "svgtypes 0.16.1",
- "tiny-skia-path",
+ "tiny-skia-path 0.11.4",
+ "unicode-bidi",
+ "unicode-script",
+ "unicode-vo",
+ "xmlwriter",
+]
+
+[[package]]
+name = "usvg"
+version = "0.47.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d46cf96c5f498d36b7a9693bc6a7075c0bb9303189d61b2249b0dc3d309c07de"
+dependencies = [
+ "base64",
+ "data-url",
+ "flate2",
+ "fontdb",
+ "imagesize 0.14.0",
+ "kurbo 0.13.0",
+ "log",
+ "pico-args",
+ "roxmltree 0.21.1",
+ "rustybuzz",
+ "simplecss",
+ "siphasher",
+ "strict-num",
+ "svgtypes 0.16.1",
+ "tiny-skia-path 0.12.0",
+ "ttf-parser",
  "unicode-bidi",
  "unicode-script",
  "unicode-vo",
@@ -6568,6 +6658,8 @@ dependencies = [
  "bevy_vello",
  "chrono",
  "ecow",
+ "imaging",
+ "imaging_vello",
  "smallvec",
  "thiserror 1.0.69",
  "typst",
@@ -6575,7 +6667,7 @@ dependencies = [
  "typst-eval",
  "typst-layout",
  "typst_element",
- "typst_vello",
+ "typst_imaging",
 ]
 
 [[package]]
