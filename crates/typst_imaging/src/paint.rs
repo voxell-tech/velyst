@@ -77,7 +77,19 @@ pub(crate) fn shape_paint(
         viz::Paint::Solid(_) => None,
     };
 
-    (build_brush(paint, state.container_size), brush_transform)
+    let brush_size = match paint {
+        viz::Paint::Gradient(gradient)
+            if matches!(
+                gradient.unwrap_relative(false),
+                viz::RelativeTo::Self_
+            ) =>
+        {
+            shape_size
+        }
+        _ => state.container_size,
+    };
+
+    (build_brush(paint, brush_size), brush_transform)
 }
 
 /// Convert a typst [`viz::Paint`] to a [`peniko ::Brush`] for a
