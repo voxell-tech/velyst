@@ -4,7 +4,7 @@ use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
 use peniko::kurbo::Rect;
-use typst::layout::{Abs, Axes, Frame, Region, Size};
+use typst::layout::{Abs, Axes, Frame, Point, Region, Size};
 use typst_imaging::render_frame;
 use vello::Scene;
 
@@ -137,7 +137,7 @@ fn layout_world_content(
             size.y = Abs::pt(height);
         }
 
-        if let Some(frame) = world.layout_frame(
+        if let Some(mut frame) = world.layout_frame(
             &content.0,
             Region::new(size, Axes::splat(false)),
         ) {
@@ -145,6 +145,11 @@ fn layout_world_content(
             let width = frame_size.x.to_pt() as f32;
             let height = frame_size.y.to_pt() as f32;
             let anchor = world_scene.anchor;
+
+            frame.translate(Point::new(
+                Abs::pt(-width as f64 * anchor.x as f64),
+                Abs::pt(-height as f64 * anchor.y as f64),
+            ));
 
             // Bevy_vello flips Y when rendering world scenes, so the scene
             // occupies [0, width] × [0, -height] in local space.
