@@ -21,6 +21,7 @@ vello = "0.7.0"
 vello_svg = "0.9.0"
 # Imaging dependencies
 imaging = { git = "https://github.com/forest-rs/imaging", rev = "79f02ae", default-features = false }
+svg_imaging = { git = "https://github.com/forest-rs/imaging", rev = "79f02ae", default-features = false }
 imaging_vello = { git = "https://github.com/forest-rs/imaging", rev = "79f02ae", default-features = false, features = ["vello-0-7"] }
 # Peniko/Kurbo
 peniko = { version = "0.6", features = ["std"] }

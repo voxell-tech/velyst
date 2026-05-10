@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use imaging::{Composite, FillRef, GeometryRef, PaintSink};
-use peniko::kurbo::Rect;
+use imaging::{Composite, FillRef, GeometryRef, PaintSink, Painter};
+use peniko::kurbo::{Affine, Rect};
 use peniko::{
     Blob, Brush, ImageAlphaType, ImageBrush, ImageData, ImageFormat,
 };
+use svg_imaging::{RenderOptions, SvgDocument};
 use typst_library::layout::Size;
 use typst_library::visualize::{Image, ImageKind};
 
@@ -27,6 +28,10 @@ pub(crate) fn render_image(
             let rgba = raster.dynamic().to_rgba8();
             let width = rgba.width();
             let height = rgba.height();
+
+            if width == 0 || height == 0 {
+                return;
+            }
 
             let image_data = ImageData {
                 data: Blob::from_raw_parts(
@@ -59,7 +64,36 @@ pub(crate) fn render_image(
                 composite: Composite::default(),
             });
         }
-        // TODO: SVG and PDF image rendering.
-        ImageKind::Svg(_) | ImageKind::Pdf(_) => {}
+        ImageKind::Svg(svg) => {
+            let Ok(doc) = SvgDocument::from_data(
+                svg.data().as_ref(),
+                &Default::default(),
+            ) else {
+                return;
+            };
+
+            let svg_size = doc.size();
+
+            if svg_size.width.abs() < f64::EPSILON
+                || svg_size.height.abs() < f64::EPSILON
+            {
+                return;
+            }
+
+            let scale = Affine::scale_non_uniform(
+                size.x.to_pt() / svg_size.width,
+                size.y.to_pt() / svg_size.height,
+            );
+
+            let mut painter = Painter::new(sink);
+            let _ = doc.render(
+                &mut painter,
+                &RenderOptions {
+                    transform: state.transform * scale,
+                },
+            );
+        }
+        // TODO: PDF image rendering.
+        ImageKind::Pdf(_) => {}
     }
 }

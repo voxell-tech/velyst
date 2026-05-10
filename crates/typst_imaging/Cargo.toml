@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 typst-library = { workspace = true }
 imaging = { workspace = true, features = ["std"] }
+svg_imaging = { workspace = true, features = ["std"] }
 peniko = { workspace = true }
 
 [lints]
