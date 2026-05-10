@@ -109,7 +109,7 @@ pub(crate) fn text_paint(
         let brush_transform =
             local_to_container.pre_scale_non_uniform(w, h);
 
-        apply_transform_to_gradient(gradient, brush_transform);
+        apply_transform_to_text_gradient(gradient, brush_transform);
     }
 
     brush
@@ -201,7 +201,7 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
 }
 
 /// Bake an affine transform into a gradient control points.
-pub fn apply_transform_to_gradient(
+pub fn apply_transform_to_text_gradient(
     gradient: &mut peniko::Gradient,
     transform: Affine,
 ) {
@@ -220,6 +220,7 @@ pub fn apply_transform_to_gradient(
         }
         GradientKind::Sweep(pos) => {
             pos.center = transform * pos.center;
+            // Compensate for inverted text glyph matrix.
             pos.start_angle = TAU;
             pos.end_angle = 0.0;
         }
