@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use hayro_svg::convert;
 use imaging::{Composite, FillRef, GeometryRef, PaintSink, Painter};
 use peniko::kurbo::{Affine, Rect};
 use peniko::{
@@ -93,7 +94,32 @@ pub(crate) fn render_image(
                 },
             );
         }
-        // TODO: PDF image rendering.
-        ImageKind::Pdf(_) => {}
+        ImageKind::Pdf(pdf) => {
+            let (w, h) = (pdf.width() as f64, pdf.height() as f64);
+            if w.abs() < f64::EPSILON || h.abs() < f64::EPSILON {
+                return;
+            }
+
+            let svg_str = convert(pdf.page(), &Default::default());
+
+            let Ok(doc) =
+                SvgDocument::from_str(&svg_str, &Default::default())
+            else {
+                return;
+            };
+
+            let scale = Affine::scale_non_uniform(
+                size.x.to_pt() / w,
+                size.y.to_pt() / h,
+            );
+
+            let mut painter = Painter::new(sink);
+            let _ = doc.render(
+                &mut painter,
+                &RenderOptions {
+                    transform: state.transform * scale,
+                },
+            );
+        }
     }
 }

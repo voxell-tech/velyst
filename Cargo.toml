@@ -34,7 +34,7 @@ typst-assets = "0.14.2"
 # In sync with Typst:
 unicode-math-class = "0.1"
 ttf-parser = "0.25"
-hayro = "0.4"
+hayro-svg = "0.2"
 # Other
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 hashbrown = "0.17"
