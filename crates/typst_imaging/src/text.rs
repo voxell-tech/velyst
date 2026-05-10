@@ -15,10 +15,16 @@ pub(crate) fn render_text(
     sink: &mut impl PaintSink,
     state: RenderState,
 ) {
-    let font_bytes: Arc<Vec<u8>> =
-        Arc::new(text.font.data().as_ref().to_vec());
-    let font_data =
-        FontData::new(Blob::new(font_bytes), text.font.index());
+    let bytes = text.font.data();
+
+    // TODO(nixon): This is a hack to share the same id for blobs
+    // pointing to the same data. We shud find a better way here.
+    let blob_id = bytes.as_ptr() as u64;
+
+    let font_data = FontData::new(
+        Blob::from_raw_parts(Arc::new(bytes.clone()), blob_id),
+        text.font.index(),
+    );
     let font_size = text.size.to_pt() as f32;
 
     let glyphs: Vec<Glyph> = {
@@ -43,6 +49,7 @@ pub(crate) fn render_text(
         return;
     };
 
+    // TODO(nixon): Add debugging features.
     // Debug: outline the container rect used for gradient sampling.
     // #[cfg(debug_assertions)]
     // {
