@@ -1,3 +1,4 @@
+use imaging::{Composite, FillRef, GeometryRef, PaintSink, StrokeRef};
 use peniko::{
     Brush, Fill,
     kurbo::{Affine, BezPath, Stroke},
@@ -23,4 +24,30 @@ pub struct KanvaStroke {
     pub style: Stroke,
     pub brush: Brush,
     pub transform: Option<Affine>,
+}
+
+impl KanvaShape {
+    pub fn render(&self, tf: Affine, sink: &mut impl PaintSink) {
+        let item_tf = tf * self.transform;
+        if let Some(fill) = &self.fill {
+            sink.fill(FillRef {
+                transform: item_tf,
+                fill_rule: fill.style,
+                brush: (&fill.brush).into(),
+                brush_transform: fill.transform,
+                shape: GeometryRef::Path(&self.path),
+                composite: Composite::default(),
+            });
+        }
+        if let Some(stroke) = &self.stroke {
+            sink.stroke(StrokeRef {
+                transform: item_tf,
+                stroke: &stroke.style,
+                brush: (&stroke.brush).into(),
+                brush_transform: stroke.transform,
+                shape: GeometryRef::Path(&self.path),
+                composite: Composite::default(),
+            });
+        }
+    }
 }
