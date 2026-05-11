@@ -33,6 +33,7 @@ impl Plugin for VelystRendererPlugin {
 }
 
 /// Layout [`VelystContent`] into a [`VelystScene`] in UI coordinates.
+#[expect(clippy::type_complexity)]
 fn layout_ui_content(
     world: VelystWorld,
     mut q_contents: Query<
@@ -101,6 +102,7 @@ fn layout_ui_content(
 }
 
 /// Layout [`VelystContent`] into a [`VelystScene`] in world coordinates.
+#[expect(clippy::type_complexity)]
 fn layout_world_content(
     world: VelystWorld,
     mut q_contents: Query<
@@ -176,6 +178,7 @@ fn comemo_evict() {
 }
 
 /// Render [`VelystScene`] into a [`UiVelloScene`].
+#[expect(clippy::type_complexity)]
 fn render_ui_scene(
     mut q_scenes: Query<
         (&VelystScene, &mut UiVelloScene, &Visibility),
@@ -195,6 +198,7 @@ fn render_ui_scene(
 }
 
 /// Render [`VelystScene`] into a [`VelloScene2d`].
+#[expect(clippy::type_complexity)]
 fn render_world_scene(
     mut q_scenes: Query<
         (&VelystScene, &mut VelloScene2d, &Visibility),

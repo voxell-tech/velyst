@@ -44,6 +44,7 @@ fn check_source_ready<F: TypstFunc>(
 }
 
 /// Compile a [`VelystFunc<F>`] into a [`VelystContent`].
+#[expect(clippy::type_complexity)]
 fn compile_velyst_func<F: TypstFunc>(
     mut q_funcs: Query<(
         Ref<VelystFunc<F>>,
