@@ -1,8 +1,8 @@
-use imaging::{Composite, FillRef, GeometryRef, PaintSink, StrokeRef};
-use peniko::{
-    Brush, Fill,
-    kurbo::{Affine, BezPath, Stroke},
+use imaging::{
+    Composite, FillRef, GeometryRef, PaintSink, StrokeRef,
 };
+use peniko::kurbo::{Affine, BezPath, Stroke};
+use peniko::{Brush, Fill};
 
 #[derive(Debug, Clone)]
 pub struct KanvaShape {

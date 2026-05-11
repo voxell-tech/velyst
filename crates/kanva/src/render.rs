@@ -46,12 +46,15 @@ impl Kanva {
                 && let Some(clip) = &layer.clip
             {
                 let clip_ref = match &clip.stroke {
-                    None => ClipRef::fill(GeometryRef::Path(&clip.path))
-                        .with_transform(tf),
-                    Some(stroke) => {
-                        ClipRef::stroke(GeometryRef::Path(&clip.path), stroke)
+                    None => {
+                        ClipRef::fill(GeometryRef::Path(&clip.path))
                             .with_transform(tf)
                     }
+                    Some(stroke) => ClipRef::stroke(
+                        GeometryRef::Path(&clip.path),
+                        stroke,
+                    )
+                    .with_transform(tf),
                 };
                 sink.push_clip(clip_ref);
                 clip_stack.push(node.subtree_end);

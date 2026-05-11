@@ -1,8 +1,6 @@
 use imaging::{Composite, FillRef, GeometryRef, PaintSink};
-use peniko::{
-    Brush, ImageBrush, ImageData,
-    kurbo::{Affine, Vec2},
-};
+use peniko::kurbo::{Affine, Vec2};
+use peniko::{Brush, ImageBrush, ImageData};
 
 #[derive(Debug, Clone)]
 pub struct KanvaImage {
@@ -19,10 +17,12 @@ impl KanvaImage {
             fill_rule: peniko::Fill::NonZero,
             brush: (&brush).into(),
             brush_transform: None,
-            shape: GeometryRef::from(peniko::kurbo::Rect::from_origin_size(
-                (0.0, 0.0),
-                (self.size.x, self.size.y),
-            )),
+            shape: GeometryRef::from(
+                peniko::kurbo::Rect::from_origin_size(
+                    (0.0, 0.0),
+                    (self.size.x, self.size.y),
+                ),
+            ),
             composite: Composite::default(),
         });
     }

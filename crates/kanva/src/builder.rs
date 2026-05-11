@@ -76,7 +76,10 @@ impl KanvaBuilder {
         self.current_node_mut().glyph_runs.push(index);
     }
 
-    pub fn push_outlined_glyphs(&mut self, glyphs: KanvaOutlinedGlyphs) {
+    pub fn push_outlined_glyphs(
+        &mut self,
+        glyphs: KanvaOutlinedGlyphs,
+    ) {
         let index = self.kanva.outlined_glyphs.len();
         self.kanva.outlined_glyphs.push(glyphs);
         self.current_node_mut().outlined_glyphs.push(index);

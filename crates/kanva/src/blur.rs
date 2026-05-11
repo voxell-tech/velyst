@@ -1,8 +1,6 @@
 use imaging::{BlurredRoundedRect, Composite, PaintSink};
-use peniko::{
-    Color,
-    kurbo::{Affine, Rect},
-};
+use peniko::Color;
+use peniko::kurbo::{Affine, Rect};
 
 #[derive(Debug, Clone)]
 pub struct KanvaBlurredRect {

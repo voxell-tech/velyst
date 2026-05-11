@@ -1,7 +1,10 @@
 use alloc::vec::Vec;
 
 use imaging::record::Glyph;
-use imaging::{Composite, FillRef, GeometryRef, GlyphRunRef, PaintSink, StrokeRef};
+use imaging::{
+    Composite, FillRef, GeometryRef, GlyphRunRef, PaintSink,
+    StrokeRef,
+};
 use peniko::kurbo::{Affine, BezPath};
 use peniko::{Brush, FontData, Style};
 
@@ -37,7 +40,11 @@ impl KanvaGlyphRun {
                 brush: (&self.brush).into(),
                 composite: Composite::default(),
             },
-            &mut self.glyphs.iter().map(|g| Glyph { id: g.id, x: g.x, y: g.y }),
+            &mut self.glyphs.iter().map(|g| Glyph {
+                id: g.id,
+                x: g.x,
+                y: g.y,
+            }),
         );
         if let Some(stroke) = &self.stroke {
             let stroke_style = Style::Stroke(stroke.style.clone());
@@ -54,14 +61,19 @@ impl KanvaGlyphRun {
                     brush: (&stroke.brush).into(),
                     composite: Composite::default(),
                 },
-                &mut self.glyphs.iter().map(|g| Glyph { id: g.id, x: g.x, y: g.y }),
+                &mut self.glyphs.iter().map(|g| Glyph {
+                    id: g.id,
+                    x: g.x,
+                    y: g.y,
+                }),
             );
         }
     }
 }
 
 /// Glyphs as pre-decomposed bezier outlines.
-/// Higher memory cost; use when you need to trace, morph, or animate individual paths.
+/// Higher memory cost; use when you need to trace, morph, or animate
+/// individual paths.
 #[derive(Debug, Clone)]
 pub struct KanvaOutlinedGlyphs {
     pub brush: Brush,
