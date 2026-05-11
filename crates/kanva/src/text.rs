@@ -18,10 +18,10 @@ pub struct KanvaGlyphRun {
     pub glyphs: Vec<GlyphPos>,
 }
 
-/// Text as pre-decomposed bezier outlines per glyph.
+/// Glyphs as pre-decomposed bezier outlines.
 /// Higher memory cost; use when you need to trace, morph, or animate individual paths.
 #[derive(Debug, Clone)]
-pub struct KanvaOutlinedText {
+pub struct KanvaOutlinedGlyphs {
     pub brush: Brush,
     pub stroke: Option<KanvaStroke>,
     pub glyphs: Vec<KanvaGlyph>,
@@ -35,7 +35,7 @@ pub struct GlyphPos {
     pub y: f32,
 }
 
-/// A single glyph as a bezier outline, for use in [`KanvaOutlinedText`].
+/// A single glyph as a bezier outline, for use in [`KanvaOutlinedGlyphs`].
 #[derive(Debug, Clone)]
 pub struct KanvaGlyph {
     pub path: BezPath,

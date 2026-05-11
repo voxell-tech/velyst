@@ -13,7 +13,7 @@ use blur::KanvaBlurredRect;
 use image::KanvaImage;
 use layer::Layer;
 use shape::KanvaShape;
-use text::{KanvaGlyphRun, KanvaOutlinedText};
+use text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
 
 pub mod blur;
 pub mod builder;
@@ -31,7 +31,7 @@ pub mod prelude {
     pub use crate::layer::{KanvaClip, Layer};
     pub use crate::shape::{KanvaFill, KanvaShape, KanvaStroke};
     pub use crate::text::{
-        GlyphPos, KanvaGlyph, KanvaGlyphRun, KanvaOutlinedText,
+        GlyphPos, KanvaGlyph, KanvaGlyphRun, KanvaOutlinedGlyphs,
     };
     pub use crate::{Kanva, KanvaNode};
 }
@@ -41,7 +41,7 @@ pub struct Kanva {
     pub nodes: Vec<KanvaNode>,
     pub shapes: Vec<KanvaShape>,
     pub glyph_runs: Vec<KanvaGlyphRun>,
-    pub outlined_texts: Vec<KanvaOutlinedText>,
+    pub outlined_glyphs: Vec<KanvaOutlinedGlyphs>,
     pub images: Vec<KanvaImage>,
     pub blurred_rects: Vec<KanvaBlurredRect>,
     label_map: HashMap<String, SmallVec<[usize; 1]>>,
@@ -54,7 +54,7 @@ impl Kanva {
             nodes: Vec::new(),
             shapes: Vec::new(),
             glyph_runs: Vec::new(),
-            outlined_texts: Vec::new(),
+            outlined_glyphs: Vec::new(),
             images: Vec::new(),
             blurred_rects: Vec::new(),
             label_map: HashMap::new(),
@@ -66,7 +66,7 @@ impl Kanva {
         self.nodes.clear();
         self.shapes.clear();
         self.glyph_runs.clear();
-        self.outlined_texts.clear();
+        self.outlined_glyphs.clear();
         self.images.clear();
         self.blurred_rects.clear();
         self.label_map.clear();
@@ -109,8 +109,8 @@ pub struct KanvaNode {
     pub shapes: Vec<usize>,
     /// Indices into [`Kanva::glyph_runs`].
     pub glyph_runs: Vec<usize>,
-    /// Indices into [`Kanva::outlined_texts`].
-    pub outlined_texts: Vec<usize>,
+    /// Indices into [`Kanva::outlined_glyphs`].
+    pub outlined_glyphs: Vec<usize>,
     /// Indices into [`Kanva::images`].
     pub images: Vec<usize>,
     /// Indices into [`Kanva::blurred_rects`].

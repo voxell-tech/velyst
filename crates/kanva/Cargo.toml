@@ -1,6 +1,6 @@
 [package]
 name = "kanva"
-description = "Backend-agnostic 2D scene graph for querying and animating."
+description = "Backend-agnostic dynamic 2D scene graph."
 keywords = ["graphics", "2d", "scene", "animation", "peniko"]
 categories = ["graphics", "rendering"]
 version.workspace = true

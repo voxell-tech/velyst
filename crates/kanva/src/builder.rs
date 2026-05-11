@@ -8,7 +8,7 @@ use crate::blur::KanvaBlurredRect;
 use crate::image::KanvaImage;
 use crate::layer::Layer;
 use crate::shape::KanvaShape;
-use crate::text::{KanvaGlyphRun, KanvaOutlinedText};
+use crate::text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
 use crate::{Kanva, KanvaNode};
 
 pub struct KanvaBuilder {
@@ -76,10 +76,10 @@ impl KanvaBuilder {
         self.current_node_mut().glyph_runs.push(index);
     }
 
-    pub fn push_outlined_text(&mut self, text: KanvaOutlinedText) {
-        let index = self.kanva.outlined_texts.len();
-        self.kanva.outlined_texts.push(text);
-        self.current_node_mut().outlined_texts.push(index);
+    pub fn push_outlined_glyphs(&mut self, glyphs: KanvaOutlinedGlyphs) {
+        let index = self.kanva.outlined_glyphs.len();
+        self.kanva.outlined_glyphs.push(glyphs);
+        self.current_node_mut().outlined_glyphs.push(index);
     }
 
     pub fn push_image(&mut self, image: KanvaImage) {
@@ -124,7 +124,7 @@ fn new_node(
         subtree_end: 0,
         shapes: Vec::new(),
         glyph_runs: Vec::new(),
-        outlined_texts: Vec::new(),
+        outlined_glyphs: Vec::new(),
         images: Vec::new(),
         blurred_rects: Vec::new(),
     }

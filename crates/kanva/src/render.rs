@@ -138,8 +138,8 @@ impl Kanva {
                 }
             }
 
-            for &oi in &node.outlined_texts {
-                let text = &self.outlined_texts[oi];
+            for &oi in &node.outlined_glyphs {
+                let text = &self.outlined_glyphs[oi];
                 for glyph in &text.glyphs {
                     let glyph_tf = tf * glyph.transform;
                     if let Some(fill_tf) = glyph.fill_transform {
