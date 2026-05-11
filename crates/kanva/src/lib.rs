@@ -96,6 +96,37 @@ impl Kanva {
     pub fn size(&self) -> Vec2 {
         self.size
     }
+
+    /// Convert all glyph runs in the scene to outlined glyphs.
+    /// Glyph runs that fail to parse are silently dropped.
+    pub fn outline_all_glyphs(&mut self) {
+        // First pass: decompose every glyph run, recording which run index
+        // maps to which outlined-glyphs index (None if decomposition failed).
+        let mut run_to_outlined: Vec<Option<usize>> =
+            Vec::with_capacity(self.glyph_runs.len());
+        for run in &self.glyph_runs {
+            if let Some(outlined) = run.to_outlined_glyphs() {
+                run_to_outlined
+                    .push(Some(self.outlined_glyphs.len()));
+                self.outlined_glyphs.push(outlined);
+            } else {
+                run_to_outlined.push(None);
+            }
+        }
+
+        // Second pass: update each node's index lists.
+        for node in &mut self.nodes {
+            let new: Vec<usize> = node
+                .glyph_runs
+                .iter()
+                .filter_map(|&gi| run_to_outlined[gi])
+                .collect();
+            node.outlined_glyphs.extend(new);
+            node.glyph_runs.clear();
+        }
+
+        self.glyph_runs.clear();
+    }
 }
 
 pub struct KanvaNode {
