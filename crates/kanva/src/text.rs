@@ -7,6 +7,7 @@ use imaging::{
 };
 use peniko::kurbo::{Affine, BezPath};
 use peniko::{Brush, FontData, Style};
+use ttf_parser::OutlineBuilder;
 
 use crate::shape::KanvaStroke;
 
@@ -24,6 +25,44 @@ pub struct KanvaGlyphRun {
 }
 
 impl KanvaGlyphRun {
+    /// Decompose this glyph run into per-glyph bezier outlines.
+    /// Returns `None` if the font cannot be parsed.
+    pub fn to_outlined_glyphs(&self) -> Option<KanvaOutlinedGlyphs> {
+        let face = ttf_parser::Face::parse(
+            self.font.data.data(),
+            self.font.index,
+        )
+        .ok()?;
+        let upem = face.units_per_em() as f64;
+        let scale = self.font_size as f64 / upem;
+
+        let glyphs = self
+            .glyphs
+            .iter()
+            .filter_map(|g| {
+                let mut builder = BezPathBuilder(BezPath::new());
+                face.outline_glyph(
+                    ttf_parser::GlyphId(g.id as u16),
+                    &mut builder,
+                )?;
+                Some(KanvaGlyph {
+                    path: builder.0,
+                    transform: self.transform
+                        * Affine::translate((g.x as f64, g.y as f64))
+                        * Affine::scale_non_uniform(scale, -scale),
+                    fill_transform: None,
+                    stroke_transform: None,
+                })
+            })
+            .collect();
+
+        Some(KanvaOutlinedGlyphs {
+            brush: self.brush.clone(),
+            stroke: self.stroke.clone(),
+            glyphs,
+        })
+    }
+
     pub fn render(&self, tf: Affine, sink: &mut impl PaintSink) {
         let run_tf = tf * self.transform;
         let fill_style = Style::Fill(peniko::Fill::NonZero);
@@ -122,4 +161,40 @@ pub struct KanvaGlyph {
     pub transform: Affine,
     pub fill_transform: Option<Affine>,
     pub stroke_transform: Option<Affine>,
+}
+
+struct BezPathBuilder(BezPath);
+
+impl OutlineBuilder for BezPathBuilder {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.0.move_to((x as f64, y as f64));
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.0.line_to((x as f64, y as f64));
+    }
+
+    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        self.0.quad_to((x1 as f64, y1 as f64), (x as f64, y as f64));
+    }
+
+    fn curve_to(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        x: f32,
+        y: f32,
+    ) {
+        self.0.curve_to(
+            (x1 as f64, y1 as f64),
+            (x2 as f64, y2 as f64),
+            (x as f64, y as f64),
+        );
+    }
+
+    fn close(&mut self) {
+        self.0.close_path();
+    }
 }

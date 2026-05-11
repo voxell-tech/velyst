@@ -3626,6 +3626,7 @@ dependencies = [
  "imaging",
  "peniko",
  "smallvec",
+ "ttf-parser",
 ]
 
 [[package]]

@@ -13,6 +13,7 @@ peniko = { workspace = true }
 smallvec = { workspace = true }
 imaging = { workspace = true }
 hashbrown = { workspace = true }
+ttf-parser = { workspace = true }
 
 [lints]
 workspace = true
