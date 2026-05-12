@@ -19,6 +19,7 @@ pub struct KanvaGlyphRun {
     pub stroke: Option<KanvaStroke>,
     pub transform: Affine,
     pub glyphs: Vec<GlyphPos>,
+    pub composite: Composite,
 }
 
 impl KanvaGlyphRun {
@@ -48,6 +49,7 @@ impl KanvaGlyphRun {
                         style: peniko::Fill::NonZero,
                         brush: self.brush.clone(),
                         transform: None,
+                        composite: self.composite,
                     }),
                     stroke: self.stroke.clone(),
                     transform: self.transform

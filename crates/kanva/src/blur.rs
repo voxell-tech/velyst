@@ -9,6 +9,7 @@ pub struct KanvaBlurredRect {
     pub color: Color,
     pub radius: f64,
     pub std_dev: f64,
+    pub composite: Composite,
 }
 
 impl KanvaBlurredRect {
@@ -19,7 +20,7 @@ impl KanvaBlurredRect {
             color: self.color,
             radius: self.radius,
             std_dev: self.std_dev,
-            composite: Composite::default(),
+            composite: self.composite,
         });
     }
 }

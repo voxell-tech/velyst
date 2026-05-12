@@ -17,7 +17,11 @@ impl Kanva {
                 .parent
                 .map(|p| transforms[p])
                 .unwrap_or(Affine::IDENTITY);
-            transforms.push(parent_tf * node.transform);
+            transforms.push(
+                node.offset_transform
+                    .map(|t| parent_tf * t)
+                    .unwrap_or(parent_tf),
+            );
         }
 
         // Pass 2: linear scan. Two stacks track when to pop clips and contexts.

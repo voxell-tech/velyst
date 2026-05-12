@@ -112,11 +112,16 @@ impl Kanva {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct KanvaNode {
+    /// Index of the node's parent.
     pub parent: Option<usize>,
     pub label: Option<String>,
-    pub transform: Affine,
+    /// The offset transform of the node.
+    ///
+    /// Defaults to [`Affine::IDENTITY`] if unset.
+    pub offset_transform: Option<Affine>,
+    /// Optional layer of the node.
     pub layer: Option<Layer>,
     /// Index of the first node after this node's entire subtree.
     pub subtree_end: usize,
@@ -128,6 +133,16 @@ pub struct KanvaNode {
     pub blurred_rects: Vec<usize>,
 }
 
+impl KanvaNode {
+    pub fn new(parent: Option<usize>, label: Option<String>) -> Self {
+        KanvaNode {
+            parent,
+            label,
+            ..Default::default()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::builder::KanvaBuilder;
@@ -137,11 +152,7 @@ mod tests {
     #[test]
     fn labeled_group_is_queryable() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(
-            Some("title".into()),
-            Default::default(),
-            None,
-        );
+        builder.begin_group(Some("title".into()), None);
         let kanva = builder.build();
         let hits = kanva.query("title");
         assert_eq!(hits.len(), 1);
@@ -158,17 +169,9 @@ mod tests {
     #[test]
     fn multiple_groups_share_label() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(
-            Some("item".into()),
-            Default::default(),
-            None,
-        );
+        builder.begin_group(Some("item".into()), None);
         builder.end_group();
-        builder.begin_group(
-            Some("item".into()),
-            Default::default(),
-            None,
-        );
+        builder.begin_group(Some("item".into()), None);
         let kanva = builder.build();
         assert_eq!(kanva.query("item"), &[1, 2]);
     }

@@ -1,6 +1,3 @@
-use alloc::string::ToString;
-use alloc::vec::Vec;
-
 use imaging::record::Glyph;
 use imaging::{
     BlurredRoundedRect, ClipRef, ContextRef, FillRef, GlyphRunRef,
@@ -17,7 +14,7 @@ use crate::text::{GlyphPos, KanvaGlyphRun};
 
 impl PaintSink for KanvaBuilder {
     fn push_context(&mut self, context: ContextRef<'_>) {
-        self.pending_label = Some(context.label.to_string());
+        self.pending_label = Some(context.label.into());
     }
 
     fn pop_context(&mut self) {
@@ -30,15 +27,11 @@ impl PaintSink for KanvaBuilder {
         let index = self.kanva.push_node(KanvaNode {
             parent: Some(parent),
             label,
-            transform: peniko::kurbo::Affine::IDENTITY,
             layer: Some(Layer {
                 clip: Some(clip_to_kanva(clip)),
-                ..Layer::default()
+                ..Default::default()
             }),
-            subtree_end: 0,
-            shapes: Vec::new(),
-            glyph_runs: Vec::new(),
-            blurred_rects: Vec::new(),
+            ..Default::default()
         });
         self.stack.push(index);
     }
@@ -57,16 +50,12 @@ impl PaintSink for KanvaBuilder {
         let index = self.kanva.push_node(KanvaNode {
             parent: Some(parent),
             label,
-            transform: peniko::kurbo::Affine::IDENTITY,
             layer: Some(Layer {
-                blend_mode: group.composite.blend,
-                alpha: group.composite.alpha,
+                composite: group.composite,
                 clip: group.clip.map(clip_to_kanva),
+                filters: group.filters.to_vec(),
             }),
-            subtree_end: 0,
-            shapes: Vec::new(),
-            glyph_runs: Vec::new(),
-            blurred_rects: Vec::new(),
+            ..Default::default()
         });
         self.stack.push(index);
     }
@@ -86,6 +75,7 @@ impl PaintSink for KanvaBuilder {
                 style: draw.fill_rule,
                 brush: draw.brush.to_owned(),
                 transform: draw.brush_transform,
+                composite: draw.composite,
             }),
             stroke: None,
             transform: draw.transform,
@@ -100,6 +90,7 @@ impl PaintSink for KanvaBuilder {
                 style: draw.stroke.clone(),
                 brush: draw.brush.to_owned(),
                 transform: draw.brush_transform,
+                composite: draw.composite,
             }),
             transform: draw.transform,
         });
@@ -115,6 +106,7 @@ impl PaintSink for KanvaBuilder {
                 style: s.clone(),
                 brush: draw.brush.to_owned(),
                 transform: None,
+                composite: draw.composite,
             }),
             Style::Fill(_) => None,
         };
@@ -133,6 +125,7 @@ impl PaintSink for KanvaBuilder {
                     y: g.y,
                 })
                 .collect(),
+            composite: draw.composite,
         });
     }
 
@@ -143,6 +136,7 @@ impl PaintSink for KanvaBuilder {
             color: draw.color,
             radius: draw.radius,
             std_dev: draw.std_dev,
+            composite: draw.composite,
         });
     }
 }

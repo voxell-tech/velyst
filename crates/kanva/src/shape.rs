@@ -12,18 +12,20 @@ pub struct KanvaShape {
     pub transform: Affine,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct KanvaFill {
     pub style: Fill,
     pub brush: Brush,
     pub transform: Option<Affine>,
+    pub composite: Composite,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct KanvaStroke {
     pub style: Stroke,
     pub brush: Brush,
     pub transform: Option<Affine>,
+    pub composite: Composite,
 }
 
 impl KanvaShape {
@@ -36,7 +38,7 @@ impl KanvaShape {
                 brush: (&fill.brush).into(),
                 brush_transform: fill.transform,
                 shape: GeometryRef::Path(&self.path),
-                composite: Composite::default(),
+                composite: fill.composite,
             });
         }
         if let Some(stroke) = &self.stroke {
@@ -46,7 +48,7 @@ impl KanvaShape {
                 brush: (&stroke.brush).into(),
                 brush_transform: stroke.transform,
                 shape: GeometryRef::Path(&self.path),
-                composite: Composite::default(),
+                composite: stroke.composite,
             });
         }
     }

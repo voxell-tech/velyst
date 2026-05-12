@@ -2,7 +2,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use peniko::kurbo::{Affine, Vec2};
+use peniko::kurbo::Vec2;
 
 use crate::blur::KanvaBlurredRect;
 use crate::layer::Layer;
@@ -20,7 +20,7 @@ pub struct KanvaBuilder {
 impl KanvaBuilder {
     pub fn new(size: Vec2) -> Self {
         let mut kanva = Kanva::empty(size);
-        let root = kanva.push_node(new_node(None, None));
+        let root = kanva.push_node(KanvaNode::new(None, None));
         Self {
             kanva,
             stack: vec![root],
@@ -31,7 +31,7 @@ impl KanvaBuilder {
     /// Reuse allocations from an existing [`Kanva`], rebuilding in place.
     pub fn rebuild(mut kanva: Kanva, size: Vec2) -> Self {
         kanva.clear(size);
-        let root = kanva.push_node(new_node(None, None));
+        let root = kanva.push_node(KanvaNode::new(None, None));
         Self {
             kanva,
             stack: vec![root],
@@ -43,12 +43,10 @@ impl KanvaBuilder {
     pub fn begin_group(
         &mut self,
         label: Option<String>,
-        transform: Affine,
         layer: Option<Layer>,
     ) {
         let parent = self.current();
-        let mut node = new_node(Some(parent), label);
-        node.transform = transform;
+        let mut node = KanvaNode::new(Some(parent), label);
         node.layer = layer;
         let index = self.kanva.push_node(node);
         self.stack.push(index);
@@ -99,28 +97,12 @@ impl KanvaBuilder {
     }
 }
 
-fn new_node(
-    parent: Option<usize>,
-    label: Option<String>,
-) -> KanvaNode {
-    KanvaNode {
-        parent,
-        label,
-        transform: Affine::IDENTITY,
-        layer: None,
-        subtree_end: 0,
-        shapes: Vec::new(),
-        glyph_runs: Vec::new(),
-        blurred_rects: Vec::new(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use alloc::vec;
 
     use peniko::kurbo::{Affine, Rect, Shape as _, Vec2};
-    use peniko::{Brush, Color, Fill};
+    use peniko::{Brush, Color};
 
     use crate::shape::{KanvaFill, KanvaShape};
 
@@ -131,11 +113,10 @@ mod tests {
         KanvaShape {
             path,
             fill: Some(KanvaFill {
-                style: Fill::NonZero,
                 brush: Brush::Solid(Color::from_rgba8(
                     255, 0, 0, 255,
                 )),
-                transform: None,
+                ..Default::default()
             }),
             stroke: None,
             transform: Affine::IDENTITY,
@@ -153,7 +134,7 @@ mod tests {
     #[test]
     fn begin_group_adds_child_node() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(None, Affine::IDENTITY, None);
+        builder.begin_group(None, None);
         let kanva = builder.build();
         assert_eq!(kanva.nodes.len(), 2);
         assert_eq!(kanva.nodes[1].parent, Some(0));
@@ -162,7 +143,7 @@ mod tests {
     #[test]
     fn end_group_returns_to_parent() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(None, Affine::IDENTITY, None);
+        builder.begin_group(None, None);
         builder.end_group();
         builder.push_shape(rect_shape());
         let kanva = builder.build();
@@ -191,7 +172,7 @@ mod tests {
     #[test]
     fn shapes_in_child_group_not_in_parent() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(None, Affine::IDENTITY, None);
+        builder.begin_group(None, None);
         builder.push_shape(rect_shape());
         builder.end_group();
         let kanva = builder.build();
@@ -202,8 +183,8 @@ mod tests {
     #[test]
     fn nested_groups_have_correct_parents() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
-        builder.begin_group(None, Affine::IDENTITY, None);
-        builder.begin_group(None, Affine::IDENTITY, None);
+        builder.begin_group(None, None);
+        builder.begin_group(None, None);
         let kanva = builder.build();
         assert_eq!(kanva.nodes[1].parent, Some(0));
         assert_eq!(kanva.nodes[2].parent, Some(1));
@@ -213,16 +194,12 @@ mod tests {
     fn rebuild_resets_state() {
         let mut builder = KanvaBuilder::new(Vec2::new(100.0, 100.0));
         builder.push_shape(rect_shape());
-        builder.begin_group(Some("g".into()), Affine::IDENTITY, None);
+        builder.begin_group(Some("g".into()), None);
         let kanva = builder.build();
 
         let mut builder2 =
             KanvaBuilder::rebuild(kanva, Vec2::new(200.0, 200.0));
-        builder2.begin_group(
-            Some("fresh".into()),
-            Affine::IDENTITY,
-            None,
-        );
+        builder2.begin_group(Some("fresh".into()), None);
         let kanva2 = builder2.build();
 
         assert_eq!(kanva2.shapes.len(), 0);

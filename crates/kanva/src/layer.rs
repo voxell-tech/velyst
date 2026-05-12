@@ -1,21 +1,12 @@
-use peniko::BlendMode;
+use alloc::vec::Vec;
+use imaging::{Composite, Filter};
 use peniko::kurbo::{BezPath, Stroke};
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Layer {
-    pub blend_mode: BlendMode,
-    pub alpha: f32,
+    pub composite: Composite,
     pub clip: Option<KanvaClip>,
-}
-
-impl Default for Layer {
-    fn default() -> Self {
-        Self {
-            blend_mode: BlendMode::default(),
-            alpha: 1.0,
-            clip: None,
-        }
-    }
+    pub filters: Vec<Filter>,
 }
 
 #[derive(Debug, Clone)]
