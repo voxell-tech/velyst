@@ -17,6 +17,7 @@ use text::KanvaGlyphRun;
 pub mod blur;
 pub mod builder;
 pub mod layer;
+pub mod overrides;
 pub mod render;
 pub mod shape;
 pub mod sink;
@@ -117,12 +118,7 @@ pub struct KanvaNode {
     /// Index of the node's parent.
     pub parent: Option<usize>,
     pub label: Option<String>,
-    /// The offset transform of the node.
-    ///
-    /// Defaults to [`Affine::IDENTITY`] if unset.
-    pub offset_transform: Option<Affine>,
-    /// Optional layer of the node.
-    pub layer: Option<Layer>,
+    pub style: KanvaNodeStyle,
     /// Index of the first node after this node's entire subtree.
     pub subtree_end: usize,
     /// Indices into [`Kanva::shapes`].
@@ -138,6 +134,25 @@ impl KanvaNode {
         KanvaNode {
             parent,
             label,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct KanvaNodeStyle {
+    /// The offset transform of the node.
+    ///
+    /// Defaults to [`Affine::IDENTITY`] if unset.
+    pub offset_transform: Option<Affine>,
+    /// Optional layer of the node.
+    pub layer: Option<Layer>,
+}
+
+impl KanvaNodeStyle {
+    pub fn from_layer(layer: Layer) -> Self {
+        Self {
+            layer: Some(layer),
             ..Default::default()
         }
     }

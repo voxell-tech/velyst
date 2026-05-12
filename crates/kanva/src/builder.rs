@@ -47,7 +47,7 @@ impl KanvaBuilder {
     ) {
         let parent = self.current();
         let mut node = KanvaNode::new(Some(parent), label);
-        node.layer = layer;
+        node.style.layer = layer;
         let index = self.kanva.push_node(node);
         self.stack.push(index);
     }

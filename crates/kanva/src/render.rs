@@ -18,7 +18,8 @@ impl Kanva {
                 .map(|p| transforms[p])
                 .unwrap_or(Affine::IDENTITY);
             transforms.push(
-                node.offset_transform
+                node.style
+                    .offset_transform
                     .map(|t| parent_tf * t)
                     .unwrap_or(parent_tf),
             );
@@ -46,7 +47,7 @@ impl Kanva {
                 label_stack.push(node.subtree_end);
             }
 
-            if let Some(layer) = &node.layer
+            if let Some(layer) = &node.style.layer
                 && let Some(clip) = &layer.clip
             {
                 let clip_ref = match &clip.stroke {

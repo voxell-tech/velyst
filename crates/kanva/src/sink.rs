@@ -5,12 +5,12 @@ use imaging::{
 };
 use peniko::Style;
 
-use crate::KanvaNode;
 use crate::blur::KanvaBlurredRect;
 use crate::builder::KanvaBuilder;
 use crate::layer::{KanvaClip, Layer};
 use crate::shape::{KanvaFill, KanvaShape, KanvaStroke};
 use crate::text::{GlyphPos, KanvaGlyphRun};
+use crate::{KanvaNode, KanvaNodeStyle};
 
 impl PaintSink for KanvaBuilder {
     fn push_context(&mut self, context: ContextRef<'_>) {
@@ -27,7 +27,7 @@ impl PaintSink for KanvaBuilder {
         let index = self.kanva.push_node(KanvaNode {
             parent: Some(parent),
             label,
-            layer: Some(Layer {
+            style: KanvaNodeStyle::from_layer(Layer {
                 clip: Some(clip_to_kanva(clip)),
                 ..Default::default()
             }),
@@ -50,7 +50,7 @@ impl PaintSink for KanvaBuilder {
         let index = self.kanva.push_node(KanvaNode {
             parent: Some(parent),
             label,
-            layer: Some(Layer {
+            style: KanvaNodeStyle::from_layer(Layer {
                 composite: group.composite,
                 clip: group.clip.map(clip_to_kanva),
                 filters: group.filters.to_vec(),
