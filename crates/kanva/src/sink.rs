@@ -38,7 +38,6 @@ impl PaintSink for KanvaBuilder {
             subtree_end: 0,
             shapes: Vec::new(),
             glyph_runs: Vec::new(),
-            outlined_glyphs: Vec::new(),
             blurred_rects: Vec::new(),
         });
         self.stack.push(index);
@@ -67,7 +66,6 @@ impl PaintSink for KanvaBuilder {
             subtree_end: 0,
             shapes: Vec::new(),
             glyph_runs: Vec::new(),
-            outlined_glyphs: Vec::new(),
             blurred_rects: Vec::new(),
         });
         self.stack.push(index);

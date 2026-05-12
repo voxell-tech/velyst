@@ -6,18 +6,17 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use hashbrown::HashMap;
-use peniko::kurbo::Vec2;
+use peniko::kurbo::{Affine, Vec2};
 use smallvec::SmallVec;
 
 use blur::KanvaBlurredRect;
 use layer::Layer;
 use shape::KanvaShape;
-use text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
+use text::KanvaGlyphRun;
 
 pub mod blur;
 pub mod builder;
 pub mod layer;
-pub mod post_process;
 pub mod render;
 pub mod shape;
 pub mod sink;
@@ -28,18 +27,16 @@ pub mod prelude {
     pub use crate::builder::KanvaBuilder;
     pub use crate::layer::{KanvaClip, Layer};
     pub use crate::shape::{KanvaFill, KanvaShape, KanvaStroke};
-    pub use crate::text::{
-        GlyphPos, KanvaGlyph, KanvaGlyphRun, KanvaOutlinedGlyphs,
-    };
+    pub use crate::text::{GlyphPos, KanvaGlyphRun};
     pub use crate::{Kanva, KanvaNode};
 }
 
 /// A flat 2D scene graph of [`KanvaNode`]s with per-type item buffers, queryable by label.
+#[derive(Clone)]
 pub struct Kanva {
     pub nodes: Vec<KanvaNode>,
     pub shapes: Vec<KanvaShape>,
     pub glyph_runs: Vec<KanvaGlyphRun>,
-    pub outlined_glyphs: Vec<KanvaOutlinedGlyphs>,
     pub blurred_rects: Vec<KanvaBlurredRect>,
     label_map: HashMap<String, SmallVec<[usize; 1]>>,
     size: Vec2,
@@ -51,7 +48,6 @@ impl Kanva {
             nodes: Vec::new(),
             shapes: Vec::new(),
             glyph_runs: Vec::new(),
-            outlined_glyphs: Vec::new(),
             blurred_rects: Vec::new(),
             label_map: HashMap::new(),
             size,
@@ -62,7 +58,6 @@ impl Kanva {
         self.nodes.clear();
         self.shapes.clear();
         self.glyph_runs.clear();
-        self.outlined_glyphs.clear();
         self.blurred_rects.clear();
         self.label_map.clear();
         self.size = size;
@@ -92,31 +87,24 @@ impl Kanva {
         self.size
     }
 
-    /// Convert all glyph runs in the scene to outlined glyphs.
+    /// Decompose all glyph runs into individual [`KanvaShape`]s (one per glyph).
     /// Glyph runs that fail to parse are silently dropped.
     pub fn outline_all_glyphs(&mut self) {
-        // First pass: decompose every glyph run, recording which run index
-        // maps to which outlined-glyphs index (None if decomposition failed).
-        let mut run_to_outlined: Vec<Option<usize>> =
+        // First pass: decompose every run, recording the shape index range per run.
+        let mut run_to_shapes: Vec<(usize, usize)> =
             Vec::with_capacity(self.glyph_runs.len());
         for run in &self.glyph_runs {
-            if let Some(outlined) = run.to_outlined_glyphs() {
-                run_to_outlined
-                    .push(Some(self.outlined_glyphs.len()));
-                self.outlined_glyphs.push(outlined);
-            } else {
-                run_to_outlined.push(None);
-            }
+            let start = self.shapes.len();
+            self.shapes.extend(run.to_shapes());
+            run_to_shapes.push((start, self.shapes.len()));
         }
 
-        // Second pass: update each node's index lists.
+        // Second pass: replace each node's glyph_run indices with shape indices.
         for node in &mut self.nodes {
-            let new: Vec<usize> = node
-                .glyph_runs
-                .iter()
-                .filter_map(|&gi| run_to_outlined[gi])
-                .collect();
-            node.outlined_glyphs.extend(new);
+            for &gi in &node.glyph_runs {
+                let (start, end) = run_to_shapes[gi];
+                node.shapes.extend(start..end);
+            }
             node.glyph_runs.clear();
         }
 
@@ -124,10 +112,11 @@ impl Kanva {
     }
 }
 
+#[derive(Clone)]
 pub struct KanvaNode {
     pub parent: Option<usize>,
     pub label: Option<String>,
-    pub transform: peniko::kurbo::Affine,
+    pub transform: Affine,
     pub layer: Option<Layer>,
     /// Index of the first node after this node's entire subtree.
     pub subtree_end: usize,
@@ -135,17 +124,15 @@ pub struct KanvaNode {
     pub shapes: Vec<usize>,
     /// Indices into [`Kanva::glyph_runs`].
     pub glyph_runs: Vec<usize>,
-    /// Indices into [`Kanva::outlined_glyphs`].
-    pub outlined_glyphs: Vec<usize>,
     /// Indices into [`Kanva::blurred_rects`].
     pub blurred_rects: Vec<usize>,
 }
 
 #[cfg(test)]
 mod tests {
-    use peniko::kurbo::Vec2;
-
     use crate::builder::KanvaBuilder;
+
+    use super::*;
 
     #[test]
     fn labeled_group_is_queryable() {

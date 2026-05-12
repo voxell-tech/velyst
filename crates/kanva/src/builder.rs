@@ -7,7 +7,7 @@ use peniko::kurbo::{Affine, Vec2};
 use crate::blur::KanvaBlurredRect;
 use crate::layer::Layer;
 use crate::shape::KanvaShape;
-use crate::text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
+use crate::text::KanvaGlyphRun;
 use crate::{Kanva, KanvaNode};
 
 pub struct KanvaBuilder {
@@ -75,15 +75,6 @@ impl KanvaBuilder {
         self.current_node_mut().glyph_runs.push(index);
     }
 
-    pub fn push_outlined_glyphs(
-        &mut self,
-        glyphs: KanvaOutlinedGlyphs,
-    ) {
-        let index = self.kanva.outlined_glyphs.len();
-        self.kanva.outlined_glyphs.push(glyphs);
-        self.current_node_mut().outlined_glyphs.push(index);
-    }
-
     pub fn push_blurred_rect(&mut self, rect: KanvaBlurredRect) {
         let index = self.kanva.blurred_rects.len();
         self.kanva.blurred_rects.push(rect);
@@ -120,7 +111,6 @@ fn new_node(
         subtree_end: 0,
         shapes: Vec::new(),
         glyph_runs: Vec::new(),
-        outlined_glyphs: Vec::new(),
         blurred_rects: Vec::new(),
     }
 }

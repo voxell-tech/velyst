@@ -1,15 +1,12 @@
 use alloc::vec::Vec;
 
 use imaging::record::Glyph;
-use imaging::{
-    Composite, FillRef, GeometryRef, GlyphRunRef, PaintSink,
-    StrokeRef,
-};
+use imaging::{Composite, GlyphRunRef, PaintSink};
 use peniko::kurbo::{Affine, BezPath};
 use peniko::{Brush, FontData, Style};
 use ttf_parser::OutlineBuilder;
 
-use crate::shape::KanvaStroke;
+use crate::shape::{KanvaFill, KanvaShape, KanvaStroke};
 
 /// Text as raw glyph IDs + positions. The backend resolves outlines from the font.
 /// Lower memory cost; use when you don't need per-glyph animation.
@@ -25,19 +22,19 @@ pub struct KanvaGlyphRun {
 }
 
 impl KanvaGlyphRun {
-    /// Decompose this glyph run into per-glyph bezier outlines.
-    /// Returns `None` if the font cannot be parsed.
-    pub fn to_outlined_glyphs(&self) -> Option<KanvaOutlinedGlyphs> {
-        let face = ttf_parser::Face::parse(
+    /// Decompose this glyph run into individual [`KanvaShape`]s, one per glyph.
+    /// Returns an empty vec if the font cannot be parsed.
+    pub fn to_shapes(&self) -> Vec<KanvaShape> {
+        let Ok(face) = ttf_parser::Face::parse(
             self.font.data.data(),
             self.font.index,
-        )
-        .ok()?;
+        ) else {
+            return Vec::new();
+        };
         let upem = face.units_per_em() as f64;
         let scale = self.font_size as f64 / upem;
 
-        let glyphs = self
-            .glyphs
+        self.glyphs
             .iter()
             .filter_map(|g| {
                 let mut builder = BezPathBuilder(BezPath::new());
@@ -45,22 +42,20 @@ impl KanvaGlyphRun {
                     ttf_parser::GlyphId(g.id as u16),
                     &mut builder,
                 )?;
-                Some(KanvaGlyph {
+                Some(KanvaShape {
                     path: builder.0,
+                    fill: Some(KanvaFill {
+                        style: peniko::Fill::NonZero,
+                        brush: self.brush.clone(),
+                        transform: None,
+                    }),
+                    stroke: self.stroke.clone(),
                     transform: self.transform
                         * Affine::translate((g.x as f64, g.y as f64))
                         * Affine::scale_non_uniform(scale, -scale),
-                    fill_transform: None,
-                    stroke_transform: None,
                 })
             })
-            .collect();
-
-        Some(KanvaOutlinedGlyphs {
-            brush: self.brush.clone(),
-            stroke: self.stroke.clone(),
-            glyphs,
-        })
+            .collect()
     }
 
     pub fn render(&self, tf: Affine, sink: &mut impl PaintSink) {
@@ -110,57 +105,12 @@ impl KanvaGlyphRun {
     }
 }
 
-/// Glyphs as pre-decomposed bezier outlines.
-/// Higher memory cost; use when you need to trace, morph, or animate
-/// individual paths.
-#[derive(Debug, Clone)]
-pub struct KanvaOutlinedGlyphs {
-    pub brush: Brush,
-    pub stroke: Option<KanvaStroke>,
-    pub glyphs: Vec<KanvaGlyph>,
-}
-
-impl KanvaOutlinedGlyphs {
-    pub fn render(&self, tf: Affine, sink: &mut impl PaintSink) {
-        for glyph in &self.glyphs {
-            let glyph_tf = tf * glyph.transform;
-            sink.fill(FillRef {
-                transform: glyph_tf,
-                fill_rule: peniko::Fill::NonZero,
-                brush: (&self.brush).into(),
-                brush_transform: glyph.fill_transform,
-                shape: GeometryRef::Path(&glyph.path),
-                composite: Composite::default(),
-            });
-            if let Some(stroke) = &self.stroke {
-                sink.stroke(StrokeRef {
-                    transform: glyph_tf,
-                    stroke: &stroke.style,
-                    brush: (&stroke.brush).into(),
-                    brush_transform: glyph.stroke_transform,
-                    shape: GeometryRef::Path(&glyph.path),
-                    composite: Composite::default(),
-                });
-            }
-        }
-    }
-}
-
 /// A positioned glyph inside a [`KanvaGlyphRun`].
 #[derive(Debug, Clone, Copy)]
 pub struct GlyphPos {
     pub id: u32,
     pub x: f32,
     pub y: f32,
-}
-
-/// A single glyph as a bezier outline, for use in [`KanvaOutlinedGlyphs`].
-#[derive(Debug, Clone)]
-pub struct KanvaGlyph {
-    pub path: BezPath,
-    pub transform: Affine,
-    pub fill_transform: Option<Affine>,
-    pub stroke_transform: Option<Affine>,
 }
 
 struct BezPathBuilder(BezPath);
