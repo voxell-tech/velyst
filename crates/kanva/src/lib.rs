@@ -10,15 +10,14 @@ use peniko::kurbo::Vec2;
 use smallvec::SmallVec;
 
 use blur::KanvaBlurredRect;
-use image::KanvaImage;
 use layer::Layer;
 use shape::KanvaShape;
 use text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
 
 pub mod blur;
 pub mod builder;
-pub mod image;
 pub mod layer;
+pub mod post_process;
 pub mod render;
 pub mod shape;
 pub mod sink;
@@ -27,7 +26,6 @@ pub mod text;
 pub mod prelude {
     pub use crate::blur::KanvaBlurredRect;
     pub use crate::builder::KanvaBuilder;
-    pub use crate::image::KanvaImage;
     pub use crate::layer::{KanvaClip, Layer};
     pub use crate::shape::{KanvaFill, KanvaShape, KanvaStroke};
     pub use crate::text::{
@@ -42,7 +40,6 @@ pub struct Kanva {
     pub shapes: Vec<KanvaShape>,
     pub glyph_runs: Vec<KanvaGlyphRun>,
     pub outlined_glyphs: Vec<KanvaOutlinedGlyphs>,
-    pub images: Vec<KanvaImage>,
     pub blurred_rects: Vec<KanvaBlurredRect>,
     label_map: HashMap<String, SmallVec<[usize; 1]>>,
     size: Vec2,
@@ -55,7 +52,6 @@ impl Kanva {
             shapes: Vec::new(),
             glyph_runs: Vec::new(),
             outlined_glyphs: Vec::new(),
-            images: Vec::new(),
             blurred_rects: Vec::new(),
             label_map: HashMap::new(),
             size,
@@ -67,7 +63,6 @@ impl Kanva {
         self.shapes.clear();
         self.glyph_runs.clear();
         self.outlined_glyphs.clear();
-        self.images.clear();
         self.blurred_rects.clear();
         self.label_map.clear();
         self.size = size;
@@ -142,8 +137,6 @@ pub struct KanvaNode {
     pub glyph_runs: Vec<usize>,
     /// Indices into [`Kanva::outlined_glyphs`].
     pub outlined_glyphs: Vec<usize>,
-    /// Indices into [`Kanva::images`].
-    pub images: Vec<usize>,
     /// Indices into [`Kanva::blurred_rects`].
     pub blurred_rects: Vec<usize>,
 }

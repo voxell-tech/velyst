@@ -69,9 +69,6 @@ impl Kanva {
             for &oi in &node.outlined_glyphs {
                 self.outlined_glyphs[oi].render(tf, sink);
             }
-            for &ii in &node.images {
-                self.images[ii].render(tf, sink);
-            }
             for &bi in &node.blurred_rects {
                 self.blurred_rects[bi].render(tf, sink);
             }

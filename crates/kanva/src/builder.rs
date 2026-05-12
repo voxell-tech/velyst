@@ -5,7 +5,6 @@ use alloc::vec::Vec;
 use peniko::kurbo::{Affine, Vec2};
 
 use crate::blur::KanvaBlurredRect;
-use crate::image::KanvaImage;
 use crate::layer::Layer;
 use crate::shape::KanvaShape;
 use crate::text::{KanvaGlyphRun, KanvaOutlinedGlyphs};
@@ -85,12 +84,6 @@ impl KanvaBuilder {
         self.current_node_mut().outlined_glyphs.push(index);
     }
 
-    pub fn push_image(&mut self, image: KanvaImage) {
-        let index = self.kanva.images.len();
-        self.kanva.images.push(image);
-        self.current_node_mut().images.push(index);
-    }
-
     pub fn push_blurred_rect(&mut self, rect: KanvaBlurredRect) {
         let index = self.kanva.blurred_rects.len();
         self.kanva.blurred_rects.push(rect);
@@ -128,7 +121,6 @@ fn new_node(
         shapes: Vec::new(),
         glyph_runs: Vec::new(),
         outlined_glyphs: Vec::new(),
-        images: Vec::new(),
         blurred_rects: Vec::new(),
     }
 }
