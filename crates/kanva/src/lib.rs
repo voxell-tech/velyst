@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use hashbrown::HashMap;
 use imaging::kurbo::Affine;
 use imaging::peniko::{BlendMode, Style};
@@ -9,6 +11,7 @@ use imaging::{
 pub mod builder;
 pub mod node;
 
+pub use imaging;
 pub use node::*;
 
 pub mod prelude {
@@ -23,6 +26,15 @@ pub mod prelude {
     };
 }
 
+/// A baked 2D graphics scene graph.
+///
+/// Stores paths, fills, strokes, and groups in flat parallel buffers indexed
+/// by a [`Command`] buffer that encodes draw order. Groups may carry an
+/// animation-delta transform that is accumulated at render time without
+/// modifying stored data.
+///
+/// Primary data is write-once at build time. Per-frame overrides are applied
+/// through [`PathModifier`] and [`GroupModifier`] and reset via [`Self::clear_mods`].
 #[derive(Default, Debug, Clone)]
 pub struct Kanva {
     commands: Vec<Command>,
@@ -42,14 +54,21 @@ impl Kanva {
         Self::default()
     }
 
+    /// Returns `true` if the kanva has no commands (nothing to render).
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
 
+    /// Look up a node by label, returning its [`NodeIndex`].
+    ///
+    /// Labels are assigned during build via [`imaging::ContextRef`].
     pub fn query(&self, label: &str) -> Option<NodeIndex> {
         self.index.get(label).copied()
     }
 
+    /// Look up a labeled group and return its raw index directly.
+    ///
+    /// Returns `None` if the label does not exist or resolves to a path.
     pub fn query_group(&self, label: &str) -> Option<usize> {
         match self.index.get(label).copied()? {
             NodeIndex::Group(i) => Some(i),
@@ -57,6 +76,9 @@ impl Kanva {
         }
     }
 
+    /// Look up a labeled path and return its raw index directly.
+    ///
+    /// Returns `None` if the label does not exist or resolves to a group.
     pub fn query_path(&self, label: &str) -> Option<usize> {
         match self.index.get(label).copied()? {
             NodeIndex::Path(i) => Some(i),
@@ -64,18 +86,22 @@ impl Kanva {
         }
     }
 
+    /// Returns the [`KanvaPath`] at `idx`, or `None` if out of bounds.
     pub fn get_path(&self, idx: usize) -> Option<&KanvaPath> {
         self.paths.get(idx)
     }
 
+    /// Returns the [`KanvaFill`] at `idx`, or `None` if out of bounds.
     pub fn get_fill(&self, idx: usize) -> Option<&KanvaFill> {
         self.fills.get(idx)
     }
 
+    /// Returns the [`KanvaStroke`] at `idx`, or `None` if out of bounds.
     pub fn get_stroke(&self, idx: usize) -> Option<&KanvaStroke> {
         self.strokes.get(idx)
     }
 
+    /// Returns the [`Group`] at `idx`, or `None` if out of bounds.
     pub fn get_group(&self, idx: usize) -> Option<&Group> {
         self.groups.get(idx)
     }
@@ -108,6 +134,10 @@ impl Kanva {
         self.paths.get(first..=last)
     }
 
+    /// Set a [`PathModifier`] for the path at `path_idx`.
+    ///
+    /// The modifier is applied at render time and does not mutate the stored path.
+    /// Call [`Self::clear_mods`] to revert all overrides.
     pub fn set_path_mod(
         &mut self,
         path_idx: usize,
@@ -116,6 +146,10 @@ impl Kanva {
         self.path_mods.insert(path_idx, modifier);
     }
 
+    /// Set a [`GroupModifier`] for the group at `group_idx`.
+    ///
+    /// The modifier is applied at render time and does not mutate the stored group.
+    /// Call [`Self::clear_mods`] to revert all overrides.
     pub fn set_group_mod(
         &mut self,
         group_idx: usize,
@@ -124,6 +158,9 @@ impl Kanva {
         self.group_mods.insert(group_idx, modifier);
     }
 
+    /// Clear all active [`PathModifier`]s and [`GroupModifier`]s.
+    ///
+    /// The next render will use the original stored data.
     pub fn clear_mods(&mut self) {
         self.path_mods.clear();
         self.group_mods.clear();

@@ -2,21 +2,30 @@ use imaging::kurbo::{Affine, BezPath, Stroke};
 use imaging::peniko::{Brush, Fill, Style};
 use imaging::{ClipRef, Composite};
 
+/// A group in the [`Kanva`][crate::Kanva] scene graph.
+///
+/// Groups carry an animation-delta transform that is accumulated onto child
+/// path world transforms at render time. They may also carry a clip shape and
+/// a composite mode.
 #[derive(Default, Debug, Clone)]
 pub struct Group {
+    /// Animation-delta transform, accumulated with parent group transforms at render time.
     pub transform: Affine,
     pub clip: Option<KanvaClip>,
     pub composite: Composite,
 }
 
+/// An owned clip shape stored inside a [`Group`].
 #[derive(Debug, Clone)]
 pub struct KanvaClip {
     pub path: BezPath,
     pub transform: Affine,
+    /// Fill rule or stroke style that defines the clip boundary.
     pub style: Style,
 }
 
 impl KanvaClip {
+    /// Convert a borrowed [`ClipRef`] into an owned `KanvaClip`.
     pub fn from_ref(clip: ClipRef<'_>) -> Self {
         match clip {
             ClipRef::Fill {
@@ -41,21 +50,26 @@ impl KanvaClip {
     }
 }
 
+/// A stored path with its world transform and optional fill/stroke indices.
 #[derive(Default, Debug, Clone)]
 pub struct KanvaPath {
     pub path: BezPath,
     /// Full world transform as received from [`imaging`].
     pub transform: Affine,
-    /// Index into [`crate::Kanva::fills`].
+    /// Index into the fills buffer; retrieve via [`crate::Kanva::get_fill`].
     pub fill: Option<usize>,
-    /// Index into [`crate::Kanva::strokes`].
+    /// Index into the strokes buffer; retrieve via [`crate::Kanva::get_stroke`].
     pub stroke: Option<usize>,
 }
 
+/// A draw command in the [`Kanva`][crate::Kanva] command buffer.
 #[derive(Debug, Clone, Copy)]
 pub enum Command {
+    /// Push a group onto the render stack (index into the groups vec).
     PushGroup(usize),
+    /// Pop the current group from the render stack.
     PopGroup,
+    /// Draw the path at the given index.
     DrawPath(usize),
 }
 
@@ -71,12 +85,14 @@ pub struct GroupRange {
     pub end: usize,
 }
 
+/// A reference to a node in the [`Kanva`][crate::Kanva] index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeIndex {
     Group(usize),
     Path(usize),
 }
 
+/// Stored fill paint for a [`KanvaPath`].
 #[derive(Default, Debug, Clone)]
 pub struct KanvaFill {
     pub rule: Fill,
@@ -85,6 +101,7 @@ pub struct KanvaFill {
     pub composite: Composite,
 }
 
+/// Stored stroke paint for a [`KanvaPath`].
 #[derive(Default, Debug, Clone)]
 pub struct KanvaStroke {
     pub stroke: Stroke,
@@ -93,20 +110,34 @@ pub struct KanvaStroke {
     pub composite: Composite,
 }
 
+/// Per-frame overrides for a single path.
+///
+/// All fields are optional; `None` means "use the stored value".
+/// Applied at render time and never written back to the stored path.
 #[derive(Default, Debug, Clone)]
 pub struct PathModifier {
+    /// Replaces the stored path geometry.
     pub path: Option<BezPath>,
     /// Replaces `path.transform` before group animation transforms are applied.
     pub transform: Option<Affine>,
+    /// Replaces the stored fill.
     pub fill: Option<KanvaFill>,
+    /// Replaces the stored stroke.
     pub stroke: Option<KanvaStroke>,
     /// Per-path alpha multiplier; wraps the path's draws in an isolated group.
     pub alpha: Option<f32>,
 }
 
+/// Per-frame overrides for a single group.
+///
+/// All fields are optional; `None` means "use the stored value".
+/// Applied at render time and never written back to the stored group.
 #[derive(Default, Debug, Clone)]
 pub struct GroupModifier {
+    /// Replaces the group's animation-delta transform.
     pub transform: Option<Affine>,
+    /// Replaces the group's clip shape.
     pub clip: Option<KanvaClip>,
+    /// Replaces the group's composite mode.
     pub composite: Option<Composite>,
 }

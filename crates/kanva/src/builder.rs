@@ -12,6 +12,12 @@ use crate::{
     KanvaPath, KanvaStroke, NodeIndex,
 };
 
+/// Builds a [`Kanva`] by consuming an [`imaging::PaintSink`] draw stream.
+///
+/// Feed any draw stream (e.g. a Typst frame rendered via `typst_imaging`) into
+/// this builder, then call [`Self::build`] to get the finished `Kanva`.
+/// Wrap draws with [`imaging::ContextRef`] push/pop to label nodes for later
+/// lookup via [`Kanva::query`].
 pub struct KanvaBuilder {
     kanva: Kanva,
     group_stack: Vec<usize>,
@@ -27,6 +33,9 @@ impl KanvaBuilder {
         }
     }
 
+    /// Finish building and return the [`Kanva`].
+    ///
+    /// Panics in debug builds if any groups were left unclosed.
     pub fn build(self) -> Kanva {
         debug_assert!(
             self.group_stack.is_empty(),
