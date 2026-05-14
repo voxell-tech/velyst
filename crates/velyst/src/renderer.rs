@@ -24,10 +24,10 @@ impl Plugin for VelystRendererPlugin {
                 (
                     (layout_ui_content, layout_world_content),
                     comemo_evict,
+                    build_kanva_scene,
                 )
                     .chain()
                     .in_set(VelystSet::Layout),
-                build_kanva_scene.in_set(VelystSet::PostLayout),
                 (
                     render_ui_scene,
                     render_world_scene,

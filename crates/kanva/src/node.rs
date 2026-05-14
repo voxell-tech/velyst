@@ -2,6 +2,9 @@ use imaging::kurbo::{Affine, BezPath, Stroke};
 use imaging::peniko::{Brush, Fill, Style};
 use imaging::{ClipRef, Composite};
 
+/// Tolerance used when flattening curves into [`BezPath`]s.
+pub(crate) const PATH_TOLERANCE: f64 = 0.1;
+
 /// A group in the [`Kanva`][crate::Kanva] scene graph.
 ///
 /// Groups carry an animation-delta transform that is accumulated onto child
@@ -33,7 +36,7 @@ impl KanvaClip {
                 shape,
                 fill_rule,
             } => Self {
-                path: shape.to_path(0.1),
+                path: shape.to_path(PATH_TOLERANCE),
                 transform,
                 style: Style::Fill(fill_rule),
             },
@@ -42,7 +45,7 @@ impl KanvaClip {
                 shape,
                 stroke,
             } => Self {
-                path: shape.to_path(0.1),
+                path: shape.to_path(PATH_TOLERANCE),
                 transform,
                 style: Style::Stroke(stroke.clone()),
             },

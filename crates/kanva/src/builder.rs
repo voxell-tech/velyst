@@ -124,7 +124,7 @@ impl PaintSink for KanvaBuilder {
             composite: draw.composite,
         });
         let path = KanvaPath {
-            path: draw.shape.to_path(0.1),
+            path: draw.shape.to_path(crate::node::PATH_TOLERANCE),
             transform: draw.transform,
             fill: Some(fill_idx),
             ..Default::default()
@@ -142,7 +142,7 @@ impl PaintSink for KanvaBuilder {
             composite: draw.composite,
         });
         let path = KanvaPath {
-            path: draw.shape.to_path(0.1),
+            path: draw.shape.to_path(crate::node::PATH_TOLERANCE),
             transform: draw.transform,
             stroke: Some(stroke_idx),
             ..Default::default()
@@ -163,8 +163,11 @@ impl PaintSink for KanvaBuilder {
             return;
         };
 
-        let scale =
-            draw.font_size as f64 / face.units_per_em() as f64;
+        let units_per_em = face.units_per_em();
+        if units_per_em == 0 {
+            return;
+        }
+        let scale = draw.font_size as f64 / units_per_em as f64;
         let scale_tf = Affine::scale_non_uniform(scale, -scale);
 
         self.push_group_entry(Group {
