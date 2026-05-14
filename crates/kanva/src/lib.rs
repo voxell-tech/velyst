@@ -15,14 +15,11 @@ pub use imaging;
 pub use node::*;
 
 pub mod prelude {
-    pub use crate::{
-        Kanva,
-        builder::KanvaBuilder,
-        node::{
-            Command, Group, GroupModifier, GroupRange, KanvaClip,
-            KanvaFill, KanvaPath, KanvaStroke, NodeIndex,
-            PathModifier,
-        },
+    pub use crate::Kanva;
+    pub use crate::builder::KanvaBuilder;
+    pub use crate::node::{
+        Command, Group, GroupModifier, GroupRange, KanvaClip,
+        KanvaFill, KanvaPath, KanvaStroke, NodeIndex, PathModifier,
     };
 }
 
@@ -111,6 +108,24 @@ impl Kanva {
     /// Scans the group's inner commands (PushGroup/PopGroup excluded) for the
     /// first and last [`Command::DrawPath`] indices, then returns that path slice.
     /// Returns `None` if the group index is out of bounds or the group has no paths.
+    ///
+    /// ```
+    /// use kanva::prelude::*;
+    /// use kanva::imaging::kurbo::BezPath;
+    /// use kanva::imaging::peniko::Brush;
+    /// use kanva::imaging::{FillRef, GeometryRef, GroupRef, PaintSink};
+    ///
+    /// let mut builder = KanvaBuilder::new();
+    /// let path = BezPath::new();
+    /// let brush = Brush::default();
+    /// builder.push_group(GroupRef::new());
+    /// builder.fill(FillRef::new(GeometryRef::Path(&path), &brush));
+    /// builder.fill(FillRef::new(GeometryRef::Path(&path), &brush));
+    /// builder.pop_group();
+    /// let kanva = builder.build();
+    ///
+    /// assert_eq!(kanva.get_group_shapes(0).unwrap().len(), 2);
+    /// ```
     pub fn get_group_shapes(
         &self,
         group_idx: usize,
