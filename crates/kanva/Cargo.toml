@@ -1,10 +1,11 @@
 [package]
 name = "kanva"
+description = "Backend-agnostic 2D graphics scene graph."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-readme.workspace = true
+readme = "README.md"
 
 [dependencies]
 imaging.workspace = true
