@@ -321,7 +321,7 @@ pub struct VelystScene(pub Option<Frame>);
 /// rendering. motiongfx can then apply [`kanva::prelude::PathModifier`] /
 /// [`kanva::prelude::GroupModifier`] each frame and mutate this component
 /// to trigger a re-render without a Typst recompile.
-#[derive(Component, Default)]
+#[derive(Component, Default, Deref, DerefMut)]
 pub struct VelystKanva(pub Kanva);
 
 /// Marker: render this entity's [`VelystScene`] in Bevy UI coordinates.

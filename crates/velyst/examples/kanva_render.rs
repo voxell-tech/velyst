@@ -55,12 +55,16 @@ fn animate_kanva(
         return;
     };
 
-    let group_idx =
-        kanva.0.query_group("wave").expect("should have wave group");
+    if kanva.is_empty() {
+        return;
+    }
 
-    let alpha =
-        (time.elapsed_secs().sin() * 0.5 + 0.5).clamp(0.0, 1.0);
-    kanva.0.set_group_mod(
+    let group_idx =
+        kanva.query_group("wave").expect("should have wave group");
+
+    let elapsed = time.elapsed_secs() * 4.0;
+    let alpha = elapsed.sin().mul_add(0.5, 0.5);
+    kanva.set_group_mod(
         group_idx,
         GroupModifier {
             composite: Some(Composite::new(default(), alpha)),
