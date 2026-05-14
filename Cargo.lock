@@ -6681,6 +6681,7 @@ dependencies = [
  "ecow",
  "imaging",
  "imaging_vello",
+ "kanva",
  "smallvec",
  "thiserror 1.0.69",
  "typst",

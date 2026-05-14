@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
+use velyst::imaging::Composite;
+use velyst::kanva::prelude::GroupModifier;
 use velyst::prelude::*;
 
 fn main() {
@@ -12,6 +14,10 @@ fn main() {
         .register_typst_func::<MainFunc>()
         .add_systems(Startup, setup)
         .add_systems(Update, main_func)
+        .add_systems(
+            PostUpdate,
+            animate_kanva.in_set(VelystSet::PostLayout),
+        )
         .run();
 }
 
@@ -31,12 +37,36 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             MainFunc::default(),
         ),
         UiScene,
+        VelystKanva::default(),
         Node {
-            width: percent(100.0),
-            height: percent(100.0),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         },
     ));
+}
+
+/// Fade the first group in and out using a [`GroupModifier`] composite alpha.
+fn animate_kanva(
+    mut q_kanva: Query<&mut VelystKanva>,
+    time: Res<Time>,
+) {
+    let Ok(mut kanva) = q_kanva.single_mut() else {
+        return;
+    };
+
+    let group_idx =
+        kanva.0.query_group("wave").expect("should have wave group");
+
+    let alpha =
+        (time.elapsed_secs().sin() * 0.5 + 0.5).clamp(0.0, 1.0);
+    kanva.0.set_group_mod(
+        group_idx,
+        GroupModifier {
+            composite: Some(Composite::new(default(), alpha)),
+            ..default()
+        },
+    );
 }
 
 fn main_func(

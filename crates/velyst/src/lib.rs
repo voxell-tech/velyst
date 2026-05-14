@@ -1,14 +1,15 @@
 #![doc = include_str!("../README.md")]
 
-extern crate self as velyst;
-
 use asset::TypstAssetPlugin;
 use bevy::prelude::*;
 use bevy::ui::UiSystems;
 use renderer::VelystRendererPlugin;
 use world::VelystWorldPlugin;
 
-pub use {typst, typst_element};
+pub use imaging;
+pub use kanva;
+pub use typst;
+pub use typst_element;
 
 pub mod prelude {
     pub use crate::VelystSet;
@@ -17,7 +18,9 @@ pub mod prelude {
         TypstFunc, TypstFuncAppExt, TypstValue, VelystContent,
         VelystFunc, VelystSourceReady,
     };
-    pub use crate::renderer::{UiScene, VelystScene, WorldScene};
+    pub use crate::renderer::{
+        UiScene, VelystKanva, VelystScene, WorldScene,
+    };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;
     pub use typst_element::prelude::*;

@@ -46,6 +46,20 @@ impl Kanva {
         self.index.get(label).copied()
     }
 
+    pub fn query_group(&self, label: &str) -> Option<usize> {
+        match self.index.get(label).copied()? {
+            NodeIndex::Group(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn query_path(&self, label: &str) -> Option<usize> {
+        match self.index.get(label).copied()? {
+            NodeIndex::Path(i) => Some(i),
+            _ => None,
+        }
+    }
+
     pub fn get_path(&self, idx: usize) -> Option<&KanvaPath> {
         self.paths.get(idx)
     }

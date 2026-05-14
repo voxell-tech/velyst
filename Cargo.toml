@@ -12,6 +12,7 @@ readme = "README.md"
 [workspace.dependencies]
 typst_element = { path = "crates/typst_element", version = "0.1.0" }
 typst_imaging = { path = "crates/typst_imaging", version = "0.1.0" }
+kanva = { path = "crates/kanva", version = "0.1.0" }
 
 # Bevy dependencies
 bevy = { version = "0.18.1", default-features = false }

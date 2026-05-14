@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
+use kanva::builder::KanvaBuilder;
+use kanva::prelude::Kanva;
 use peniko::kurbo::Rect;
 use typst::layout::{Abs, Axes, Frame, Point, Region, Size};
 use typst_imaging::render_frame;
@@ -25,7 +27,13 @@ impl Plugin for VelystRendererPlugin {
                 )
                     .chain()
                     .in_set(VelystSet::Layout),
-                (render_ui_scene, render_world_scene)
+                build_kanva_scene.in_set(VelystSet::PostLayout),
+                (
+                    render_ui_scene,
+                    render_world_scene,
+                    render_ui_kanva,
+                    render_world_kanva,
+                )
                     .in_set(VelystSet::Render),
             ),
         );
@@ -182,6 +190,7 @@ fn render_ui_scene(
         (
             Or<(Changed<VelystScene>, Changed<Visibility>)>,
             With<UiScene>,
+            Without<VelystKanva>,
         ),
     >,
 ) {
@@ -201,6 +210,7 @@ fn render_world_scene(
         (
             Or<(Changed<VelystScene>, Changed<Visibility>)>,
             With<WorldScene>,
+            Without<VelystKanva>,
         ),
     >,
 ) {
@@ -211,6 +221,76 @@ fn render_world_scene(
         let Some(frame) = &scene.0 else { continue };
         *vello_scene = VelloScene2d::from(frame_to_scene(frame));
     }
+}
+
+/// Build a [`VelystKanva`] from the laid-out [`VelystScene`] frame.
+fn build_kanva_scene(
+    mut q_scenes: Query<
+        (&VelystScene, &mut VelystKanva),
+        Changed<VelystScene>,
+    >,
+) {
+    for (scene, mut kanva) in q_scenes.iter_mut() {
+        let Some(frame) = &scene.0 else { continue };
+        let mut builder = KanvaBuilder::new();
+        render_frame(frame, &mut builder);
+        kanva.0 = builder.build();
+    }
+}
+
+/// Render [`VelystKanva`] into a [`UiVelloScene`].
+fn render_ui_kanva(
+    mut q_scenes: Query<
+        (&VelystKanva, &VelystScene, &mut UiVelloScene, &Visibility),
+        (
+            Or<(Changed<VelystKanva>, Changed<Visibility>)>,
+            With<UiScene>,
+        ),
+    >,
+) {
+    for (kanva, scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+        if viz == Visibility::Hidden {
+            continue;
+        }
+        let Some(frame) = &scene.0 else { continue };
+        *vello_scene =
+            UiVelloScene::from(kanva_to_scene(&kanva.0, frame));
+    }
+}
+
+/// Render [`VelystKanva`] into a [`VelloScene2d`].
+fn render_world_kanva(
+    mut q_scenes: Query<
+        (&VelystKanva, &VelystScene, &mut VelloScene2d, &Visibility),
+        (
+            Or<(Changed<VelystKanva>, Changed<Visibility>)>,
+            With<WorldScene>,
+        ),
+    >,
+) {
+    for (kanva, scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+        if viz == Visibility::Hidden {
+            continue;
+        }
+        let Some(frame) = &scene.0 else { continue };
+        *vello_scene =
+            VelloScene2d::from(kanva_to_scene(&kanva.0, frame));
+    }
+}
+
+fn kanva_to_scene(kanva: &Kanva, frame: &Frame) -> Scene {
+    let frame_size = frame.size();
+    let surface_clip = Rect::new(
+        0.0,
+        0.0,
+        frame_size.x.to_pt(),
+        frame_size.y.to_pt(),
+    );
+    let mut vello = Scene::new();
+    let mut sink = VelloSceneSink::new(&mut vello, surface_clip);
+    kanva.render(&mut sink);
+    let _ = sink.finish();
+    vello
 }
 
 fn frame_to_scene(frame: &Frame) -> Scene {
@@ -234,6 +314,15 @@ fn frame_to_scene(frame: &Frame) -> Scene {
 /// this entity renders in.
 #[derive(Component, Default)]
 pub struct VelystScene(pub Option<Frame>);
+
+/// Stores a [`Kanva`] built from the last laid-out Typst frame.
+///
+/// Add this alongside [`UiScene`] or [`WorldScene`] to opt into kanva
+/// rendering. motiongfx can then apply [`kanva::prelude::PathModifier`] /
+/// [`kanva::prelude::GroupModifier`] each frame and mutate this component
+/// to trigger a re-render without a Typst recompile.
+#[derive(Component, Default)]
+pub struct VelystKanva(pub Kanva);
 
 /// Marker: render this entity's [`VelystScene`] in Bevy UI coordinates.
 ///
