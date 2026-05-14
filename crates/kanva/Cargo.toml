@@ -1,0 +1,17 @@
+[package]
+name = "kanva"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[dependencies]
+imaging.workspace = true
+hashbrown.workspace = true
+ttf-parser.workspace = true
+
+[features]
+default = ["std"]
+std = ["imaging/std"]
+libm = ["imaging/libm"]
