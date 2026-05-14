@@ -42,6 +42,10 @@ impl Kanva {
         Self::default()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
     pub fn query(&self, label: &str) -> Option<NodeIndex> {
         self.index.get(label).copied()
     }
