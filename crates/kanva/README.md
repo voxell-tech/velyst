@@ -8,9 +8,9 @@
 Backend-agnostic 2D graphics scene graph.
 
 A `Kanva` stores vector graphics in a flat command buffer with grouping
-support. Groups accumulate animation transforms at render time without
-mutating stored data; per-frame overrides are expressed through
-`PathModifier` and `GroupModifier` and cleared via `Kanva::clear_mods`.
+support. Groups accumulate transforms onto child paths at render time without
+mutating stored data. Overrides are expressed through `PathModifier` and
+`GroupModifier` and cleared via `Kanva::clear_mods`.
 
 Build a `Kanva` by feeding any `imaging::PaintSink` draw stream through
 `KanvaBuilder`, then render it into any sink via `Kanva::render`.
@@ -42,7 +42,7 @@ let mut kanva = builder.build();
 // Look up a labeled node.
 let group_idx = kanva.query_group("wave").unwrap();
 
-// Apply a per-frame override without mutating stored data.
+// Apply an override without mutating stored data.
 kanva.set_group_mod(group_idx, GroupModifier {
     composite: Some(Composite::new(Default::default(), 0.5)),
     ..Default::default()

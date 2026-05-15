@@ -14,8 +14,8 @@ use crate::{
 
 /// Builds a [`Kanva`] by consuming an [`imaging::PaintSink`] draw stream.
 ///
-/// Feed any draw stream (e.g. a Typst frame rendered via `typst_imaging`) into
-/// this builder, then call [`Self::build`] to get the finished `Kanva`.
+/// Feed any draw stream into this builder, then call [`Self::build`] to get
+/// the finished `Kanva`.
 /// Wrap draws with [`imaging::ContextRef`] push/pop to label nodes for later
 /// lookup via [`Kanva::query`].
 pub struct KanvaBuilder {

@@ -26,11 +26,11 @@ pub mod prelude {
 /// A baked 2D graphics scene graph.
 ///
 /// Stores paths, fills, strokes, and groups in flat parallel buffers indexed
-/// by a [`Command`] buffer that encodes draw order. Groups may carry an
-/// animation-delta transform that is accumulated at render time without
+/// by a [`Command`] buffer that encodes draw order. Groups may carry a
+/// transform that is accumulated onto child paths at render time without
 /// modifying stored data.
 ///
-/// Primary data is write-once at build time. Per-frame overrides are applied
+/// Primary data is write-once at build time. Overrides are applied
 /// through [`PathModifier`] and [`GroupModifier`] and reset via [`Self::clear_mods`].
 #[derive(Default, Debug, Clone)]
 pub struct Kanva {
@@ -183,8 +183,8 @@ impl Kanva {
 
     /// Render into any [`PaintSink`].
     ///
-    /// Group transforms are accumulated as animation deltas and multiplied by
-    /// each path's stored world transform at draw time.
+    /// Group transforms are accumulated and multiplied by each path's stored
+    /// world transform at draw time.
     pub fn render(&self, sink: &mut impl PaintSink) {
         // Tracks the cumulative product of group animation transforms.
         let mut group_tf_stack = vec![Affine::IDENTITY];

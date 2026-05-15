@@ -7,12 +7,11 @@ pub(crate) const PATH_TOLERANCE: f64 = 0.1;
 
 /// A group in the [`Kanva`][crate::Kanva] scene graph.
 ///
-/// Groups carry an animation-delta transform that is accumulated onto child
-/// path world transforms at render time. They may also carry a clip shape and
-/// a composite mode.
+/// Groups carry a transform that is accumulated onto child path world transforms
+/// at render time. They may also carry a clip shape and a composite mode.
 #[derive(Default, Debug, Clone)]
 pub struct Group {
-    /// Animation-delta transform, accumulated with parent group transforms at render time.
+    /// Transform accumulated with parent group transforms at render time.
     pub transform: Affine,
     pub clip: Option<KanvaClip>,
     pub composite: Composite,
@@ -113,31 +112,29 @@ pub struct KanvaStroke {
     pub composite: Composite,
 }
 
-/// Per-frame overrides for a single path.
+/// Overrides for a single path, applied at render time without mutating stored data.
 ///
 /// All fields are optional; `None` means "use the stored value".
-/// Applied at render time and never written back to the stored path.
 #[derive(Default, Debug, Clone)]
 pub struct PathModifier {
     /// Replaces the stored path geometry.
     pub path: Option<BezPath>,
-    /// Replaces `path.transform` before group animation transforms are applied.
+    /// Replaces `path.transform` before group transforms are applied.
     pub transform: Option<Affine>,
     /// Replaces the stored fill.
     pub fill: Option<KanvaFill>,
     /// Replaces the stored stroke.
     pub stroke: Option<KanvaStroke>,
-    /// Per-path alpha multiplier; wraps the path's draws in an isolated group.
+    /// Alpha multiplier; wraps the path's draws in an isolated group.
     pub alpha: Option<f32>,
 }
 
-/// Per-frame overrides for a single group.
+/// Overrides for a single group, applied at render time without mutating stored data.
 ///
 /// All fields are optional; `None` means "use the stored value".
-/// Applied at render time and never written back to the stored group.
 #[derive(Default, Debug, Clone)]
 pub struct GroupModifier {
-    /// Replaces the group's animation-delta transform.
+    /// Replaces the group's transform.
     pub transform: Option<Affine>,
     /// Replaces the group's clip shape.
     pub clip: Option<KanvaClip>,
