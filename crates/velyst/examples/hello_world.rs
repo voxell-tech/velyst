@@ -25,11 +25,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         VelloView,
     ));
 
-    // let debug_bg = BackgroundColor(Srgba::RED.with_alpha(0.2).into());
-    let debug_bg = BackgroundColor::DEFAULT;
-
     commands.spawn((
-        debug_bg,
         VelystFunc::new(
             asset_server.load("typst/hello_world.typ"),
             MainFunc::default(),

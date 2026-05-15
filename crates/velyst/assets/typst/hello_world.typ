@@ -32,7 +32,7 @@
     #place(
       center,
       dy: 20%,
-    )[= Wave]
+    )[#box[= Wave] <wave>]
 
     #place(center + bottom)[
       #polygon(

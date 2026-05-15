@@ -104,6 +104,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "alsa"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1897,6 +1903,9 @@ name = "color"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a18ef4657441fb193b65f34dc39b3781f0dfec23d3bd94d0eeb4e88cde421edb"
+dependencies = [
+ "libm",
+]
 
 [[package]]
 name = "color_quant"
@@ -3007,6 +3016,8 @@ version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
+ "allocator-api2",
+ "equivalent",
  "foldhash 0.2.0",
 ]
 
@@ -3608,6 +3619,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kanva"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.17.1",
+ "imaging",
+ "ttf-parser",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3674,6 +3694,7 @@ checksum = "7564e90fe3c0d5771e1f0bc95322b21baaeaa0d9213fa6a0b61c99f8b17b3bfb"
 dependencies = [
  "arrayvec",
  "euclid",
+ "libm",
  "smallvec",
 ]
 
@@ -6660,6 +6681,7 @@ dependencies = [
  "ecow",
  "imaging",
  "imaging_vello",
+ "kanva",
  "smallvec",
  "thiserror 1.0.69",
  "typst",
