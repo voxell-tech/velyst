@@ -43,10 +43,7 @@ let mut kanva = builder.build();
 let group_idx = kanva.query_group("wave").unwrap();
 
 // Apply an override without mutating stored data.
-kanva.set_group_mod(group_idx, GroupModifier {
-    composite: Some(Composite::new(Default::default(), 0.5)),
-    ..Default::default()
-});
+kanva.group_mods.composite(group_idx, Composite::new(Default::default(), 0.5));
 
 // Render into any PaintSink.
 let mut scene = Scene::new();

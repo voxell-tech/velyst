@@ -40,13 +40,13 @@ impl Plugin for VelystRendererPlugin {
     }
 }
 
-/// Layout [`VelystContent`] into a [`VelystScene`] in UI coordinates.
+/// Layout [`VelystContent`] into a [`VelystFrame`] in UI coordinates.
 fn layout_ui_content(
     world: VelystWorld,
     mut q_contents: Query<
         (
             &VelystContent,
-            &mut VelystScene,
+            &mut VelystFrame,
             &Visibility,
             &Node,
             &ComputedNode,
@@ -108,13 +108,13 @@ fn layout_ui_content(
     }
 }
 
-/// Layout [`VelystContent`] into a [`VelystScene`] in world coordinates.
+/// Layout [`VelystContent`] into a [`VelystFrame`] in world coordinates.
 fn layout_world_content(
     world: VelystWorld,
     mut q_contents: Query<
         (
             &VelystContent,
-            &mut VelystScene,
+            &mut VelystFrame,
             &WorldScene,
             &Visibility,
             &mut Aabb,
@@ -183,12 +183,12 @@ fn comemo_evict() {
     typst::comemo::evict(4);
 }
 
-/// Render [`VelystScene`] into a [`UiVelloScene`].
+/// Render [`VelystFrame`] into a [`UiVelloScene`].
 fn render_ui_scene(
     mut q_scenes: Query<
-        (&VelystScene, &mut UiVelloScene, &Visibility),
+        (&VelystFrame, &mut UiVelloScene, &Visibility),
         (
-            Or<(Changed<VelystScene>, Changed<Visibility>)>,
+            Or<(Changed<VelystFrame>, Changed<Visibility>)>,
             With<UiScene>,
             Without<VelystKanva>,
         ),
@@ -203,12 +203,12 @@ fn render_ui_scene(
     }
 }
 
-/// Render [`VelystScene`] into a [`VelloScene2d`].
+/// Render [`VelystFrame`] into a [`VelloScene2d`].
 fn render_world_scene(
     mut q_scenes: Query<
-        (&VelystScene, &mut VelloScene2d, &Visibility),
+        (&VelystFrame, &mut VelloScene2d, &Visibility),
         (
-            Or<(Changed<VelystScene>, Changed<Visibility>)>,
+            Or<(Changed<VelystFrame>, Changed<Visibility>)>,
             With<WorldScene>,
             Without<VelystKanva>,
         ),
@@ -223,11 +223,11 @@ fn render_world_scene(
     }
 }
 
-/// Build a [`VelystKanva`] from the laid-out [`VelystScene`] frame.
+/// Build a [`VelystKanva`] from the laid-out [`VelystFrame`] frame.
 fn build_kanva_scene(
     mut q_scenes: Query<
-        (&VelystScene, &mut VelystKanva),
-        Changed<VelystScene>,
+        (&VelystFrame, &mut VelystKanva),
+        Changed<VelystFrame>,
     >,
 ) {
     for (scene, mut kanva) in q_scenes.iter_mut() {
@@ -241,7 +241,7 @@ fn build_kanva_scene(
 /// Render [`VelystKanva`] into a [`UiVelloScene`].
 fn render_ui_kanva(
     mut q_scenes: Query<
-        (&VelystKanva, &VelystScene, &mut UiVelloScene, &Visibility),
+        (&VelystKanva, &VelystFrame, &mut UiVelloScene, &Visibility),
         (
             Or<(Changed<VelystKanva>, Changed<Visibility>)>,
             With<UiScene>,
@@ -261,7 +261,7 @@ fn render_ui_kanva(
 /// Render [`VelystKanva`] into a [`VelloScene2d`].
 fn render_world_kanva(
     mut q_scenes: Query<
-        (&VelystKanva, &VelystScene, &mut VelloScene2d, &Visibility),
+        (&VelystKanva, &VelystFrame, &mut VelloScene2d, &Visibility),
         (
             Or<(Changed<VelystKanva>, Changed<Visibility>)>,
             With<WorldScene>,
@@ -313,30 +313,30 @@ fn frame_to_scene(frame: &Frame) -> Scene {
 /// Add [`UiScene`] or [`WorldScene`] to control which coordinate space
 /// this entity renders in.
 #[derive(Component, Default)]
-pub struct VelystScene(pub Option<Frame>);
+pub struct VelystFrame(pub Option<Frame>);
 
 /// Stores a [`Kanva`] built from the last laid-out Typst frame.
 ///
 /// Add this alongside [`UiScene`] or [`WorldScene`] to opt into kanva
-/// rendering. motiongfx can then apply [`kanva::prelude::PathModifier`] /
-/// [`kanva::prelude::GroupModifier`] each frame and mutate this component
-/// to trigger a re-render without a Typst recompile.
+/// rendering. Mutate `path_mods` / `group_mods` each frame via their builder
+/// methods and mark this component changed to trigger a re-render without a
+/// Typst recompile.
 #[derive(Component, Default, Deref, DerefMut)]
 pub struct VelystKanva(pub Kanva);
 
-/// Marker: render this entity's [`VelystScene`] in Bevy UI coordinates.
+/// Marker: render this entity's [`VelystFrame`] in Bevy UI coordinates.
 ///
 /// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted automatically.
 #[derive(Component, Default)]
-#[require(VelystScene, UiVelloScene, ContentSize)]
+#[require(VelystFrame, UiVelloScene, ContentSize)]
 pub struct UiScene;
 
-/// Marker: render this entity's [`VelystScene`] in world coordinates
+/// Marker: render this entity's [`VelystFrame`] in world coordinates
 /// via Bevy's [`Transform`].
 ///
 /// Requires [`VelloScene2d`] which is inserted automatically.
 #[derive(Component, Default)]
-#[require(VelystScene, VelloScene2d)]
+#[require(VelystFrame, VelloScene2d)]
 pub struct WorldScene {
     /// Normalized anchor point within the scene (0..1 in each axis).
     /// `(0, 0)` = top-left origin, `(0.5, 0.5)` = center.
@@ -345,4 +345,21 @@ pub struct WorldScene {
     pub width: Option<f64>,
     /// Optional height constraint for Typst layout (in points).
     pub height: Option<f64>,
+}
+
+impl WorldScene {
+    pub fn with_anchor(mut self, anchor: Vec2) -> Self {
+        self.anchor = anchor;
+        self
+    }
+
+    pub fn with_width(mut self, width: impl Into<f64>) -> Self {
+        self.width = Some(width.into());
+        self
+    }
+
+    pub fn with_height(mut self, height: impl Into<f64>) -> Self {
+        self.height = Some(height.into());
+        self
+    }
 }

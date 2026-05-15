@@ -9,17 +9,24 @@ use imaging::{
 };
 
 pub mod builder;
+pub mod modifiers;
 pub mod node;
 
 pub use imaging;
+pub use modifiers::{
+    GroupModEntry, GroupMods, PathModEntry, PathMods,
+};
 pub use node::*;
 
 pub mod prelude {
     pub use crate::Kanva;
     pub use crate::builder::KanvaBuilder;
+    pub use crate::modifiers::{
+        GroupModEntry, GroupMods, PathModEntry, PathMods,
+    };
     pub use crate::node::{
-        Command, Group, GroupModifier, GroupRange, KanvaClip,
-        KanvaFill, KanvaPath, KanvaStroke, NodeIndex, PathModifier,
+        Command, Group, GroupRange, KanvaClip, KanvaFill, KanvaPath,
+        KanvaStroke, NodeIndex,
     };
 }
 
@@ -30,8 +37,10 @@ pub mod prelude {
 /// transform that is accumulated onto child paths at render time without
 /// modifying stored data.
 ///
-/// Primary data is write-once at build time. Overrides are applied
-/// through [`PathModifier`] and [`GroupModifier`] and reset via [`Self::clear_mods`].
+/// Primary data is write-once at build time. Per-field overrides are stored
+/// in [`PathMods`] and [`GroupMods`] and reset via [`Self::clear_mods`].
+/// Each field map is keyed by path or group index; absent = keep stored value.
+/// For optional-target fields (`fill`, `stroke`, `clip`), `None` clears the field.
 #[derive(Default, Debug, Clone)]
 pub struct Kanva {
     commands: Vec<Command>,
@@ -42,8 +51,10 @@ pub struct Kanva {
     fills: Vec<KanvaFill>,
     strokes: Vec<KanvaStroke>,
     index: HashMap<Box<str>, NodeIndex>,
-    path_mods: HashMap<usize, PathModifier>,
-    group_mods: HashMap<usize, GroupModifier>,
+    /// Per-path field overrides.
+    pub path_mods: PathMods,
+    /// Per-group field overrides.
+    pub group_mods: GroupMods,
 }
 
 impl Kanva {
@@ -103,11 +114,12 @@ impl Kanva {
         self.groups.get(idx)
     }
 
-    /// Returns the contiguous slice of [`KanvaPath`]s directly owned by this group.
+    /// Returns the contiguous range of path indices directly owned by this group.
     ///
     /// Scans the group's inner commands (PushGroup/PopGroup excluded) for the
-    /// first and last [`Command::DrawPath`] indices, then returns that path slice.
+    /// first and last [`Command::DrawPath`] indices and returns `first..last + 1`.
     /// Returns `None` if the group index is out of bounds or the group has no paths.
+    /// Use [`Self::get_path`] to access individual paths by index.
     ///
     /// ```
     /// use kanva::prelude::*;
@@ -124,12 +136,12 @@ impl Kanva {
     /// builder.pop_group();
     /// let kanva = builder.build();
     ///
-    /// assert_eq!(kanva.get_group_shapes(0).unwrap().len(), 2);
+    /// assert_eq!(kanva.get_group_path_range(0).unwrap().len(), 2);
     /// ```
-    pub fn get_group_shapes(
+    pub fn get_group_path_range(
         &self,
         group_idx: usize,
-    ) -> Option<&[KanvaPath]> {
+    ) -> Option<core::ops::Range<usize>> {
         let range = self.group_cmds.get(group_idx)?;
         let cmds = &self.commands[range.start + 1..range.end];
         let first = cmds.iter().find_map(|c| {
@@ -146,34 +158,23 @@ impl Kanva {
                 None
             }
         })?;
-        self.paths.get(first..=last)
+        Some(first..last + 1)
     }
 
-    /// Set a [`PathModifier`] for the path at `path_idx`.
-    ///
-    /// The modifier is applied at render time and does not mutate the stored path.
-    /// Call [`Self::clear_mods`] to revert all overrides.
-    pub fn set_path_mod(
-        &mut self,
-        path_idx: usize,
-        modifier: PathModifier,
-    ) {
-        self.path_mods.insert(path_idx, modifier);
+    /// Return a cursor for setting per-path field overrides at `path_idx`.
+    pub fn mod_path(&mut self, path_idx: usize) -> PathModEntry<'_> {
+        PathModEntry::new(&mut self.path_mods, path_idx)
     }
 
-    /// Set a [`GroupModifier`] for the group at `group_idx`.
-    ///
-    /// The modifier is applied at render time and does not mutate the stored group.
-    /// Call [`Self::clear_mods`] to revert all overrides.
-    pub fn set_group_mod(
+    /// Return a cursor for setting per-group field overrides at `group_idx`.
+    pub fn mod_group(
         &mut self,
         group_idx: usize,
-        modifier: GroupModifier,
-    ) {
-        self.group_mods.insert(group_idx, modifier);
+    ) -> GroupModEntry<'_> {
+        GroupModEntry::new(&mut self.group_mods, group_idx)
     }
 
-    /// Clear all active [`PathModifier`]s and [`GroupModifier`]s.
+    /// Clear all active overrides in [`PathMods`] and [`GroupMods`].
     ///
     /// The next render will use the original stored data.
     pub fn clear_mods(&mut self) {
@@ -186,40 +187,46 @@ impl Kanva {
     /// Group transforms are accumulated and multiplied by each path's stored
     /// world transform at draw time.
     pub fn render(&self, sink: &mut impl PaintSink) {
-        // Tracks the cumulative product of group animation transforms.
         let mut group_tf_stack = vec![Affine::IDENTITY];
 
         for cmd in &self.commands {
             match *cmd {
                 Command::PushGroup(idx) => {
                     let group = &self.groups[idx];
-                    let modifier = self.group_mods.get(&idx);
                     let parent_tf = *group_tf_stack.last().unwrap();
-                    let group_tf = modifier
-                        .and_then(|m| m.transform)
+                    let group_tf = self
+                        .group_mods
+                        .transform
+                        .get(&idx)
+                        .copied()
                         .unwrap_or(group.transform);
                     group_tf_stack.push(group_tf * parent_tf);
 
-                    let clip = modifier
-                        .and_then(|m| m.clip.as_ref())
-                        .or(group.clip.as_ref())
-                        .map(|c| match &c.style {
-                            Style::Fill(fill_rule) => ClipRef::Fill {
-                                transform: c.transform,
-                                shape: GeometryRef::Path(&c.path),
-                                fill_rule: *fill_rule,
-                            },
-                            Style::Stroke(stroke) => {
-                                ClipRef::Stroke {
-                                    transform: c.transform,
-                                    shape: GeometryRef::Path(&c.path),
-                                    stroke,
-                                }
-                            }
-                        });
+                    let clip: Option<&KanvaClip> = if let Some(ov) =
+                        self.group_mods.clip.get(&idx)
+                    {
+                        ov.as_ref()
+                    } else {
+                        group.clip.as_ref()
+                    };
+                    let clip = clip.map(|c| match &c.style {
+                        Style::Fill(fill_rule) => ClipRef::Fill {
+                            transform: c.transform,
+                            shape: GeometryRef::Path(&c.path),
+                            fill_rule: *fill_rule,
+                        },
+                        Style::Stroke(stroke) => ClipRef::Stroke {
+                            transform: c.transform,
+                            shape: GeometryRef::Path(&c.path),
+                            stroke,
+                        },
+                    });
 
-                    let composite = modifier
-                        .and_then(|m| m.composite)
+                    let composite = self
+                        .group_mods
+                        .composite
+                        .get(&idx)
+                        .copied()
                         .unwrap_or(group.composite);
                     let mut group_ref =
                         GroupRef::new().with_composite(composite);
@@ -235,17 +242,22 @@ impl Kanva {
                 Command::DrawPath(idx) => {
                     let path = &self.paths[idx];
                     let group_tf = *group_tf_stack.last().unwrap();
-                    let modifier = self.path_mods.get(&idx);
 
-                    let data = modifier
-                        .and_then(|m| m.path.as_ref())
+                    let data = self
+                        .path_mods
+                        .shape
+                        .get(&idx)
                         .unwrap_or(&path.path);
-                    let base_tf = modifier
-                        .and_then(|m| m.transform)
+                    let base_tf = self
+                        .path_mods
+                        .transform
+                        .get(&idx)
+                        .copied()
                         .unwrap_or(path.transform);
                     let eff_tf = group_tf * base_tf;
 
-                    let alpha = modifier.and_then(|m| m.alpha);
+                    let alpha =
+                        self.path_mods.alpha.get(&idx).copied();
                     if let Some(a) = alpha {
                         sink.push_group(
                             GroupRef::new().with_composite(
@@ -257,11 +269,13 @@ impl Kanva {
                         );
                     }
 
-                    let fill = modifier
-                        .and_then(|m| m.fill.as_ref())
-                        .or_else(|| {
-                            path.fill.map(|i| &self.fills[i])
-                        });
+                    let fill = if let Some(fill_mod) =
+                        self.path_mods.fill.get(&idx)
+                    {
+                        fill_mod.as_ref()
+                    } else {
+                        path.fill.map(|i| &self.fills[i])
+                    };
                     if let Some(fill) = fill {
                         sink.fill(FillRef {
                             transform: eff_tf,
@@ -273,11 +287,13 @@ impl Kanva {
                         });
                     }
 
-                    let stroke_style = modifier
-                        .and_then(|m| m.stroke.as_ref())
-                        .or_else(|| {
-                            path.stroke.map(|i| &self.strokes[i])
-                        });
+                    let stroke_style = if let Some(stroke_mod) =
+                        self.path_mods.stroke.get(&idx)
+                    {
+                        stroke_mod.as_ref()
+                    } else {
+                        path.stroke.map(|i| &self.strokes[i])
+                    };
                     if let Some(stroke_style) = stroke_style {
                         sink.stroke(StrokeRef {
                             transform: eff_tf,
@@ -410,15 +426,12 @@ mod tests {
         let original = Brush::Solid(Color::BLACK);
         let override_brush = Brush::Solid(Color::WHITE);
         let mut kanva = build_fill(&original, Affine::IDENTITY);
-        kanva.set_path_mod(
+        kanva.path_mods.fill(
             0,
-            PathModifier {
-                fill: Some(KanvaFill {
-                    brush: override_brush.clone(),
-                    ..Default::default()
-                }),
+            Some(KanvaFill {
+                brush: override_brush.clone(),
                 ..Default::default()
-            },
+            }),
         );
         let mut scene = Scene::new();
         kanva.render(&mut scene);
@@ -435,13 +448,7 @@ mod tests {
     fn render_path_mod_alpha_wraps_group() {
         let mut kanva =
             build_fill(&Brush::default(), Affine::IDENTITY);
-        kanva.set_path_mod(
-            0,
-            PathModifier {
-                alpha: Some(0.5),
-                ..Default::default()
-            },
-        );
+        kanva.path_mods.alpha(0, 0.5);
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let cmds = scene.commands();
@@ -459,13 +466,7 @@ mod tests {
         let override_tf = Affine::translate((5.0, 3.0));
         let mut kanva =
             build_fill(&Brush::default(), Affine::IDENTITY);
-        kanva.set_path_mod(
-            0,
-            PathModifier {
-                transform: Some(override_tf),
-                ..Default::default()
-            },
-        );
+        kanva.path_mods.transform(0, override_tf);
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let RecCmd::Draw(id) = scene.commands()[0] else {
@@ -494,13 +495,7 @@ mod tests {
         b.pop_group();
         let mut kanva = b.build();
         kanva.groups[0].transform = base_tf;
-        kanva.set_group_mod(
-            0,
-            GroupModifier {
-                transform: Some(override_tf),
-                ..Default::default()
-            },
-        );
+        kanva.group_mods.transform(0, override_tf);
 
         let mut scene = Scene::new();
         kanva.render(&mut scene);
@@ -523,13 +518,7 @@ mod tests {
         b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
         b.pop_group();
         let mut kanva = b.build();
-        kanva.set_group_mod(
-            0,
-            GroupModifier {
-                composite: Some(composite),
-                ..Default::default()
-            },
-        );
+        kanva.group_mods.composite(0, composite);
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let RecCmd::PushGroup(gid) = scene.commands()[0] else {
@@ -543,15 +532,12 @@ mod tests {
         let original = Brush::Solid(Color::BLACK);
         let override_brush = Brush::Solid(Color::WHITE);
         let mut kanva = build_fill(&original, Affine::IDENTITY);
-        kanva.set_path_mod(
+        kanva.path_mods.fill(
             0,
-            PathModifier {
-                fill: Some(KanvaFill {
-                    brush: override_brush,
-                    ..Default::default()
-                }),
+            Some(KanvaFill {
+                brush: override_brush,
                 ..Default::default()
-            },
+            }),
         );
 
         // First render: override active.

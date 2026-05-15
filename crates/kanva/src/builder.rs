@@ -397,7 +397,7 @@ mod tests {
     }
 
     #[test]
-    fn get_group_shapes_returns_slice() {
+    fn get_group_path_range_returns_range() {
         let mut b = KanvaBuilder::new();
         let path = BezPath::new();
         let brush = Brush::default();
@@ -406,7 +406,7 @@ mod tests {
         b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
         b.pop_group();
         let k = b.build();
-        assert_eq!(k.get_group_shapes(0).unwrap().len(), 2);
+        assert_eq!(k.get_group_path_range(0).unwrap().len(), 2);
     }
 
     #[test]

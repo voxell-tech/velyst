@@ -28,10 +28,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             asset_server.load("typst/feature_test.typ"),
             FeatureTestFunc::default(),
         ),
-        WorldScene {
-            anchor: Vec2::splat(0.5),
-            ..default()
-        },
+        WorldScene::default(),
     ));
 }
 

@@ -19,7 +19,7 @@ pub mod prelude {
         VelystFunc, VelystSourceReady,
     };
     pub use crate::renderer::{
-        UiScene, VelystKanva, VelystScene, WorldScene,
+        UiScene, VelystFrame, VelystKanva, WorldScene,
     };
     pub use crate::typst_func;
     pub use crate::world::VelystWorld;

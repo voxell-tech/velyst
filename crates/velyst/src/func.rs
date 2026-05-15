@@ -6,7 +6,7 @@ use typst_element::prelude::ScopeExt;
 
 use crate::VelystSet;
 use crate::asset::{VelystModules, VelystSource};
-use crate::renderer::VelystScene;
+use crate::renderer::VelystFrame;
 
 pub trait TypstFuncAppExt {
     fn register_typst_func<F: TypstFunc>(&mut self) -> &mut Self;
@@ -134,7 +134,7 @@ impl<F: TypstFunc> VelystFunc<F> {
 pub struct VelystSourceReady;
 
 #[derive(Component, Default, Deref, DerefMut)]
-#[require(VelystScene)]
+#[require(VelystFrame)]
 pub struct VelystContent(pub Content);
 
 pub trait TypstValue:

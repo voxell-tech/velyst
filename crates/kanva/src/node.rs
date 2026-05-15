@@ -111,33 +111,3 @@ pub struct KanvaStroke {
     pub brush_transform: Option<Affine>,
     pub composite: Composite,
 }
-
-/// Overrides for a single path, applied at render time without mutating stored data.
-///
-/// All fields are optional; `None` means "use the stored value".
-#[derive(Default, Debug, Clone)]
-pub struct PathModifier {
-    /// Replaces the stored path geometry.
-    pub path: Option<BezPath>,
-    /// Replaces `path.transform` before group transforms are applied.
-    pub transform: Option<Affine>,
-    /// Replaces the stored fill.
-    pub fill: Option<KanvaFill>,
-    /// Replaces the stored stroke.
-    pub stroke: Option<KanvaStroke>,
-    /// Alpha multiplier; wraps the path's draws in an isolated group.
-    pub alpha: Option<f32>,
-}
-
-/// Overrides for a single group, applied at render time without mutating stored data.
-///
-/// All fields are optional; `None` means "use the stored value".
-#[derive(Default, Debug, Clone)]
-pub struct GroupModifier {
-    /// Replaces the group's transform.
-    pub transform: Option<Affine>,
-    /// Replaces the group's clip shape.
-    pub clip: Option<KanvaClip>,
-    /// Replaces the group's composite mode.
-    pub composite: Option<Composite>,
-}
