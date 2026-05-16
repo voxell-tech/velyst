@@ -38,6 +38,10 @@ ttf-parser = "0.25"
 hayro-svg = "0.2"
 # Other
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+ureq = "2"
+flate2 = "1"
+tar = "0.4"
+dirs = "5"
 hashbrown = "0.17"
 ecow = { version = "0.2", features = ["serde"] }
 thiserror = "1"

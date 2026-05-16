@@ -25,6 +25,10 @@ chrono = { workspace = true }
 ecow = { workspace = true }
 thiserror = { workspace = true }
 smallvec = { workspace = true }
+ureq = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
+dirs = { workspace = true }
 
 [features]
 default = ["embed-fonts"]
