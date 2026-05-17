@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -9,6 +10,7 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::time::common_conditions::on_timer;
 use chrono::{DateTime, Datelike, Local, Timelike};
+use ecow::eco_format;
 use fonts::TypstFonts;
 use typst::comemo::{Constraint, Track};
 use typst::diag::{
@@ -20,6 +22,7 @@ use typst::foundations::{
 };
 use typst::introspection::Introspector;
 use typst::layout::{Frame, Region};
+use typst::syntax::package::PackageSpec;
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -35,7 +38,8 @@ impl Plugin for VelystWorldPlugin {
             .init_resource::<TypstLibrary>()
             .init_resource::<TypstFonts>()
             .init_resource::<TypstDateTime>()
-            .init_resource::<TypstFileSlots>();
+            .init_resource::<TypstFileSlots>()
+            .init_resource::<TypstPackageDownload>();
 
         app.add_systems(
             Update,
@@ -90,6 +94,31 @@ pub type FileSlots = HashMap<FileId, FileSlot>;
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct TypstFileSlots(Mutex<FileSlots>);
 
+/// Controls whether typst packages can be downloaded from the internet,
+/// and where they are cached locally.
+///
+/// Enabled by default in debug builds, disabled in release builds.
+/// Change this resource at runtime to override the default behavior.
+#[derive(Resource)]
+pub struct TypstPackageDownload {
+    pub enabled: bool,
+    /// Local directory where downloaded packages are cached.
+    /// Defaults to `assets/typst_packages`.
+    pub cache_dir: PathBuf,
+}
+
+impl Default for TypstPackageDownload {
+    fn default() -> Self {
+        let base = FileAssetReader::get_base_path();
+        Self {
+            enabled: cfg!(debug_assertions),
+            cache_dir: base
+                .join(AssetPlugin::default().file_path)
+                .join("typst_packages"),
+        }
+    }
+}
+
 #[derive(SystemParam)]
 pub struct VelystWorld<'w> {
     pub root: Res<'w, TypstRoot>,
@@ -97,6 +126,7 @@ pub struct VelystWorld<'w> {
     pub fonts: Res<'w, TypstFonts>,
     pub date_time: Res<'w, TypstDateTime>,
     pub file_slots: Res<'w, TypstFileSlots>,
+    pub package_download: Res<'w, TypstPackageDownload>,
 }
 
 impl VelystWorld<'_> {
@@ -224,11 +254,15 @@ impl typst::World for VelystWorld<'_> {
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
-        self.slot(id, |slot| slot.source(&self.root))
+        self.slot(id, |slot| {
+            slot.source(&self.root, &self.package_download)
+        })
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.slot(id, |slot| slot.file(&self.root))
+        self.slot(id, |slot| {
+            slot.file(&self.root, &self.package_download)
+        })
     }
 
     fn font(&self, index: usize) -> Option<Font> {
@@ -278,9 +312,13 @@ impl FileSlot {
     }
 
     /// Retrieve the source for this file.
-    fn source(&mut self, project_root: &Path) -> FileResult<Source> {
+    fn source(
+        &mut self,
+        project_root: &Path,
+        download: &TypstPackageDownload,
+    ) -> FileResult<Source> {
         self.source.get_or_init(
-            || system_path(project_root, self.id),
+            || system_path(project_root, self.id, download),
             |data, prev| {
                 let text = decode_utf8(&data)?;
                 if let Some(mut prev) = prev {
@@ -294,9 +332,13 @@ impl FileSlot {
     }
 
     /// Retrieve the file's bytes.
-    fn file(&mut self, project_root: &Path) -> FileResult<Bytes> {
+    fn file(
+        &mut self,
+        project_root: &Path,
+        download: &TypstPackageDownload,
+    ) -> FileResult<Bytes> {
         self.file.get_or_init(
-            || system_path(project_root, self.id),
+            || system_path(project_root, self.id, download),
             |data, _| Ok(Bytes::new(data)),
         )
     }
@@ -371,22 +413,91 @@ impl<T: Clone> SlotCell<T> {
 fn system_path(
     project_root: &Path,
     id: FileId,
+    download: &TypstPackageDownload,
 ) -> FileResult<PathBuf> {
-    // Determine the root path relative to which the file path
-    // will be resolved.
-    if id.package().is_some() {
-        const PACKAGE_ERROR: &str = "Package (online) imports is not supported, please download manually and reference them via file paths.";
-
-        return Err(FileError::Package(PackageError::Other(Some(
-            PACKAGE_ERROR.into(),
-        ))));
-    }
+    let root = if let Some(spec) = id.package() {
+        prepare_package(spec, download)?
+    } else {
+        project_root.to_path_buf()
+    };
 
     // Join the path to the root. If it tries to escape, deny
     // access. Note: It can still escape via symlinks.
-    id.vpath()
-        .resolve(project_root)
-        .ok_or(FileError::AccessDenied)
+    id.vpath().resolve(&root).ok_or(FileError::AccessDenied)
+}
+
+/// Returns the local cache directory for a package, downloading it first if
+/// it is not already present and downloading is enabled.
+fn prepare_package(
+    spec: &PackageSpec,
+    download: &TypstPackageDownload,
+) -> FileResult<PathBuf> {
+    let package_dir = download
+        .cache_dir
+        .join(spec.namespace.as_str())
+        .join(spec.name.as_str())
+        .join(spec.version.to_string());
+
+    if package_dir.exists() {
+        return Ok(package_dir);
+    }
+
+    if !download.enabled {
+        return Err(FileError::Package(PackageError::Other(Some(
+            eco_format!(
+                "package downloading is disabled; \
+             enable it via `TypstPackageDownload` or pre-cache {spec} \
+             in \"{}\"",
+                download.cache_dir.display()
+            ),
+        ))));
+    }
+
+    download_package(spec, &package_dir)?;
+    Ok(package_dir)
+}
+
+/// Downloads a package from `packages.typst.org` and extracts it into `dest`.
+fn download_package(
+    spec: &PackageSpec,
+    dest: &Path,
+) -> FileResult<PathBuf> {
+    let url = format!(
+        "https://packages.typst.org/{}/{}-{}.tar.gz",
+        spec.namespace, spec.name, spec.version,
+    );
+
+    info!("Downloading typst package {spec} from {url}");
+
+    let response = ureq::get(&url).call().map_err(|e| {
+        FileError::Package(PackageError::NetworkFailed(Some(
+            eco_format!("{e}"),
+        )))
+    })?;
+
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| {
+            FileError::Package(PackageError::Other(Some(
+                eco_format!("{e}"),
+            )))
+        })?;
+    }
+
+    let mut body = Vec::new();
+    response.into_reader().read_to_end(&mut body).map_err(|e| {
+        FileError::Package(PackageError::NetworkFailed(Some(
+            eco_format!("{e}"),
+        )))
+    })?;
+
+    let decoder = flate2::read::GzDecoder::new(body.as_slice());
+    tar::Archive::new(decoder).unpack(dest).map_err(|e| {
+        FileError::Package(PackageError::MalformedArchive(Some(
+            eco_format!("{e}"),
+        )))
+    })?;
+
+    Ok(dest.to_path_buf())
 }
 
 /// Read a file.

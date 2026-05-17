@@ -1,3 +1,4 @@
 /target
 *.pdf
 *.svg
+**/typst_packages/
