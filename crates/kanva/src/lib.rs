@@ -231,10 +231,10 @@ impl Kanva {
                         .unwrap_or(group.transform);
                     group_tf_stack.push(group_tf * parent_tf);
 
-                    let clip: Option<&KanvaClip> = if let Some(ov) =
+                    let clip = if let Some(clip_mod) =
                         self.group_mods.clip.get(&idx)
                     {
-                        ov.as_ref()
+                        clip_mod.as_ref()
                     } else {
                         group.clip.as_ref()
                     };

@@ -5,8 +5,8 @@ use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
 use kanva::builder::KanvaBuilder;
 use kanva::prelude::Kanva;
-use peniko::kurbo::Rect;
-use typst::layout::{Abs, Axes, Frame, Point, Region, Size};
+use peniko::kurbo::{Affine, Rect};
+use typst::layout::{Abs, Axes, Frame, Region, Size};
 use typst_imaging::render_frame;
 use vello::Scene;
 
@@ -145,7 +145,7 @@ fn layout_world_content(
             size.y = Abs::pt(height);
         }
 
-        if let Some(mut frame) = world.layout_frame(
+        if let Some(frame) = world.layout_frame(
             &content.0,
             Region::new(size, Axes::splat(false)),
         ) {
@@ -153,11 +153,6 @@ fn layout_world_content(
             let width = frame_size.x.to_pt() as f32;
             let height = frame_size.y.to_pt() as f32;
             let anchor = world_scene.anchor;
-
-            frame.translate(Point::new(
-                Abs::pt(-width as f64 * anchor.x as f64),
-                Abs::pt(-height as f64 * anchor.y as f64),
-            ));
 
             // Bevy_vello flips Y when rendering world scenes, so the scene
             // occupies [0, width] × [0, -height] in local space.
@@ -199,14 +194,14 @@ fn render_ui_scene(
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene = UiVelloScene::from(frame_to_scene(frame));
+        *vello_scene = UiVelloScene::from(frame_to_scene(frame, Vec2::ZERO));
     }
 }
 
 /// Render [`VelystFrame`] into a [`VelloScene2d`].
 fn render_world_scene(
     mut q_scenes: Query<
-        (&VelystFrame, &mut VelloScene2d, &Visibility),
+        (&VelystFrame, &WorldScene, &mut VelloScene2d, &Visibility),
         (
             Or<(Changed<VelystFrame>, Changed<Visibility>)>,
             With<WorldScene>,
@@ -214,12 +209,13 @@ fn render_world_scene(
         ),
     >,
 ) {
-    for (scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (scene, world_scene, mut vello_scene, viz) in q_scenes.iter_mut() {
         if viz == Visibility::Hidden {
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene = VelloScene2d::from(frame_to_scene(frame));
+        *vello_scene =
+            VelloScene2d::from(frame_to_scene(frame, world_scene.anchor));
     }
 }
 
@@ -253,58 +249,82 @@ fn render_ui_kanva(
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene =
-            UiVelloScene::from(kanva_to_scene(&kanva.0, frame));
+        *vello_scene = UiVelloScene::from(kanva_to_scene(
+            &kanva.0,
+            frame,
+            Vec2::ZERO,
+        ));
     }
 }
 
 /// Render [`VelystKanva`] into a [`VelloScene2d`].
 fn render_world_kanva(
     mut q_scenes: Query<
-        (&VelystKanva, &VelystFrame, &mut VelloScene2d, &Visibility),
+        (
+            &VelystKanva,
+            &VelystFrame,
+            &WorldScene,
+            &mut VelloScene2d,
+            &Visibility,
+        ),
         (
             Or<(Changed<VelystKanva>, Changed<Visibility>)>,
             With<WorldScene>,
         ),
     >,
 ) {
-    for (kanva, scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (kanva, scene, world_scene, mut vello_scene, viz) in
+        q_scenes.iter_mut()
+    {
         if viz == Visibility::Hidden {
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene =
-            VelloScene2d::from(kanva_to_scene(&kanva.0, frame));
+        *vello_scene = VelloScene2d::from(kanva_to_scene(
+            &kanva.0,
+            frame,
+            world_scene.anchor,
+        ));
     }
 }
 
-fn kanva_to_scene(kanva: &Kanva, frame: &Frame) -> Scene {
+fn kanva_to_scene(kanva: &Kanva, frame: &Frame, anchor: Vec2) -> Scene {
     let frame_size = frame.size();
-    let surface_clip = Rect::new(
-        0.0,
-        0.0,
-        frame_size.x.to_pt(),
-        frame_size.y.to_pt(),
-    );
-    let mut vello = Scene::new();
-    let mut sink = VelloSceneSink::new(&mut vello, surface_clip);
+    let w = frame_size.x.to_pt();
+    let h = frame_size.y.to_pt();
+    let surface_clip = Rect::new(0.0, 0.0, w, h);
+    let mut inner = Scene::new();
+    let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     kanva.render(&mut sink);
     let _ = sink.finish();
+    let mut vello = Scene::new();
+    vello.append(
+        &inner,
+        Some(Affine::translate((
+            -w * anchor.x as f64,
+            -h * anchor.y as f64,
+        ))),
+    );
     vello
 }
 
-fn frame_to_scene(frame: &Frame) -> Scene {
+fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
     let frame_size = frame.size();
-    let surface_clip = Rect::new(
-        0.0,
-        0.0,
-        frame_size.x.to_pt(),
-        frame_size.y.to_pt(),
-    );
-    let mut vello = Scene::new();
-    let mut sink = VelloSceneSink::new(&mut vello, surface_clip);
+    let w = frame_size.x.to_pt();
+    let h = frame_size.y.to_pt();
+    let surface_clip = Rect::new(0.0, 0.0, w, h);
+    let mut inner = Scene::new();
+    let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     render_frame(frame, &mut sink);
     let _ = sink.finish();
+    let mut vello = Scene::new();
+    vello.append(
+        &inner,
+        Some(Affine::translate((
+            -w * anchor.x as f64,
+            -h * anchor.y as f64,
+        ))),
+    );
     vello
 }
 

@@ -33,13 +33,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             asset_server.load("typst/kanva_demo.typ"),
             MainFunc::default(),
         ),
-        WorldScene::default(),
-        // TODO: Using anchor has issues with glyph transforms
-        // (with kanva only)!
-        // .with_anchor(Vec2::splat(0.5)),
+        WorldScene::default().with_anchor(Vec2::splat(0.5)),
         VelystKanva::default(),
         ConnectionOriginals::default(),
-        Transform::from_xyz(-250.0, 140.0, 0.0),
     ));
 }
 
