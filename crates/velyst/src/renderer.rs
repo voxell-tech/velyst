@@ -194,7 +194,8 @@ fn render_ui_scene(
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene = UiVelloScene::from(frame_to_scene(frame, Vec2::ZERO));
+        *vello_scene =
+            UiVelloScene::from(frame_to_scene(frame, Vec2::ZERO));
     }
 }
 
@@ -209,13 +210,17 @@ fn render_world_scene(
         ),
     >,
 ) {
-    for (scene, world_scene, mut vello_scene, viz) in q_scenes.iter_mut() {
+    for (scene, world_scene, mut vello_scene, viz) in
+        q_scenes.iter_mut()
+    {
         if viz == Visibility::Hidden {
             continue;
         }
         let Some(frame) = &scene.0 else { continue };
-        *vello_scene =
-            VelloScene2d::from(frame_to_scene(frame, world_scene.anchor));
+        *vello_scene = VelloScene2d::from(frame_to_scene(
+            frame,
+            world_scene.anchor,
+        ));
     }
 }
 
@@ -288,7 +293,11 @@ fn render_world_kanva(
     }
 }
 
-fn kanva_to_scene(kanva: &Kanva, frame: &Frame, anchor: Vec2) -> Scene {
+fn kanva_to_scene(
+    kanva: &Kanva,
+    frame: &Frame,
+    anchor: Vec2,
+) -> Scene {
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
