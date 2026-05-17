@@ -161,6 +161,35 @@ impl Kanva {
         Some(first..last + 1)
     }
 
+    /// Returns the contiguous range of path indices that appear in the command
+    /// stream between two labeled marker groups (exclusive of the groups
+    /// themselves). Useful when paths are placed between `<start>` and `<end>`
+    /// marker boxes rather than inside a single labeled group.
+    pub fn get_paths_between_groups(
+        &self,
+        start_group: usize,
+        end_group: usize,
+    ) -> Option<core::ops::Range<usize>> {
+        let start_end = self.group_cmds.get(start_group)?.end;
+        let end_start = self.group_cmds.get(end_group)?.start;
+        let cmds = &self.commands[start_end + 1..end_start];
+        let first = cmds.iter().find_map(|c| {
+            if let Command::DrawPath(i) = c {
+                Some(*i)
+            } else {
+                None
+            }
+        })?;
+        let last = cmds.iter().rev().find_map(|c| {
+            if let Command::DrawPath(i) = c {
+                Some(*i)
+            } else {
+                None
+            }
+        })?;
+        Some(first..last + 1)
+    }
+
     /// Return a cursor for setting per-path field overrides at `path_idx`.
     pub fn mod_path(&mut self, path_idx: usize) -> PathModEntry<'_> {
         PathModEntry::new(&mut self.path_mods, path_idx)

@@ -20,7 +20,14 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn((Camera2d, VelloView));
+    commands.spawn((
+        Camera2d,
+        VelloView,
+        Camera {
+            clear_color: Color::BLACK.into(),
+            ..default()
+        },
+    ));
     commands.spawn((
         VelystFunc::new(
             asset_server.load("typst/kanva_demo.typ"),
@@ -51,10 +58,16 @@ fn animate_connections(
         return;
     }
 
-    let Some(group_idx) = kanva.query_group("connections") else {
+    let Some(start_idx) = kanva.query_group("connections-start")
+    else {
         return;
     };
-    let Some(range) = kanva.get_group_path_range(group_idx) else {
+    let Some(end_idx) = kanva.query_group("connections-end") else {
+        return;
+    };
+    let Some(range) =
+        kanva.get_paths_between_groups(start_idx, end_idx)
+    else {
         return;
     };
     let indices = range.collect::<Box<_>>();
