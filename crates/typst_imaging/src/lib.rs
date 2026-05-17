@@ -1,4 +1,4 @@
-use imaging::{ClipRef, ContextRef, PaintSink};
+use imaging::{ClipRef, ContextRef, GroupRef, PaintSink};
 use peniko::kurbo::{Affine, Vec2};
 use typst_library::layout::{
     Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
@@ -84,18 +84,18 @@ fn render_group(
         sink.push_context(ContextRef::new(&resolved, None));
     }
 
+    let mut group_ref = GroupRef::new();
     if let Some(clip) = &group.clip {
         let clip_path = convert::convert_curve(clip);
-        sink.push_clip(
+        group_ref = group_ref.with_clip(
             ClipRef::fill(clip_path).with_transform(state.transform),
         );
     }
+    sink.push_group(group_ref);
 
     render_items(&group.frame, sink, state);
 
-    if group.clip.is_some() {
-        sink.pop_clip();
-    }
+    sink.pop_group();
     if group.label.is_some() {
         sink.pop_context();
     }
