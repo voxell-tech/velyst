@@ -301,7 +301,7 @@ fn kanva_to_scene(
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
-    let surface_clip = Rect::new(0.0, 0.0, w, h);
+    let surface_clip = Rect::new(-1e9, -1e9, 1e9, 1e9);
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     kanva.render(&mut sink);
@@ -321,7 +321,7 @@ fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
-    let surface_clip = Rect::new(0.0, 0.0, w, h);
+    let surface_clip = Rect::new(-1e9, -1e9, 1e9, 1e9);
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     render_frame(frame, &mut sink);
