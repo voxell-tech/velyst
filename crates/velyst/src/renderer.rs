@@ -301,40 +301,46 @@ fn kanva_to_scene(
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
+
     let surface_clip = Rect::new(0.0, 0.0, w, h);
+
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     kanva.render(&mut sink);
     let _ = sink.finish();
-    let mut vello = Scene::new();
-    vello.append(
+
+    let mut scene = Scene::new();
+    scene.append(
         &inner,
         Some(Affine::translate((
             -w * anchor.x as f64,
             -h * anchor.y as f64,
         ))),
     );
-    vello
+    inner
 }
 
 fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
+
     let surface_clip = Rect::new(0.0, 0.0, w, h);
+
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     typst_imaging::render_frame(frame, &mut sink);
     let _ = sink.finish();
-    let mut vello = Scene::new();
-    vello.append(
+
+    let mut scene = Scene::new();
+    scene.append(
         &inner,
         Some(Affine::translate((
             -w * anchor.x as f64,
             -h * anchor.y as f64,
         ))),
     );
-    vello
+    scene
 }
 
 /// The laid-out Typst frame, ready to be rendered.
