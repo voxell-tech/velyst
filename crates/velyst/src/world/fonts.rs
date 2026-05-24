@@ -29,13 +29,14 @@ impl Default for TypstFonts {
     }
 }
 
-/// Holds details about the location of a font and lazily load the font itself.
+/// Holds details about the location of a font and lazily load the
+/// font itself.
 #[derive(Debug, Clone)]
 pub struct FontSlot {
     /// The path at which the font can be found on the system.
     path: PathBuf,
-    /// The index of the font in its collection. Zero if the path does not point
-    /// to a collection.
+    /// The index of the font in its collection. Zero if the path
+    /// does not point to a collection.
     index: u32,
     /// The lazily loaded font.
     font: OnceLock<Option<Font>>,
@@ -71,8 +72,8 @@ impl TypstFonts {
                 Source::File(path) | Source::SharedFile(path, _) => {
                     path
                 }
-                // We never add binary sources to the database, so there
-                // shouln't be any.
+                // We never add binary sources to the database, so
+                // there shouln't be any.
                 Source::Binary(_) => continue,
             };
 

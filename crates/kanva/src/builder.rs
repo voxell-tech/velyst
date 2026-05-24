@@ -4,17 +4,19 @@ use ttf_parser::OutlineBuilder;
 
 use crate::sink::{GlyphRun, KanvaSink};
 
-use crate::{
-    Command, Group, GroupRange, Kanva, KanvaFill, KanvaPath,
-    KanvaStroke, NodeIndex,
+use crate::Kanva;
+use crate::node::{
+    Command, Group, GroupRange, KanvaFill, KanvaPath, KanvaStroke,
+    NodeIndex, PaintOrder,
 };
 
 /// Builds a [`Kanva`] by consuming a [`KanvaSink`] draw stream.
 ///
-/// Feed any draw stream into this builder, then call [`Self::build`] to get
-/// the finished `Kanva`.
-/// Wrap draws with [`KanvaSink::push_context`] / [`KanvaSink::pop_context`]
-/// to label nodes for later lookup via [`Kanva::query`].
+/// Feed any draw stream into this builder, then call [`Self::build`]
+/// to get the finished `Kanva`.
+/// Wrap draws with [`KanvaSink::push_context`] /
+/// [`KanvaSink::pop_context`] to label nodes for later lookup via
+/// [`Kanva::query`].
 pub struct KanvaBuilder {
     kanva: Kanva,
     group_stack: Vec<usize>,
@@ -80,7 +82,6 @@ impl Default for KanvaBuilder {
     }
 }
 
-
 impl KanvaSink for KanvaBuilder {
     fn push_context(&mut self, label: &str) {
         self.pending_label = Some(label.into());
@@ -104,13 +105,14 @@ impl KanvaSink for KanvaBuilder {
         transform: Affine,
         fill: Option<KanvaFill>,
         stroke: Option<KanvaStroke>,
+        paint_order: PaintOrder,
     ) {
-        let fill_idx = fill.map(|f| {
+        let fill = fill.map(|f| {
             let idx = self.kanva.fills.len();
             self.kanva.fills.push(f);
             idx
         });
-        let stroke_idx = stroke.map(|s| {
+        let stroke = stroke.map(|s| {
             let idx = self.kanva.strokes.len();
             self.kanva.strokes.push(s);
             idx
@@ -118,8 +120,9 @@ impl KanvaSink for KanvaBuilder {
         let path_idx = self.push_path(KanvaPath {
             path,
             transform,
-            fill: fill_idx,
-            stroke: stroke_idx,
+            fill,
+            stroke,
+            paint_order,
         });
         self.kanva.commands.push(Command::DrawPath(path_idx));
     }
@@ -169,6 +172,7 @@ impl KanvaSink for KanvaBuilder {
                 transform: glyph_tf,
                 fill: fill_idx,
                 stroke: stroke_idx,
+                paint_order: PaintOrder::default(),
             });
             self.kanva.commands.push(Command::DrawPath(path_idx));
         }
@@ -177,8 +181,8 @@ impl KanvaSink for KanvaBuilder {
     }
 }
 
-/// Returns the Y-flipped scale transform for a glyph run, or `None` if
-/// `units_per_em` is zero.
+/// Returns the Y-flipped scale transform for a glyph run, or `None`
+/// if `units_per_em` is zero.
 fn glyph_scale_tf(
     face: &ttf_parser::Face<'_>,
     font_size: f32,
@@ -246,8 +250,7 @@ impl OutlineBuilder for GlyphPen {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sink::KanvaSink;
-    use crate::{KanvaClip, KanvaFill, KanvaStroke, NodeIndex};
+    use crate::prelude::*;
     use imaging::kurbo::{Affine, BezPath, Stroke};
     use imaging::peniko::{Brush, Fill, Style};
 
@@ -262,10 +265,15 @@ mod tests {
                 ..Default::default()
             }),
             None,
+            PaintOrder::default(),
         );
     }
 
-    fn draw_stroke(b: &mut KanvaBuilder, stroke: &Stroke, brush: &Brush) {
+    fn draw_stroke(
+        b: &mut KanvaBuilder,
+        stroke: &Stroke,
+        brush: &Brush,
+    ) {
         KanvaSink::draw_path(
             b,
             BezPath::new(),
@@ -276,6 +284,7 @@ mod tests {
                 brush: brush.clone(),
                 ..Default::default()
             }),
+            PaintOrder::default(),
         );
     }
 
@@ -314,7 +323,8 @@ mod tests {
 
     #[test]
     fn group_ends_siblings() {
-        // commands: [PushGroup(0), DrawPath(0), PopGroup(idx=2), PushGroup(1), DrawPath(1), PopGroup(idx=5)]
+        // commands: [PushGroup(0), DrawPath(0), PopGroup(idx=2),
+        // PushGroup(1), DrawPath(1), PopGroup(idx=5)]
         let mut b = KanvaBuilder::new();
         let brush = Brush::default();
         KanvaSink::push_group(&mut b, Group::default());
@@ -324,17 +334,30 @@ mod tests {
         draw_fill(&mut b, &brush);
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(k.group_cmds[0].start, 0, "first PushGroup at index 0");
-        assert_eq!(k.group_cmds[0].end, 2, "first PopGroup at index 2");
-        assert_eq!(k.group_cmds[1].start, 3, "second PushGroup at index 3");
-        assert_eq!(k.group_cmds[1].end, 5, "second PopGroup at index 5");
+        assert_eq!(
+            k.group_cmds[0].start, 0,
+            "first PushGroup at index 0"
+        );
+        assert_eq!(
+            k.group_cmds[0].end, 2,
+            "first PopGroup at index 2"
+        );
+        assert_eq!(
+            k.group_cmds[1].start, 3,
+            "second PushGroup at index 3"
+        );
+        assert_eq!(
+            k.group_cmds[1].end, 5,
+            "second PopGroup at index 5"
+        );
         assert!(matches!(k.commands[2], Command::PopGroup));
         assert!(matches!(k.commands[5], Command::PopGroup));
     }
 
     #[test]
     fn group_ends_nested() {
-        // commands: [PushGroup(0), PushGroup(1), DrawPath(0), PopGroup(idx=3), PopGroup(idx=4)]
+        // commands: [PushGroup(0), PushGroup(1), DrawPath(0),
+        // PopGroup(idx=3), PopGroup(idx=4)]
         let mut b = KanvaBuilder::new();
         let brush = Brush::default();
         KanvaSink::push_group(&mut b, Group::default());
@@ -343,10 +366,22 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(k.group_cmds[0].start, 0, "outer PushGroup at index 0");
-        assert_eq!(k.group_cmds[1].start, 1, "inner PushGroup at index 1");
-        assert_eq!(k.group_cmds[1].end, 3, "inner PopGroup at index 3");
-        assert_eq!(k.group_cmds[0].end, 4, "outer PopGroup at index 4");
+        assert_eq!(
+            k.group_cmds[0].start, 0,
+            "outer PushGroup at index 0"
+        );
+        assert_eq!(
+            k.group_cmds[1].start, 1,
+            "inner PushGroup at index 1"
+        );
+        assert_eq!(
+            k.group_cmds[1].end, 3,
+            "inner PopGroup at index 3"
+        );
+        assert_eq!(
+            k.group_cmds[0].end, 4,
+            "outer PopGroup at index 4"
+        );
         assert!(matches!(k.commands[3], Command::PopGroup));
         assert!(matches!(k.commands[4], Command::PopGroup));
     }

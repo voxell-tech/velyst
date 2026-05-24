@@ -3,7 +3,7 @@ use std::sync::Arc;
 use kanva::imaging::Composite;
 use kanva::imaging::peniko::{Blob, Fill, FontData};
 use kanva::imaging::record::Glyph;
-use kanva::{GlyphRun, KanvaFill, KanvaSink, KanvaStroke};
+use kanva::prelude::*;
 use typst_imaging::RenderState;
 use typst_imaging::convert::convert_fixed_stroke;
 use typst_imaging::paint::text_paint;

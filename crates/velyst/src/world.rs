@@ -76,8 +76,8 @@ impl Default for TypstLibrary {
     }
 }
 
-/// The current datetime if requested. This is stored here to ensure it is
-/// always the same within one frame. Reset between frames.
+/// The current datetime if requested. This is stored here to ensure
+/// it is always the same within one frame. Reset between frames.
 #[derive(Resource, Deref, DerefMut)]
 pub struct TypstDateTime(DateTime<Local>);
 
@@ -94,8 +94,8 @@ pub type FileSlots = HashMap<FileId, FileSlot>;
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct TypstFileSlots(Mutex<FileSlots>);
 
-/// Controls whether typst packages can be downloaded from the internet,
-/// and where they are cached locally.
+/// Controls whether typst packages can be downloaded from the
+/// internet, and where they are cached locally.
 ///
 /// Enabled by default in debug builds, disabled in release builds.
 /// Change this resource at runtime to override the default behavior.
@@ -291,7 +291,8 @@ impl typst::World for VelystWorld<'_> {
 
 /// Holds the processed data for a file ID.
 ///
-/// Both fields can be populated if the file is both imported and read().
+/// Both fields can be populated if the file is both imported and
+/// read().
 pub struct FileSlot {
     /// The slot's file id.
     id: FileId,
@@ -356,7 +357,8 @@ struct SlotCell<T> {
     data: Option<FileResult<T>>,
     /// A hash of the raw file contents / access error.
     fingerprint: u128,
-    /// Whether the slot has been accessed in the current compilation.
+    /// Whether the slot has been accessed in the current
+    /// compilation.
     accessed: bool,
 }
 
@@ -381,7 +383,8 @@ impl<T: Clone> SlotCell<T> {
         path: impl FnOnce() -> FileResult<PathBuf>,
         f: impl FnOnce(Vec<u8>, Option<T>) -> FileResult<T>,
     ) -> FileResult<T> {
-        // If we accessed the file already in this compilation, retrieve it.
+        // If we accessed the file already in this compilation,
+        // retrieve it.
         if mem::replace(&mut self.accessed, true)
             && let Some(data) = &self.data
         {
@@ -392,7 +395,8 @@ impl<T: Clone> SlotCell<T> {
         let result = path().and_then(|p| read(&p));
         let fingerprint = typst::utils::hash128(&result);
 
-        // If the file contents didn't change, yield the old processed data.
+        // If the file contents didn't change, yield the old processed
+        // data.
         if mem::replace(&mut self.fingerprint, fingerprint)
             == fingerprint
             && let Some(data) = &self.data
@@ -408,8 +412,8 @@ impl<T: Clone> SlotCell<T> {
     }
 }
 
-/// Resolves the path of a file id on the system, downloading a package if
-/// necessary.
+/// Resolves the path of a file id on the system, downloading a
+/// package if necessary.
 fn system_path(
     project_root: &Path,
     id: FileId,
@@ -426,8 +430,8 @@ fn system_path(
     id.vpath().resolve(&root).ok_or(FileError::AccessDenied)
 }
 
-/// Returns the local cache directory for a package, downloading it first if
-/// it is not already present and downloading is enabled.
+/// Returns the local cache directory for a package, downloading it
+/// first if it is not already present and downloading is enabled.
 fn prepare_package(
     spec: &PackageSpec,
     download: &TypstPackageDownload,
@@ -457,7 +461,8 @@ fn prepare_package(
     Ok(package_dir)
 }
 
-/// Downloads a package from `packages.typst.org` and extracts it into `dest`.
+/// Downloads a package from `packages.typst.org` and extracts it into
+/// `dest`.
 fn download_package(
     spec: &PackageSpec,
     dest: &Path,

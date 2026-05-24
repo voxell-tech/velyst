@@ -65,7 +65,9 @@ pub enum VelystSet {
     ///
     /// One system per registered [`func::TypstFunc`] type runs here.
     Compile,
-    /// Layout [`func::VelystContent`] and render into [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
+    /// Layout [`func::VelystContent`] and render into
+    /// [`UiVelloScene`][bevy_vello::prelude::UiVelloScene] or
+    /// [`VelloScene2d`][bevy_vello::prelude::VelloScene2d].
     Layout,
     /// Post-layout hook for downstream systems.
     PostLayout,

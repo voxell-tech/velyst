@@ -20,7 +20,6 @@ later with `Kanva::query`, `Kanva::query_group`, or `Kanva::query_path`.
 ## Example
 
 ```rust
-use kanva::builder::KanvaBuilder;
 use kanva::prelude::*;
 use kanva::imaging::kurbo::{Affine, BezPath};
 use kanva::imaging::peniko::{Brush, Fill};
@@ -36,6 +35,7 @@ builder.draw_path(
     Affine::IDENTITY,
     Some(KanvaFill { rule: Fill::NonZero, brush: Brush::default(), ..Default::default() }),
     None,
+    Default::default(),
 );
 builder.pop_group();
 builder.pop_context();

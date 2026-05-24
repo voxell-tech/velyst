@@ -33,10 +33,11 @@ pub fn shape_paint(
                         shape_size.y.to_pt(),
                     ))
                 }
-                // Gradient maps unit square -> container size (pt), then
-                // container transform moves it into canvas space. The inverse
-                // is passed as brush_transform so vello un-applies it during
-                // sampling.
+                // Gradient maps unit square -> container size (pt),
+                // then container transform moves it
+                // into canvas space. The inverse
+                // is passed as brush_transform so vello un-applies it
+                // during sampling.
                 viz::RelativeTo::Parent => {
                     let inv = state.container_transform.inverse();
                     Some(
@@ -48,7 +49,8 @@ pub fn shape_paint(
                 }
             };
 
-            // Rotate brush for conic angle, around the gradient center.
+            // Rotate brush for conic angle, around the gradient
+            // center.
             if let viz::Gradient::Conic(conic) = gradient {
                 let rad = conic.angle.to_rad();
                 let center = kurbo::Vec2::new(
@@ -110,7 +112,8 @@ pub fn text_paint(
         let h = state.container_size.y.to_pt();
 
         // The brush lives in the last glyph's actual transform space,
-        // which includes vello's internal Y-flip matrix [1, 0, 0, -1].
+        // which includes vello's internal Y-flip matrix [1, 0, 0,
+        // -1].
         //
         // Factor that in so the brush correctly maps gradient unit to
         // container canvas space without needing glyph_transform to

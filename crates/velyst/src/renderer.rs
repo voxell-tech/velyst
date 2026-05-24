@@ -3,8 +3,7 @@ use bevy::prelude::*;
 use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
-use kanva::builder::KanvaBuilder;
-use kanva::prelude::Kanva;
+use kanva::prelude::*;
 use typst::layout::{Abs, Axes, Frame, Region, Size};
 use vello::Scene;
 use vello::peniko::kurbo::{Affine, Rect};
@@ -107,7 +106,8 @@ fn layout_ui_content(
     }
 }
 
-/// Layout [`VelystContent`] into a [`VelystFrame`] in world coordinates.
+/// Layout [`VelystContent`] into a [`VelystFrame`] in world
+/// coordinates.
 fn layout_world_content(
     world: VelystWorld,
     mut q_contents: Query<
@@ -153,9 +153,10 @@ fn layout_world_content(
             let height = frame_size.y.to_pt() as f32;
             let anchor = world_scene.anchor;
 
-            // Bevy_vello flips Y when rendering world scenes, so the scene
-            // occupies [0, width] × [0, -height] in local space.
-            // Anchor shifts the origin within that rect (normalized 0..1).
+            // Bevy_vello flips Y when rendering world scenes, so the
+            // scene occupies [0, width] × [0, -height] in
+            // local space. Anchor shifts the origin
+            // within that rect (normalized 0..1).
             let center = Vec3A::new(
                 width * (0.5 - anchor.x),
                 height * (anchor.y - 0.5),
@@ -338,23 +339,25 @@ fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
 
 /// The laid-out Typst frame, ready to be rendered.
 ///
-/// Add [`UiScene`] or [`WorldScene`] to control which coordinate space
-/// this entity renders in.
+/// Add [`UiScene`] or [`WorldScene`] to control which coordinate
+/// space this entity renders in.
 #[derive(Component, Default)]
 pub struct VelystFrame(pub Option<Frame>);
 
 /// Stores a [`Kanva`] built from the last laid-out Typst frame.
 ///
 /// Add this alongside [`UiScene`] or [`WorldScene`] to opt into kanva
-/// rendering. Mutate `path_mods` / `group_mods` each frame via their builder
-/// methods and mark this component changed to trigger a re-render without a
-/// Typst recompile.
+/// rendering. Mutate `path_mods` / `group_mods` each frame via their
+/// builder methods and mark this component changed to trigger a
+/// re-render without a Typst recompile.
 #[derive(Component, Default, Deref, DerefMut)]
 pub struct VelystKanva(pub Kanva);
 
-/// Marker: render this entity's [`VelystFrame`] in Bevy UI coordinates.
+/// Marker: render this entity's [`VelystFrame`] in Bevy UI
+/// coordinates.
 ///
-/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted automatically.
+/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted
+/// automatically.
 #[derive(Component, Default)]
 #[require(VelystFrame, UiVelloScene, ContentSize)]
 pub struct UiScene;

@@ -21,14 +21,21 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn((Camera2d, VelloView));
+    commands.spawn((
+        Camera2d,
+        Camera {
+            clear_color: Color::BLACK.into(),
+            ..default()
+        },
+        VelloView,
+    ));
 
     commands.spawn((
         VelystFunc::new(
             asset_server.load("typst/feature_test.typ"),
             FeatureTestFunc::default(),
         ),
-        WorldScene::default(),
+        WorldScene::default().with_anchor(Vec2::splat(0.5)),
     ));
 }
 

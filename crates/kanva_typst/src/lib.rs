@@ -1,6 +1,6 @@
 use kanva::imaging::kurbo::Affine;
 use kanva::imaging::peniko::Style;
-use kanva::{Group, KanvaClip, KanvaSink};
+use kanva::prelude::*;
 pub use typst_imaging::RenderState;
 use typst_imaging::convert::convert_transform;
 use typst_library::layout::{

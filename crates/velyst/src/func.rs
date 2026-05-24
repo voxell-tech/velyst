@@ -13,8 +13,9 @@ pub trait TypstFuncAppExt {
 }
 
 impl TypstFuncAppExt for App {
-    /// Register a [`TypstFunc`] type so that [`VelystFunc<F>`] entities
-    /// are compiled into [`VelystContent`] when they change.
+    /// Register a [`TypstFunc`] type so that [`VelystFunc<F>`]
+    /// entities are compiled into [`VelystContent`] when they
+    /// change.
     fn register_typst_func<F: TypstFunc>(&mut self) -> &mut Self {
         self.add_systems(
             PostUpdate,
@@ -100,7 +101,8 @@ fn compile_velyst_func<F: TypstFunc>(
 /// A Typst function component. Holds the source asset handle and the
 /// typed function data. Register it with
 /// [`TypstFuncAppExt::register_typst_func`] and add [`UiScene`] or
-/// [`WorldScene`] to control which coordinate space this entity renders in.
+/// [`WorldScene`] to control which coordinate space this entity
+/// renders in.
 ///
 /// [`UiScene`]: crate::renderer::UiScene
 /// [`WorldScene`]: crate::renderer::WorldScene
@@ -125,8 +127,9 @@ impl<F: TypstFunc> VelystFunc<F> {
     }
 }
 
-/// Marker component that is inserted when the [module][typst::foundations::Module]
-/// needed for this entity's [`VelystFunc`] handle is ready.
+/// Marker component that is inserted when the
+/// [module][typst::foundations::Module] needed for this entity's
+/// [`VelystFunc`] handle is ready.
 ///
 /// Will be removed when the [module][typst::foundations::Module]
 /// needed becomes unavailable again.
@@ -158,8 +161,8 @@ pub trait TypstFunc: Send + Sync + 'static {
 /// # Example
 ///
 /// ```
-/// use velyst::prelude::*;
 /// use bevy::prelude::*;
+/// use velyst::prelude::*;
 ///
 /// typst_func!(
 ///     // The literal function name from the Typst scope,

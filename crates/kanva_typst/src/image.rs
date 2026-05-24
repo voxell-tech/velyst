@@ -6,7 +6,7 @@ use kanva::imaging::peniko::{
     Blob, Brush, Fill, ImageAlphaType, ImageBrush, ImageData,
     ImageFormat,
 };
-use kanva::{KanvaFill, KanvaSink};
+use kanva::prelude::*;
 use typst_imaging::RenderState;
 use typst_library::layout::Size;
 use typst_library::visualize::{Image, ImageKind};
@@ -51,6 +51,7 @@ pub fn render_image(
                     composite: Composite::default(),
                 }),
                 None,
+                Default::default(),
             );
         }
         ImageKind::Svg(svg) => {

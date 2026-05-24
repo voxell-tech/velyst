@@ -69,7 +69,8 @@ pub(crate) fn render_text(
         text_paint(&text.fill, &state, last_glyph.x as f64);
 
     let fill_style = Style::Fill(Fill::NonZero);
-    // TODO(vello-0.9): pass actual brush_transform once vello supports it.
+    // TODO(vello-0.9): pass actual brush_transform once vello
+    // supports it.
     sink.glyph_run(
         GlyphRunRef {
             font: &font_data,
@@ -94,7 +95,8 @@ pub(crate) fn render_text(
         let stroke_style =
             Style::Stroke(convert_fixed_stroke(stroke));
 
-        // TODO(vello-0.9): pass actual brush_transform once vello supports it.
+        // TODO(vello-0.9): pass actual brush_transform once vello
+        // supports it.
         sink.glyph_run(
             GlyphRunRef {
                 font: &font_data,

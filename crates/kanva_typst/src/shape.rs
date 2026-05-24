@@ -1,6 +1,6 @@
 use kanva::imaging::Composite;
 use kanva::imaging::peniko::Fill;
-use kanva::{KanvaFill, KanvaSink, KanvaStroke};
+use kanva::prelude::*;
 use typst_imaging::RenderState;
 use typst_imaging::convert::{
     convert_fixed_stroke, convert_geometry,
@@ -40,5 +40,11 @@ pub fn render_shape(
         }
     });
 
-    sink.draw_path(path, state.transform, fill, stroke);
+    sink.draw_path(
+        path,
+        state.transform,
+        fill,
+        stroke,
+        Default::default(),
+    );
 }
