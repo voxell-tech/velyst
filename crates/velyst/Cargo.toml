@@ -14,6 +14,7 @@ imaging = { workspace = true, features = ["std"] }
 imaging_vello = { workspace = true }
 typst_imaging = { workspace = true }
 kanva = { workspace = true }
+kanva_typst = { workspace = true }
 
 bevy = { workspace = true, features = ["2d"] }
 bevy_vello = { workspace = true, features = ["svg"] }

@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use hayro_svg::convert;
-use imaging::{Composite, FillRef, GeometryRef, PaintSink, Painter};
-use peniko::kurbo::{Affine, Rect};
-use peniko::{
-    Blob, Brush, ImageAlphaType, ImageBrush, ImageData, ImageFormat,
+use imaging::peniko::kurbo::{Affine, Rect};
+use imaging::peniko::{
+    Blob, Brush, Fill, ImageAlphaType, ImageBrush, ImageData,
+    ImageFormat,
 };
+use imaging::{Composite, FillRef, GeometryRef, PaintSink, Painter};
 use svg_imaging::{RenderOptions, SvgDocument};
 use typst_library::layout::Size;
 use typst_library::visualize::{Image, ImageKind};
@@ -46,7 +47,7 @@ pub(crate) fn render_image(
 
             sink.fill(FillRef {
                 transform,
-                fill_rule: peniko::Fill::NonZero,
+                fill_rule: Fill::NonZero,
                 brush: (&brush).into(),
                 brush_transform: None,
                 shape: GeometryRef::Rect(Rect::new(

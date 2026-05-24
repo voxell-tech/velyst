@@ -5,10 +5,9 @@ use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
 use kanva::builder::KanvaBuilder;
 use kanva::prelude::Kanva;
-use peniko::kurbo::{Affine, Rect};
 use typst::layout::{Abs, Axes, Frame, Region, Size};
-use typst_imaging::render_frame;
 use vello::Scene;
+use vello::peniko::kurbo::{Affine, Rect};
 
 use crate::VelystSet;
 use crate::func::VelystContent;
@@ -234,7 +233,7 @@ fn build_kanva_scene(
     for (scene, mut kanva) in q_scenes.iter_mut() {
         let Some(frame) = &scene.0 else { continue };
         let mut builder = KanvaBuilder::new();
-        render_frame(frame, &mut builder);
+        kanva_typst::render_frame(frame, &mut builder);
         kanva.0 = builder.build();
     }
 }
@@ -324,7 +323,7 @@ fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
     let surface_clip = Rect::new(0.0, 0.0, w, h);
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
-    render_frame(frame, &mut sink);
+    typst_imaging::render_frame(frame, &mut sink);
     let _ = sink.finish();
     let mut vello = Scene::new();
     vello.append(

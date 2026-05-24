@@ -11,12 +11,14 @@ use imaging::{
 pub mod builder;
 pub mod modifiers;
 pub mod node;
+pub mod sink;
 
 pub use imaging;
 pub use modifiers::{
     GroupModEntry, GroupMods, PathModEntry, PathMods,
 };
 pub use node::*;
+pub use sink::{GlyphRun, KanvaSink};
 
 pub mod prelude {
     pub use crate::Kanva;
@@ -28,6 +30,7 @@ pub mod prelude {
         Command, Group, GroupRange, KanvaClip, KanvaFill, KanvaPath,
         KanvaStroke, NodeIndex,
     };
+    pub use crate::sink::{GlyphRun, KanvaSink};
 }
 
 /// A baked 2D graphics scene graph.
@@ -114,6 +117,16 @@ impl Kanva {
         self.groups.get(idx)
     }
 
+    /// Returns all [`Group`]s.
+    pub fn groups(&self) -> &[Group] {
+        &self.groups
+    }
+
+    /// Returns all [`KanvaPath`]s.
+    pub fn paths(&self) -> &[KanvaPath] {
+        &self.paths
+    }
+
     /// Returns the contiguous range of path indices directly owned by this group.
     ///
     /// Scans the group's inner commands (PushGroup/PopGroup excluded) for the
@@ -123,16 +136,14 @@ impl Kanva {
     ///
     /// ```
     /// use kanva::prelude::*;
-    /// use kanva::imaging::kurbo::BezPath;
-    /// use kanva::imaging::peniko::Brush;
-    /// use kanva::imaging::{FillRef, GeometryRef, GroupRef, PaintSink};
+    /// use kanva::imaging::kurbo::{Affine, BezPath};
+    /// use kanva::imaging::peniko::{Brush, Fill};
     ///
     /// let mut builder = KanvaBuilder::new();
-    /// let path = BezPath::new();
     /// let brush = Brush::default();
-    /// builder.push_group(GroupRef::new());
-    /// builder.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-    /// builder.fill(FillRef::new(GeometryRef::Path(&path), &brush));
+    /// builder.push_group(Group::default());
+    /// builder.draw_path(BezPath::new(), Affine::IDENTITY, Some(KanvaFill { rule: Fill::NonZero, brush: brush.clone(), ..Default::default() }), None);
+    /// builder.draw_path(BezPath::new(), Affine::IDENTITY, Some(KanvaFill { rule: Fill::NonZero, brush: brush.clone(), ..Default::default() }), None);
     /// builder.pop_group();
     /// let kanva = builder.build();
     ///
@@ -348,31 +359,39 @@ impl Kanva {
 mod tests {
     use super::*;
     use crate::builder::KanvaBuilder;
+    use crate::sink::KanvaSink;
     use imaging::kurbo::{Affine, BezPath, Stroke};
-    use imaging::peniko::{Brush, Color};
+    use imaging::peniko::{Brush, Color, Fill};
     use imaging::record::{Command as RecCmd, Draw, Scene};
-    use imaging::{
-        FillRef, GeometryRef, GroupRef, PaintSink, StrokeRef,
-    };
 
     fn build_fill(brush: &Brush, transform: Affine) -> Kanva {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
-        b.fill(
-            FillRef::new(GeometryRef::Path(&path), brush)
-                .transform(transform),
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            transform,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
         );
         b.build()
     }
 
     fn build_stroke(transform: Affine) -> Kanva {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
-        let stroke = Stroke::default();
-        let brush = Brush::default();
-        b.stroke(
-            StrokeRef::new(GeometryRef::Path(&path), &stroke, &brush)
-                .transform(transform),
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            transform,
+            None,
+            Some(KanvaStroke {
+                stroke: Stroke::default(),
+                brush: Brush::default(),
+                ..Default::default()
+            }),
         );
         b.build()
     }
@@ -406,11 +425,20 @@ mod tests {
     #[test]
     fn render_group_pushpop() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            Affine::IDENTITY,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
+        );
+        KanvaSink::pop_group(&mut b);
         let kanva = b.build();
         let mut scene = Scene::new();
         kanva.render(&mut scene);
@@ -427,14 +455,20 @@ mod tests {
         let path_tf = Affine::translate((10.0, 0.0));
 
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(
-            FillRef::new(GeometryRef::Path(&path), &brush)
-                .transform(path_tf),
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            path_tf,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
         );
-        b.pop_group();
+        KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
         kanva.groups[0].transform = scale;
 
@@ -514,14 +548,20 @@ mod tests {
         let path_tf = Affine::translate((1.0, 0.0));
 
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(
-            FillRef::new(GeometryRef::Path(&path), &brush)
-                .transform(path_tf),
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            path_tf,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
         );
-        b.pop_group();
+        KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
         kanva.groups[0].transform = base_tf;
         kanva.group_mods.transform(0, override_tf);
@@ -541,11 +581,20 @@ mod tests {
     fn render_group_mod_composite() {
         let composite = Composite::new(BlendMode::default(), 0.75);
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            Affine::IDENTITY,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
+        );
+        KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
         kanva.group_mods.composite(0, composite);
         let mut scene = Scene::new();

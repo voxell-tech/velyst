@@ -1,5 +1,5 @@
-use peniko::kurbo;
-use peniko::kurbo::{Affine, BezPath, Shape as _, Stroke};
+use imaging::peniko::kurbo;
+use imaging::peniko::kurbo::{Affine, BezPath, Shape as _, Stroke};
 use typst_library::layout::Transform;
 use typst_library::visualize as viz;
 

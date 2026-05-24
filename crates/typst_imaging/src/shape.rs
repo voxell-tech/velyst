@@ -1,7 +1,7 @@
+use imaging::peniko::Fill;
 use imaging::{
     Composite, FillRef, GeometryRef, PaintSink, StrokeRef,
 };
-use peniko::Fill;
 use typst_library::visualize as viz;
 
 use crate::RenderState;

@@ -1,23 +1,20 @@
 use imaging::kurbo::{Affine, BezPath};
-use imaging::peniko::Style;
 use imaging::record::Glyph;
-use imaging::{
-    BlurredRoundedRect, ClipRef, ContextRef, FillRef, GlyphRunRef,
-    GroupRef, PaintSink, StrokeRef,
-};
 use ttf_parser::OutlineBuilder;
 
+use crate::sink::{GlyphRun, KanvaSink};
+
 use crate::{
-    Command, Group, GroupRange, Kanva, KanvaClip, KanvaFill,
-    KanvaPath, KanvaStroke, NodeIndex,
+    Command, Group, GroupRange, Kanva, KanvaFill, KanvaPath,
+    KanvaStroke, NodeIndex,
 };
 
-/// Builds a [`Kanva`] by consuming an [`imaging::PaintSink`] draw stream.
+/// Builds a [`Kanva`] by consuming a [`KanvaSink`] draw stream.
 ///
 /// Feed any draw stream into this builder, then call [`Self::build`] to get
 /// the finished `Kanva`.
-/// Wrap draws with [`imaging::ContextRef`] push/pop to label nodes for later
-/// lookup via [`Kanva::query`].
+/// Wrap draws with [`KanvaSink::push_context`] / [`KanvaSink::pop_context`]
+/// to label nodes for later lookup via [`Kanva::query`].
 pub struct KanvaBuilder {
     kanva: Kanva,
     group_stack: Vec<usize>,
@@ -83,153 +80,131 @@ impl Default for KanvaBuilder {
     }
 }
 
-impl PaintSink for KanvaBuilder {
-    fn push_context(&mut self, context: ContextRef<'_>) {
-        self.pending_label = Some(context.label.into());
+
+impl KanvaSink for KanvaBuilder {
+    fn push_context(&mut self, label: &str) {
+        self.pending_label = Some(label.into());
     }
 
     fn pop_context(&mut self) {
         self.pending_label = None;
     }
 
-    fn push_clip(&mut self, clip: ClipRef<'_>) {
-        self.push_group_entry(Group {
-            clip: Some(KanvaClip::from_ref(clip)),
-            ..Default::default()
-        });
-    }
-
-    fn pop_clip(&mut self) {
-        self.pop_group_entry();
-    }
-
-    fn push_group(&mut self, group: GroupRef<'_>) {
-        self.push_group_entry(Group {
-            clip: group.clip.map(KanvaClip::from_ref),
-            composite: group.composite,
-            ..Default::default()
-        });
+    fn push_group(&mut self, group: Group) {
+        self.push_group_entry(group);
     }
 
     fn pop_group(&mut self) {
         self.pop_group_entry();
     }
 
-    fn fill(&mut self, draw: FillRef<'_>) {
-        let fill_idx = self.kanva.fills.len();
-        self.kanva.fills.push(KanvaFill {
-            rule: draw.fill_rule,
-            brush: draw.brush.to_owned(),
-            brush_transform: draw.brush_transform,
-            composite: draw.composite,
+    fn draw_path(
+        &mut self,
+        path: BezPath,
+        transform: Affine,
+        fill: Option<KanvaFill>,
+        stroke: Option<KanvaStroke>,
+    ) {
+        let fill_idx = fill.map(|f| {
+            let idx = self.kanva.fills.len();
+            self.kanva.fills.push(f);
+            idx
         });
-        let path = KanvaPath {
-            path: draw.shape.to_path(crate::node::PATH_TOLERANCE),
-            transform: draw.transform,
-            fill: Some(fill_idx),
-            ..Default::default()
-        };
-        let idx = self.push_path(path);
-        self.kanva.commands.push(Command::DrawPath(idx));
-    }
-
-    fn stroke(&mut self, draw: StrokeRef<'_>) {
-        let stroke_idx = self.kanva.strokes.len();
-        self.kanva.strokes.push(KanvaStroke {
-            stroke: draw.stroke.clone(),
-            brush: draw.brush.to_owned(),
-            brush_transform: draw.brush_transform,
-            composite: draw.composite,
+        let stroke_idx = stroke.map(|s| {
+            let idx = self.kanva.strokes.len();
+            self.kanva.strokes.push(s);
+            idx
         });
-        let path = KanvaPath {
-            path: draw.shape.to_path(crate::node::PATH_TOLERANCE),
-            transform: draw.transform,
-            stroke: Some(stroke_idx),
-            ..Default::default()
-        };
-        let idx = self.push_path(path);
-        self.kanva.commands.push(Command::DrawPath(idx));
+        let path_idx = self.push_path(KanvaPath {
+            path,
+            transform,
+            fill: fill_idx,
+            stroke: stroke_idx,
+        });
+        self.kanva.commands.push(Command::DrawPath(path_idx));
     }
 
     fn glyph_run(
         &mut self,
-        draw: GlyphRunRef<'_>,
+        run: GlyphRun,
+        fill: Option<KanvaFill>,
+        stroke: Option<KanvaStroke>,
         glyphs: &mut dyn Iterator<Item = Glyph>,
     ) {
-        let font_data = draw.font.data.data();
+        let font_data = run.font.data.data();
         let Ok(face) =
-            ttf_parser::Face::parse(font_data, draw.font.index)
+            ttf_parser::Face::parse(font_data, run.font.index)
         else {
             return;
         };
 
-        let units_per_em = face.units_per_em();
-        if units_per_em == 0 {
+        let Some(scale_tf) = glyph_scale_tf(&face, run.font_size)
+        else {
             return;
-        }
-        let scale = draw.font_size as f64 / units_per_em as f64;
-        let scale_tf = Affine::scale_non_uniform(scale, -scale);
+        };
 
-        self.push_group_entry(Group {
-            composite: draw.composite,
-            ..Default::default()
+        // One shared fill and stroke entry for the whole run.
+        let fill_idx = fill.map(|f| {
+            let idx = self.kanva.fills.len();
+            self.kanva.fills.push(f);
+            idx
+        });
+        let stroke_idx = stroke.map(|s| {
+            let idx = self.kanva.strokes.len();
+            self.kanva.strokes.push(s);
+            idx
         });
 
+        self.push_group_entry(Group::default());
+
         for glyph in glyphs {
-            let glyph_id = ttf_parser::GlyphId(glyph.id as u16);
-            let mut pen = GlyphPen(BezPath::new());
-            if face.outline_glyph(glyph_id, &mut pen).is_none() {
+            let Some((path, glyph_tf)) =
+                outline_glyph(&face, glyph, run.transform, scale_tf)
+            else {
                 continue;
-            }
+            };
 
-            let glyph_tf = draw.transform
-                * Affine::translate((glyph.x as f64, glyph.y as f64))
-                * scale_tf;
-
-            match &draw.style {
-                Style::Fill(fill_rule) => {
-                    let fill_idx = self.kanva.fills.len();
-                    self.kanva.fills.push(KanvaFill {
-                        rule: *fill_rule,
-                        brush: draw.brush.to_owned(),
-                        ..Default::default()
-                    });
-                    let path_idx = self.push_path(KanvaPath {
-                        path: pen.0,
-                        transform: glyph_tf,
-                        fill: Some(fill_idx),
-                        ..Default::default()
-                    });
-                    self.kanva
-                        .commands
-                        .push(Command::DrawPath(path_idx));
-                }
-                Style::Stroke(stroke) => {
-                    let stroke_idx = self.kanva.strokes.len();
-                    self.kanva.strokes.push(KanvaStroke {
-                        stroke: stroke.clone(),
-                        brush: draw.brush.to_owned(),
-                        ..Default::default()
-                    });
-                    let path_idx = self.push_path(KanvaPath {
-                        path: pen.0,
-                        transform: glyph_tf,
-                        stroke: Some(stroke_idx),
-                        ..Default::default()
-                    });
-                    self.kanva
-                        .commands
-                        .push(Command::DrawPath(path_idx));
-                }
-            }
+            let path_idx = self.push_path(KanvaPath {
+                path,
+                transform: glyph_tf,
+                fill: fill_idx,
+                stroke: stroke_idx,
+            });
+            self.kanva.commands.push(Command::DrawPath(path_idx));
         }
 
         self.pop_group_entry();
     }
+}
 
-    fn blurred_rounded_rect(&mut self, _draw: BlurredRoundedRect) {
-        // Not supported in Kanva.
+/// Returns the Y-flipped scale transform for a glyph run, or `None` if
+/// `units_per_em` is zero.
+fn glyph_scale_tf(
+    face: &ttf_parser::Face<'_>,
+    font_size: f32,
+) -> Option<Affine> {
+    let units_per_em = face.units_per_em();
+    if units_per_em == 0 {
+        return None;
     }
+    let scale = font_size as f64 / units_per_em as f64;
+    Some(Affine::scale_non_uniform(scale, -scale))
+}
+
+/// Outlines a single glyph and returns its path + world transform.
+fn outline_glyph(
+    face: &ttf_parser::Face<'_>,
+    glyph: Glyph,
+    base_transform: Affine,
+    scale_tf: Affine,
+) -> Option<(BezPath, Affine)> {
+    let glyph_id = ttf_parser::GlyphId(glyph.id as u16);
+    let mut pen = GlyphPen(BezPath::new());
+    face.outline_glyph(glyph_id, &mut pen)?;
+    let glyph_tf = base_transform
+        * Affine::translate((glyph.x as f64, glyph.y as f64))
+        * scale_tf;
+    Some((pen.0, glyph_tf))
 }
 
 struct GlyphPen(BezPath);
@@ -271,13 +246,38 @@ impl OutlineBuilder for GlyphPen {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NodeIndex;
-    use imaging::kurbo::{BezPath, Stroke};
-    use imaging::peniko::Brush;
-    use imaging::{
-        ClipRef, ContextRef, FillRef, GeometryRef, GroupRef,
-        StrokeRef,
-    };
+    use crate::sink::KanvaSink;
+    use crate::{KanvaClip, KanvaFill, KanvaStroke, NodeIndex};
+    use imaging::kurbo::{Affine, BezPath, Stroke};
+    use imaging::peniko::{Brush, Fill, Style};
+
+    fn draw_fill(b: &mut KanvaBuilder, brush: &Brush) {
+        KanvaSink::draw_path(
+            b,
+            BezPath::new(),
+            Affine::IDENTITY,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
+        );
+    }
+
+    fn draw_stroke(b: &mut KanvaBuilder, stroke: &Stroke, brush: &Brush) {
+        KanvaSink::draw_path(
+            b,
+            BezPath::new(),
+            Affine::IDENTITY,
+            None,
+            Some(KanvaStroke {
+                stroke: stroke.clone(),
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+        );
+    }
 
     #[test]
     fn empty_build() {
@@ -291,9 +291,7 @@ mod tests {
     #[test]
     fn fill_creates_path_and_command() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
-        let brush = Brush::default();
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
+        draw_fill(&mut b, &Brush::default());
         let k = b.build();
         assert_eq!(k.paths.len(), 1);
         assert_eq!(k.commands.len(), 1);
@@ -305,14 +303,7 @@ mod tests {
     #[test]
     fn stroke_creates_path_and_command() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
-        let stroke = Stroke::default();
-        let brush = Brush::default();
-        b.stroke(StrokeRef::new(
-            GeometryRef::Path(&path),
-            &stroke,
-            &brush,
-        ));
+        draw_stroke(&mut b, &Stroke::default(), &Brush::default());
         let k = b.build();
         assert_eq!(k.paths.len(), 1);
         assert_eq!(k.commands.len(), 1);
@@ -325,31 +316,18 @@ mod tests {
     fn group_ends_siblings() {
         // commands: [PushGroup(0), DrawPath(0), PopGroup(idx=2), PushGroup(1), DrawPath(1), PopGroup(idx=5)]
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        draw_fill(&mut b, &brush);
+        KanvaSink::pop_group(&mut b);
+        KanvaSink::push_group(&mut b, Group::default());
+        draw_fill(&mut b, &brush);
+        KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(
-            k.group_cmds[0].start, 0,
-            "first PushGroup at index 0"
-        );
-        assert_eq!(
-            k.group_cmds[0].end, 2,
-            "first PopGroup at index 2"
-        );
-        assert_eq!(
-            k.group_cmds[1].start, 3,
-            "second PushGroup at index 3"
-        );
-        assert_eq!(
-            k.group_cmds[1].end, 5,
-            "second PopGroup at index 5"
-        );
+        assert_eq!(k.group_cmds[0].start, 0, "first PushGroup at index 0");
+        assert_eq!(k.group_cmds[0].end, 2, "first PopGroup at index 2");
+        assert_eq!(k.group_cmds[1].start, 3, "second PushGroup at index 3");
+        assert_eq!(k.group_cmds[1].end, 5, "second PopGroup at index 5");
         assert!(matches!(k.commands[2], Command::PopGroup));
         assert!(matches!(k.commands[5], Command::PopGroup));
     }
@@ -358,30 +336,17 @@ mod tests {
     fn group_ends_nested() {
         // commands: [PushGroup(0), PushGroup(1), DrawPath(0), PopGroup(idx=3), PopGroup(idx=4)]
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::push_group(&mut b, Group::default());
+        draw_fill(&mut b, &brush);
+        KanvaSink::pop_group(&mut b);
+        KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(
-            k.group_cmds[0].start, 0,
-            "outer PushGroup at index 0"
-        );
-        assert_eq!(
-            k.group_cmds[1].start, 1,
-            "inner PushGroup at index 1"
-        );
-        assert_eq!(
-            k.group_cmds[1].end, 3,
-            "inner PopGroup at index 3"
-        );
-        assert_eq!(
-            k.group_cmds[0].end, 4,
-            "outer PopGroup at index 4"
-        );
+        assert_eq!(k.group_cmds[0].start, 0, "outer PushGroup at index 0");
+        assert_eq!(k.group_cmds[1].start, 1, "inner PushGroup at index 1");
+        assert_eq!(k.group_cmds[1].end, 3, "inner PopGroup at index 3");
+        assert_eq!(k.group_cmds[0].end, 4, "outer PopGroup at index 4");
         assert!(matches!(k.commands[3], Command::PopGroup));
         assert!(matches!(k.commands[4], Command::PopGroup));
     }
@@ -389,8 +354,8 @@ mod tests {
     #[test]
     fn get_group_returns_group() {
         let mut b = KanvaBuilder::new();
-        b.push_group(GroupRef::new());
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::pop_group(&mut b);
         let k = b.build();
         assert!(k.get_group(0).is_some());
         assert!(k.get_group(1).is_none());
@@ -399,12 +364,11 @@ mod tests {
     #[test]
     fn get_group_path_range_returns_range() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_group(GroupRef::new());
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_group();
+        KanvaSink::push_group(&mut b, Group::default());
+        draw_fill(&mut b, &brush);
+        draw_fill(&mut b, &brush);
+        KanvaSink::pop_group(&mut b);
         let k = b.build();
         assert_eq!(k.get_group_path_range(0).unwrap().len(), 2);
     }
@@ -412,11 +376,10 @@ mod tests {
     #[test]
     fn label_indexes_path() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
         let brush = Brush::default();
-        b.push_context(ContextRef::new("foo", None));
-        b.fill(FillRef::new(GeometryRef::Path(&path), &brush));
-        b.pop_context();
+        KanvaSink::push_context(&mut b, "foo");
+        draw_fill(&mut b, &brush);
+        KanvaSink::pop_context(&mut b);
         let k = b.build();
         assert_eq!(k.query("foo"), Some(NodeIndex::Path(0)));
     }
@@ -424,10 +387,10 @@ mod tests {
     #[test]
     fn label_indexes_group() {
         let mut b = KanvaBuilder::new();
-        b.push_context(ContextRef::new("bar", None));
-        b.push_group(GroupRef::new());
-        b.pop_group();
-        b.pop_context();
+        KanvaSink::push_context(&mut b, "bar");
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::pop_group(&mut b);
+        KanvaSink::pop_context(&mut b);
         let k = b.build();
         assert_eq!(k.query("bar"), Some(NodeIndex::Group(0)));
     }
@@ -435,9 +398,18 @@ mod tests {
     #[test]
     fn clip_stored_in_group() {
         let mut b = KanvaBuilder::new();
-        let path = BezPath::new();
-        b.push_clip(ClipRef::fill(GeometryRef::Path(&path)));
-        b.pop_clip();
+        KanvaSink::push_group(
+            &mut b,
+            Group {
+                clip: Some(KanvaClip {
+                    path: BezPath::new(),
+                    transform: Affine::IDENTITY,
+                    style: Style::Fill(Fill::NonZero),
+                }),
+                ..Default::default()
+            },
+        );
+        KanvaSink::pop_group(&mut b);
         let k = b.build();
         assert!(k.groups[0].clip.is_some());
     }

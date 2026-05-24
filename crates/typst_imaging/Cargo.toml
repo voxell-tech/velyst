@@ -11,7 +11,6 @@ typst-library = { workspace = true }
 imaging = { workspace = true, features = ["std"] }
 svg_imaging = { workspace = true, features = ["std"] }
 hayro-svg = { workspace = true }
-peniko = { workspace = true }
 
 [lints]
 workspace = true
