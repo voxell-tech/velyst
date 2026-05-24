@@ -68,8 +68,8 @@ pub fn render_image(
                 return;
             }
             let scale = Affine::scale_non_uniform(
-                size.x.to_pt() / f64::from(svg_size.width()),
-                size.y.to_pt() / f64::from(svg_size.height()),
+                size.x.to_pt() / svg_size.width() as f64,
+                size.y.to_pt() / svg_size.height() as f64,
             );
             kanva_svg::render_svg(
                 &tree,
@@ -91,8 +91,8 @@ pub fn render_image(
             };
             let svg_size = tree.size();
             let scale = Affine::scale_non_uniform(
-                size.x.to_pt() / f64::from(svg_size.width()),
-                size.y.to_pt() / f64::from(svg_size.height()),
+                size.x.to_pt() / svg_size.width() as f64,
+                size.y.to_pt() / svg_size.height() as f64,
             );
             kanva_svg::render_svg(
                 &tree,

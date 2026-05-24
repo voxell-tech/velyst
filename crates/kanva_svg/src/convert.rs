@@ -9,9 +9,12 @@ use kanva::imaging::peniko::{
 use kanva::prelude::*;
 use usvg::Node;
 
+use crate::SvgWarning;
+
 pub(crate) fn merge_clip_chain(
     clip_path: Option<&usvg::ClipPath>,
     transform: Affine,
+    warnings: &mut Vec<SvgWarning>,
 ) -> Option<KanvaClip> {
     let clip_path = clip_path?;
     let mut merged = BezPath::new();
@@ -21,6 +24,7 @@ pub(crate) fn merge_clip_chain(
         transform,
         &mut merged,
         &mut fill_rule,
+        warnings,
     );
     if merged.is_empty() {
         return None;
@@ -37,11 +41,14 @@ fn collect_clip_chain(
     transform: Affine,
     out: &mut BezPath,
     fill_rule: &mut Fill,
+    warnings: &mut Vec<SvgWarning>,
 ) {
     if let Some(parent) = clip_path.clip_path() {
-        collect_clip_chain(parent, transform, out, fill_rule);
+        collect_clip_chain(
+            parent, transform, out, fill_rule, warnings,
+        );
     }
-    if let Some(clip) = convert_clip(clip_path, transform) {
+    if let Some(clip) = convert_clip(clip_path, transform, warnings) {
         if let Style::Fill(rule) = clip.style {
             *fill_rule = rule;
         }
@@ -52,6 +59,7 @@ fn collect_clip_chain(
 fn convert_clip(
     clip_path: &usvg::ClipPath,
     transform: Affine,
+    warnings: &mut Vec<SvgWarning>,
 ) -> Option<KanvaClip> {
     let mut path = BezPath::new();
     let mut fill_rule: Option<Fill> = None;
@@ -63,7 +71,7 @@ fn convert_clip(
         &mut fill_rule,
     ) || path.is_empty()
     {
-        eprintln!("kanva_svg: complex clip path skipped");
+        warnings.push(SvgWarning::ComplexClipPathSkipped);
         return None;
     }
 
@@ -141,10 +149,11 @@ fn collect_clip_node(
 
 pub(crate) fn convert_fill(
     fill: Option<&usvg::Fill>,
+    warnings: &mut Vec<SvgWarning>,
 ) -> Option<KanvaFill> {
     let fill = fill?;
     let (brush, brush_transform) =
-        convert_brush(fill.paint(), fill.opacity().get())?;
+        convert_brush(fill.paint(), fill.opacity().get(), warnings)?;
     Some(KanvaFill {
         rule: match fill.rule() {
             usvg::FillRule::NonZero => Fill::NonZero,
@@ -158,10 +167,14 @@ pub(crate) fn convert_fill(
 
 pub(crate) fn convert_stroke(
     stroke: Option<&usvg::Stroke>,
+    warnings: &mut Vec<SvgWarning>,
 ) -> Option<KanvaStroke> {
     let stroke = stroke?;
-    let (brush, brush_transform) =
-        convert_brush(stroke.paint(), stroke.opacity().get())?;
+    let (brush, brush_transform) = convert_brush(
+        stroke.paint(),
+        stroke.opacity().get(),
+        warnings,
+    )?;
     Some(KanvaStroke {
         stroke: convert_stroke_style(stroke),
         brush,
@@ -173,6 +186,7 @@ pub(crate) fn convert_stroke(
 fn convert_brush(
     paint: &usvg::Paint,
     opacity: f32,
+    warnings: &mut Vec<SvgWarning>,
 ) -> Option<(Brush, Option<Affine>)> {
     match paint {
         usvg::Paint::Color(color) => {
@@ -191,7 +205,7 @@ fn convert_brush(
             affine_if_non_identity(g.transform()),
         )),
         usvg::Paint::Pattern(_) => {
-            eprintln!("kanva_svg: pattern paint unsupported");
+            warnings.push(SvgWarning::PatternPaintUnsupported);
             None
         }
     }
@@ -204,21 +218,15 @@ pub(crate) fn convert_path(
     for segment in path.segments() {
         match segment {
             usvg::tiny_skia_path::PathSegment::MoveTo(p) => {
-                bez.move_to(Point::new(
-                    f64::from(p.x),
-                    f64::from(p.y),
-                ));
+                bez.move_to(Point::new(p.x as f64, p.y as f64));
             }
             usvg::tiny_skia_path::PathSegment::LineTo(p) => {
-                bez.line_to(Point::new(
-                    f64::from(p.x),
-                    f64::from(p.y),
-                ));
+                bez.line_to(Point::new(p.x as f64, p.y as f64));
             }
             usvg::tiny_skia_path::PathSegment::QuadTo(p1, p2) => {
                 bez.quad_to(
-                    Point::new(f64::from(p1.x), f64::from(p1.y)),
-                    Point::new(f64::from(p2.x), f64::from(p2.y)),
+                    Point::new(p1.x as f64, p1.y as f64),
+                    Point::new(p2.x as f64, p2.y as f64),
                 );
             }
             usvg::tiny_skia_path::PathSegment::CubicTo(
@@ -227,9 +235,9 @@ pub(crate) fn convert_path(
                 p3,
             ) => {
                 bez.curve_to(
-                    Point::new(f64::from(p1.x), f64::from(p1.y)),
-                    Point::new(f64::from(p2.x), f64::from(p2.y)),
-                    Point::new(f64::from(p3.x), f64::from(p3.y)),
+                    Point::new(p1.x as f64, p1.y as f64),
+                    Point::new(p2.x as f64, p2.y as f64),
+                    Point::new(p3.x as f64, p3.y as f64),
                 );
             }
             usvg::tiny_skia_path::PathSegment::Close => {
@@ -242,12 +250,12 @@ pub(crate) fn convert_path(
 
 pub(crate) fn convert_transform(t: usvg::Transform) -> Affine {
     Affine::new([
-        f64::from(t.sx),
-        f64::from(t.ky),
-        f64::from(t.kx),
-        f64::from(t.sy),
-        f64::from(t.tx),
-        f64::from(t.ty),
+        t.sx as f64,
+        t.ky as f64,
+        t.kx as f64,
+        t.sy as f64,
+        t.tx as f64,
+        t.ty as f64,
     ])
 }
 
@@ -266,7 +274,7 @@ fn convert_color(color: usvg::Color, opacity: f32) -> Brush {
 }
 
 fn convert_stroke_style(stroke: &usvg::Stroke) -> Stroke {
-    let mut s = Stroke::new(f64::from(stroke.width().get()))
+    let mut s = Stroke::new(stroke.width().get() as f64)
         .with_join(match stroke.linejoin() {
             usvg::LineJoin::Miter | usvg::LineJoin::MiterClip => {
                 Join::Miter
@@ -274,7 +282,7 @@ fn convert_stroke_style(stroke: &usvg::Stroke) -> Stroke {
             usvg::LineJoin::Round => Join::Round,
             usvg::LineJoin::Bevel => Join::Bevel,
         })
-        .with_miter_limit(f64::from(stroke.miterlimit().get()))
+        .with_miter_limit(stroke.miterlimit().get() as f64)
         .with_caps(match stroke.linecap() {
             usvg::LineCap::Butt => Cap::Butt,
             usvg::LineCap::Square => Cap::Square,
@@ -282,8 +290,8 @@ fn convert_stroke_style(stroke: &usvg::Stroke) -> Stroke {
         });
     if let Some(dashes) = stroke.dasharray() {
         s = s.with_dashes(
-            f64::from(stroke.dashoffset()),
-            dashes.iter().copied().map(f64::from),
+            stroke.dashoffset() as f64,
+            dashes.iter().copied().map(|d| d as f64),
         );
     }
     s
@@ -331,7 +339,7 @@ fn convert_extend(spread: usvg::SpreadMethod) -> Extend {
     }
 }
 
-pub(crate) fn map_blend_mode(mode: usvg::BlendMode) -> BlendMode {
+pub(crate) fn convert_blend_mode(mode: usvg::BlendMode) -> BlendMode {
     match mode {
         usvg::BlendMode::Normal => BlendMode::default(),
         usvg::BlendMode::Multiply => BlendMode::from(Mix::Multiply),
