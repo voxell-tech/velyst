@@ -317,7 +317,7 @@ fn kanva_to_scene(
             -h * anchor.y as f64,
         ))),
     );
-    inner
+    scene
 }
 
 fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {

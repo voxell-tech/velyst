@@ -213,7 +213,7 @@ macro_rules! typst_func {
                 // Optional positional args.
                 $(
                     $( #[$positional_attr:meta] )*
-                    $positional_arg:ident: $positional_type:ty
+                    $positional_vis:vis $positional_arg:ident: $positional_type:ty
                 ),*$(,)?
             }$(,)?
         )?
@@ -222,7 +222,7 @@ macro_rules! typst_func {
             named_args {
                 $(
                     $( #[$named_attr:meta] )*
-                    $named_arg:ident: $named_type:ty
+                    $named_vis:vis $named_arg:ident: $named_type:ty
                 ),*$(,)?
             }$(,)?
         )?
@@ -236,12 +236,12 @@ macro_rules! typst_func {
             // Positional ags
             $($(
                 $( #[$positional_attr] )*
-                $positional_arg: $positional_type,
+                $positional_vis $positional_arg: $positional_type,
             )*)?
             // Optional named args.
             $($(
                 $( #[$named_attr] )*
-                $named_arg: Option<$named_type>,
+                $named_vis $named_arg: Option<$named_type>,
             )*)?
         }
 
