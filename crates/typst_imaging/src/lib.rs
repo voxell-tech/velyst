@@ -91,18 +91,19 @@ fn render_group(
         ));
     }
 
-    let mut group_ref = GroupRef::new();
+    let has_clip = group.clip.is_some();
     if let Some(clip) = &group.clip {
         let clip_path = convert::convert_curve(clip);
-        group_ref = group_ref.with_clip(
+        sink.push_group(GroupRef::new().with_clip(
             ClipRef::fill(clip_path).with_transform(state.transform),
-        );
+        ));
     }
-    sink.push_group(group_ref);
 
     render_items(&group.frame, sink, state);
 
-    sink.pop_group();
+    if has_clip {
+        sink.pop_group();
+    }
     if group.label.is_some() {
         sink.pop_context();
     }
