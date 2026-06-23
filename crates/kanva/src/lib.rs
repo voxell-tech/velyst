@@ -259,6 +259,7 @@ impl Kanva {
     /// stored world transform at draw time.
     pub fn render(&self, sink: &mut impl PaintSink) {
         let mut group_tf_stack = vec![Affine::IDENTITY];
+        let mut group_pushed_stack: Vec<bool> = Vec::new();
 
         for cmd in &self.commands {
             match *cmd {
@@ -299,16 +300,33 @@ impl Kanva {
                         .get(&idx)
                         .copied()
                         .unwrap_or(group.composite);
-                    let mut group_ref =
-                        GroupRef::new().with_composite(composite);
-                    if let Some(c) = clip {
-                        group_ref = group_ref.with_clip(c);
+                    // Only open an isolated layer when the group actually
+                    // affects compositing. A clip-less group would
+                    // otherwise be clipped to the surface bounds, which
+                    // are empty for a zero-sized frame, dropping its
+                    // contents.
+                    //
+                    // NOTE: this is a workaround and may change in the
+                    // future -- the empty-surface clip on a clip-less
+                    // group may turn out to be a Vello bug, in which case
+                    // we'd unconditionally push the group again.
+                    let pushed = clip.is_some()
+                        || composite != Composite::default();
+                    if pushed {
+                        let mut group_ref =
+                            GroupRef::new().with_composite(composite);
+                        if let Some(c) = clip {
+                            group_ref = group_ref.with_clip(c);
+                        }
+                        sink.push_group(group_ref);
                     }
-                    sink.push_group(group_ref);
+                    group_pushed_stack.push(pushed);
                 }
                 Command::PopGroup => {
                     group_tf_stack.pop();
-                    sink.pop_group();
+                    if group_pushed_stack.pop().unwrap_or(false) {
+                        sink.pop_group();
+                    }
                 }
                 Command::DrawPath(idx) => {
                     let path = &self.paths[idx];
@@ -528,7 +546,14 @@ mod tests {
     fn render_group_pushpop() {
         let mut b = KanvaBuilder::new();
         let brush = Brush::default();
-        KanvaSink::push_group(&mut b, Group::default());
+        // A group that actually composites is emitted as push/pop.
+        KanvaSink::push_group(
+            &mut b,
+            Group {
+                composite: Composite::new(BlendMode::default(), 0.5),
+                ..Default::default()
+            },
+        );
         KanvaSink::draw_path(
             &mut b,
             BezPath::new(),
@@ -550,6 +575,35 @@ mod tests {
         assert!(matches!(cmds[0], Command::PushGroup(_)));
         assert!(matches!(cmds[1], Command::Draw(_)));
         assert!(matches!(cmds[2], Command::PopGroup));
+    }
+
+    #[test]
+    fn render_trivial_group_elided() {
+        // A group with no clip and a default composite contributes
+        // nothing to the sink (its transform is baked into children),
+        // so it must not emit a push/pop layer.
+        let mut b = KanvaBuilder::new();
+        let brush = Brush::default();
+        KanvaSink::push_group(&mut b, Group::default());
+        KanvaSink::draw_path(
+            &mut b,
+            BezPath::new(),
+            Affine::IDENTITY,
+            Some(KanvaFill {
+                rule: Fill::NonZero,
+                brush: brush.clone(),
+                ..Default::default()
+            }),
+            None,
+            PaintOrder::default(),
+        );
+        KanvaSink::pop_group(&mut b);
+        let kanva = b.build();
+        let mut scene = Scene::new();
+        kanva.render(&mut scene);
+        let cmds = scene.commands();
+        assert_eq!(cmds.len(), 1);
+        assert!(matches!(cmds[0], Command::Draw(_)));
     }
 
     #[test]
@@ -579,10 +633,12 @@ mod tests {
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let cmds = scene.commands();
-        let Command::Draw(id) = cmds[1] else {
+        // The transform-only group is elided, so the draw is first, but
+        // the group transform is still baked into the path.
+        let Command::Draw(id) = cmds[0] else {
             panic!(
-                "expected Command::Draw at index 1, got {:?}",
-                cmds[1]
+                "expected Command::Draw at index 0, got {:?}",
+                cmds[0]
             )
         };
         let Draw::Fill { transform, .. } = scene.draw_op(id) else {
@@ -682,10 +738,12 @@ mod tests {
 
         let mut scene = Scene::new();
         kanva.render(&mut scene);
-        let Command::Draw(id) = scene.commands()[1] else {
+        // The transform-only group is elided, so the draw is first, but
+        // the overridden group transform is still baked into the path.
+        let Command::Draw(id) = scene.commands()[0] else {
             panic!(
-                "expected Command::Draw at index 1, got {:?}",
-                scene.commands()[1]
+                "expected Command::Draw at index 0, got {:?}",
+                scene.commands()[0]
             )
         };
         let Draw::Fill { transform, .. } = scene.draw_op(id) else {
