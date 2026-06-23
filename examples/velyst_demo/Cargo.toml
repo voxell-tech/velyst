@@ -1,0 +1,22 @@
+[package]
+name = "velyst_demo"
+description = "Examples demonstrating velyst."
+publish = false
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+velyst = { workspace = true }
+
+bevy = { workspace = true, features = [
+  "2d",
+  "file_watcher",
+  "x11",
+  "wayland",
+] }
+bevy_vello = { workspace = true, features = ["svg"] }
+
+[lints]
+workspace = true
