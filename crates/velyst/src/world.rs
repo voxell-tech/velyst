@@ -432,7 +432,9 @@ fn system_path(
 
     // Join the path to the root. If it tries to escape, deny
     // access. Note: It can still escape via symlinks.
-    id.vpath().realize(&root).map_err(|_| FileError::AccessDenied)
+    id.vpath()
+        .realize(&root)
+        .map_err(|_| FileError::AccessDenied)
 }
 
 /// Returns the local cache directory for a package, downloading it
