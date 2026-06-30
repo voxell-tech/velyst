@@ -300,16 +300,20 @@ impl Kanva {
                         .get(&idx)
                         .copied()
                         .unwrap_or(group.composite);
-                    // Only open an isolated layer when the group actually
+                    // Only open an isolated layer when the group
+                    // actually
                     // affects compositing. A clip-less group would
-                    // otherwise be clipped to the surface bounds, which
-                    // are empty for a zero-sized frame, dropping its
+                    // otherwise be clipped to the surface bounds,
+                    // which are empty for a
+                    // zero-sized frame, dropping its
                     // contents.
                     //
-                    // NOTE: this is a workaround and may change in the
-                    // future -- the empty-surface clip on a clip-less
-                    // group may turn out to be a Vello bug, in which case
-                    // we'd unconditionally push the group again.
+                    // NOTE: this is a workaround and may change in
+                    // the future -- the
+                    // empty-surface clip on a clip-less
+                    // group may turn out to be a Vello bug, in which
+                    // case we'd unconditionally
+                    // push the group again.
                     let pushed = clip.is_some()
                         || composite != Composite::default();
                     if pushed {
@@ -345,8 +349,15 @@ impl Kanva {
                         .unwrap_or(path.transform);
                     let eff_tf = group_tf * base_tf;
 
-                    let alpha =
-                        self.path_mods.alpha.get(&idx).copied();
+                    // Only open push a group when the alpha < 1.0.
+                    // (vello is not good at rendering too many groups
+                    // right now)
+                    let alpha = self
+                        .path_mods
+                        .alpha
+                        .get(&idx)
+                        .copied()
+                        .filter(|&a| a < 1.0);
                     if let Some(a) = alpha {
                         sink.push_group(
                             GroupRef::new().with_composite(
@@ -633,8 +644,9 @@ mod tests {
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let cmds = scene.commands();
-        // The transform-only group is elided, so the draw is first, but
-        // the group transform is still baked into the path.
+        // The transform-only group is elided, so the draw is first,
+        // but the group transform is still baked into the
+        // path.
         let Command::Draw(id) = cmds[0] else {
             panic!(
                 "expected Command::Draw at index 0, got {:?}",
@@ -738,8 +750,9 @@ mod tests {
 
         let mut scene = Scene::new();
         kanva.render(&mut scene);
-        // The transform-only group is elided, so the draw is first, but
-        // the overridden group transform is still baked into the path.
+        // The transform-only group is elided, so the draw is first,
+        // but the overridden group transform is still baked
+        // into the path.
         let Command::Draw(id) = scene.commands()[0] else {
             panic!(
                 "expected Command::Draw at index 0, got {:?}",

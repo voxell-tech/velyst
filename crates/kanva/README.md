@@ -64,3 +64,6 @@ You can join us on the [Voxell discord server](https://discord.gg/Mhnyp6VYEQ).
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
 
 This means you can select the license you prefer!
+
+[`KanvaSink`]: sink::KanvaSink
+[`KanvaSink::push_context`]: sink::KanvaSink::push_context
