@@ -19,15 +19,13 @@ kanva_svg = { path = "crates/kanva_svg", version = "0.1.0" }
 kanva_typst = { path = "crates/kanva_typst", version = "0.1.0" }
 
 # Bevy dependencies
-bevy = { version = "0.18.1", default-features = false }
-bevy_vello = "0.13.1"
-# Vello dependencies
-vello = "0.7.0"
-vello_svg = "0.9.0"
+bevy = { version = "0.19", default-features = false }
+# bevy_vello = "0.13.1"
+bevy_vello = { git = "https://github.com/linebender/bevy_vello", branch = "nixon/bevy-0.19", default-features = false }
 # Imaging dependencies
 imaging = { version = "0.0.1", default-features = false }
 svg_imaging = { version = "0.0.1", default-features = false }
-imaging_vello = { version = "0.0.1", default-features = false, features = ["vello-0-7"] }
+imaging_vello = { version = "0.0.2", default-features = false, features = ["vello-0-9"] }
 # Typst dependencies
 typst = "0.15"
 typst-library = "0.15"
