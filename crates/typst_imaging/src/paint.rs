@@ -142,7 +142,12 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
                 .iter()
                 .map(|(color, ratio)| peniko::ColorStop {
                     offset: ratio.get() as f32,
-                    color: convert_color(color).into(),
+                    color: convert_color(
+                        &color.to_process_space(
+                            viz::ProcessColorSpace::Srgb,
+                        ),
+                    )
+                    .into(),
                 })
                 .collect();
 
