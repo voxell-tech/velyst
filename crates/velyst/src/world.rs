@@ -536,23 +536,18 @@ fn log_diagnostic(world: &VelystWorld, diagnostic: SourceDiagnostic) {
     log_msg.push_str(&diagnostic.message);
     log_msg.push('\n');
 
-    if let Some(id) = diagnostic.span.id() {
-        if let Ok(source) = world.source(id) {
-            if let Some(range) = world.range(diagnostic.span) {
-                if let Some((line, col)) = source.lines().byte_to_line_column(range.start) {
-                    log_msg.push_str(&format!("In file: {:?}:{}:{}", id, line + 1, col + 1));
-                } else {
-                    log_msg.push_str(&format!("In file: {:?}", id));
-                }
-            } else {
-                log_msg.push_str(&format!("In file: {:?}", id));
-            }
-        } else {
-            log_msg.push_str(&format!("In file: {:?}", id));
+    let location = diagnostic.span.id().map(|id| {
+        let line_col = world
+            .source(id)
+            .ok()
+            .zip(world.range(diagnostic.span))
+            .and_then(|(source, range)| source.lines().byte_to_line_column(range.start));
+        match line_col {
+            Some((line, col)) => format!("In file: {:?}:{}:{}", id, line + 1, col + 1),
+            None => format!("In file: {:?}", id),
         }
-    } else {
-        log_msg.push_str(&format!("In file: {:?}", diagnostic.span.id()));
-    }
+    });
+    log_msg.push_str(&location.unwrap_or_else(|| "In file: <unknown>".to_string()));
     log_msg.push('\n');
     log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
     log_msg.push('\n');
