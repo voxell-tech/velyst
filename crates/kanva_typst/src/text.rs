@@ -38,22 +38,29 @@ pub fn render_text(
             .collect::<Vec<_>>()
     };
 
-    let Some(last_glyph) = glyphs.last() else {
+    if glyphs.is_empty() {
         return;
-    };
+    }
+
+    let (fill_brush, fill_brush_transform) =
+        text_paint(&text.fill, &state);
 
     let fill = Some(KanvaFill {
         rule: Fill::NonZero,
-        brush: text_paint(&text.fill, &state, last_glyph.x as f64),
-        brush_transform: None,
+        brush: fill_brush,
+        brush_transform: fill_brush_transform,
         composite: Composite::default(),
     });
 
-    let stroke = text.stroke.as_ref().map(|s| KanvaStroke {
-        stroke: convert_fixed_stroke(s),
-        brush: text_paint(&s.paint, &state, last_glyph.x as f64),
-        brush_transform: None,
-        composite: Composite::default(),
+    let stroke = text.stroke.as_ref().map(|s| {
+        let (stroke_brush, stroke_brush_transform) =
+            text_paint(&s.paint, &state);
+        KanvaStroke {
+            stroke: convert_fixed_stroke(s),
+            brush: stroke_brush,
+            brush_transform: stroke_brush_transform,
+            composite: Composite::default(),
+        }
     });
 
     sink.glyph_run(

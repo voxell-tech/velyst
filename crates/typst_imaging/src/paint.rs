@@ -1,7 +1,7 @@
 use std::f32::consts::TAU;
 
 use imaging::peniko::kurbo::Affine;
-use imaging::peniko::{Brush, Color, GradientKind};
+use imaging::peniko::{Brush, Color};
 use imaging::{kurbo, peniko};
 use typst_library::layout::{Abs, Quadrant, Size};
 use typst_library::visualize as viz;
@@ -95,40 +95,24 @@ pub fn shape_paint(
     (build_brush(paint, brush_size), brush_transform)
 }
 
-/// Convert a typst [`viz::Paint`] to a [`peniko ::Brush`] for a
-/// text glyph run, baking the brush transform directly into gradient
-/// control points.
+/// Convert a typst [`viz::Paint`] to a [`Brush`] and brush transform
+/// for a text glyph run.
 pub fn text_paint(
     paint: &viz::Paint,
     state: &RenderState,
-    last_glyph_x: f64,
-) -> Brush {
-    let mut brush = build_brush(paint, state.container_size);
+) -> (Brush, Option<Affine>) {
+    let brush_transform = match paint {
+        viz::Paint::Gradient(_) => Some(
+            state.container_transform.inverse()
+                * Affine::scale_non_uniform(
+                    state.container_size.x.to_pt(),
+                    state.container_size.y.to_pt(),
+                ),
+        ),
+        _ => None,
+    };
 
-    // TODO(nixon): Glyph runs does not support brush transform right
-    // now. So we have to apply the transform on our own.
-    if let Brush::Gradient(gradient) = &mut brush {
-        let w = state.container_size.x.to_pt();
-        let h = state.container_size.y.to_pt();
-
-        // The brush lives in the last glyph's actual transform space,
-        // which includes vello's internal Y-flip matrix [1, 0, 0,
-        // -1].
-        //
-        // Factor that in so the brush correctly maps gradient unit to
-        // container canvas space without needing glyph_transform to
-        // cancel the flip (which would make glyphs upside down).
-        let glyph_last_xform = state.transform
-            * Affine::new([1.0, 0.0, 0.0, -1.0, last_glyph_x, 0.0]);
-        let local_to_container =
-            glyph_last_xform.inverse() * state.container_transform;
-        let brush_transform =
-            local_to_container.pre_scale_non_uniform(w, h);
-
-        apply_transform_to_text_gradient(gradient, brush_transform);
-    }
-
-    brush
+    (build_brush(paint, state.container_size), brush_transform)
 }
 
 /// Build the base brush in normalized *unit square* gradient space.
@@ -219,29 +203,3 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
     }
 }
 
-/// Bake an affine transform into a gradient control points.
-pub fn apply_transform_to_text_gradient(
-    gradient: &mut peniko::Gradient,
-    transform: Affine,
-) {
-    match &mut gradient.kind {
-        GradientKind::Linear(pos) => {
-            pos.start = transform * pos.start;
-            pos.end = transform * pos.end;
-        }
-        GradientKind::Radial(pos) => {
-            pos.start_center = transform * pos.start_center;
-            pos.end_center = transform * pos.end_center;
-            let [a, b, ..] = transform.as_coeffs();
-            let scale = a.hypot(b) as f32;
-            pos.start_radius *= scale;
-            pos.end_radius *= scale;
-        }
-        GradientKind::Sweep(pos) => {
-            pos.center = transform * pos.center;
-            // Compensate for inverted text glyph matrix.
-            pos.start_angle = TAU;
-            pos.end_angle = 0.0;
-        }
-    }
-}
