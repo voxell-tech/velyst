@@ -1,1 +1,5 @@
 max_width = 70
+
+unstable_features = true
+wrap_comments = true
+format_code_in_doc_comments = true

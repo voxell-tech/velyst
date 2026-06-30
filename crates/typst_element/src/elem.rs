@@ -51,11 +51,14 @@ macro_rules! sequence {
 /// ```
 /// use typst_element::prelude::*;
 /// let vals = values!(1, false, 0.6);
-/// assert_eq!(vals, [
-///     foundations::Value::Int(1),
-///     foundations::Value::Bool(false),
-///     foundations::Value::Float(0.6),
-/// ]);
+/// assert_eq!(
+///     vals,
+///     [
+///         foundations::Value::Int(1),
+///         foundations::Value::Bool(false),
+///         foundations::Value::Float(0.6),
+///     ]
+/// );
 /// ```
 #[macro_export]
 macro_rules! values {
@@ -70,12 +73,16 @@ macro_rules! values {
 /// # Example
 /// ```
 /// use typst_element::prelude::*;
-/// let vals = named_values!(["arg0", 1], ["arg1", false], ["arg2", 0.6]);
-/// assert_eq!(vals, [
-///     ("arg0", foundations::Value::Int(1)),
-///     ("arg1", foundations::Value::Bool(false)),
-///     ("arg2", foundations::Value::Float(0.6)),
-/// ]);
+/// let vals =
+///     named_values!(["arg0", 1], ["arg1", false], ["arg2", 0.6]);
+/// assert_eq!(
+///     vals,
+///     [
+///         ("arg0", foundations::Value::Int(1)),
+///         ("arg1", foundations::Value::Bool(false)),
+///         ("arg2", foundations::Value::Float(0.6)),
+///     ]
+/// );
 /// ```
 #[macro_export]
 macro_rules! named_values {
@@ -86,12 +93,12 @@ macro_rules! named_values {
 
 // fn test(func: foundations::Func) {
 //     let var_str = String::from("var_arg_name");
-//     let array = foundations::Array::from(values!(10, "st", false).as_slice());
-//     let content = func
+//     let array = foundations::Array::from(values!(10, "st",
+// false).as_slice());     let content = func
 //         .call_with_named(
 //             &values!(10, "st", 2.5),
-//             &named_values!(["name0", 10], [&var_str, "st"], ["", 2.5]),
-//         )
+//             &named_values!(["name0", 10], [&var_str, "st"], ["",
+// 2.5]),         )
 //         .pack();
 // }
 

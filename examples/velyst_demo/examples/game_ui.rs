@@ -33,7 +33,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let purple = viz::Color::from_str(PURPLE).unwrap();
     let red = viz::Color::from_str(RED).unwrap();
 
-    // let debug_bg = BackgroundColor(Srgba::RED.with_alpha(0.2).into());
+    // let debug_bg =
+    // BackgroundColor(Srgba::RED.with_alpha(0.2).into());
     let debug_bg = BackgroundColor::DEFAULT;
 
     commands

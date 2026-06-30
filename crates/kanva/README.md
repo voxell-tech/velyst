@@ -12,29 +12,31 @@ support. Groups accumulate transforms onto child paths at render time without
 mutating stored data. Overrides are expressed through `PathModifier` and
 `GroupModifier` and cleared via `Kanva::clear_mods`.
 
-Build a `Kanva` by feeding any `imaging::PaintSink` draw stream through
+Build a `Kanva` by feeding a [`KanvaSink`] draw stream through
 `KanvaBuilder`, then render it into any sink via `Kanva::render`.
-Label nodes during build via `imaging::ContextRef` and look them up later
-with `Kanva::query`, `Kanva::query_group`, or `Kanva::query_path`.
+Label nodes during build via [`KanvaSink::push_context`] and look them up
+later with `Kanva::query`, `Kanva::query_group`, or `Kanva::query_path`.
 
 ## Example
 
 ```rust
-use kanva::builder::KanvaBuilder;
 use kanva::prelude::*;
-use kanva::imaging::kurbo::BezPath;
-use kanva::imaging::peniko::Brush;
+use kanva::imaging::kurbo::{Affine, BezPath};
+use kanva::imaging::peniko::{Brush, Fill};
 use kanva::imaging::record::Scene;
-use kanva::imaging::{
-    ContextRef, FillRef, GeometryRef, GroupRef, Composite, PaintSink,
-};
+use kanva::imaging::Composite;
 
-// Build once from any imaging draw stream.
+// Build once from any KanvaSink draw stream.
 let mut builder = KanvaBuilder::new();
-builder.push_context(ContextRef::new("wave", None));
-builder.push_group(GroupRef::new());
-let path = BezPath::new();
-builder.fill(FillRef::new(GeometryRef::Path(&path), &Brush::default()));
+builder.push_context("wave");
+builder.push_group(Group::default());
+builder.draw_path(
+    BezPath::new(),
+    Affine::IDENTITY,
+    Some(KanvaFill { rule: Fill::NonZero, brush: Brush::default(), ..Default::default() }),
+    None,
+    Default::default(),
+);
 builder.pop_group();
 builder.pop_context();
 let mut kanva = builder.build();
@@ -62,3 +64,6 @@ You can join us on the [Voxell discord server](https://discord.gg/Mhnyp6VYEQ).
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
 
 This means you can select the license you prefer!
+
+[`KanvaSink`]: sink::KanvaSink
+[`KanvaSink::push_context`]: sink::KanvaSink::push_context

@@ -3,12 +3,10 @@ use bevy::prelude::*;
 use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
-use kanva::builder::KanvaBuilder;
-use kanva::prelude::Kanva;
-use peniko::kurbo::{Affine, Rect};
+use kanva::prelude::*;
 use typst::layout::{Abs, Axes, Frame, Region, Size};
-use typst_imaging::render_frame;
 use vello::Scene;
+use vello::peniko::kurbo::{Affine, Rect};
 
 use crate::VelystSet;
 use crate::func::VelystContent;
@@ -108,7 +106,8 @@ fn layout_ui_content(
     }
 }
 
-/// Layout [`VelystContent`] into a [`VelystFrame`] in world coordinates.
+/// Layout [`VelystContent`] into a [`VelystFrame`] in world
+/// coordinates.
 fn layout_world_content(
     world: VelystWorld,
     mut q_contents: Query<
@@ -154,9 +153,10 @@ fn layout_world_content(
             let height = frame_size.y.to_pt() as f32;
             let anchor = world_scene.anchor;
 
-            // Bevy_vello flips Y when rendering world scenes, so the scene
-            // occupies [0, width] × [0, -height] in local space.
-            // Anchor shifts the origin within that rect (normalized 0..1).
+            // Bevy_vello flips Y when rendering world scenes, so the
+            // scene occupies [0, width] × [0, -height] in
+            // local space. Anchor shifts the origin
+            // within that rect (normalized 0..1).
             let center = Vec3A::new(
                 width * (0.5 - anchor.x),
                 height * (anchor.y - 0.5),
@@ -234,7 +234,7 @@ fn build_kanva_scene(
     for (scene, mut kanva) in q_scenes.iter_mut() {
         let Some(frame) = &scene.0 else { continue };
         let mut builder = KanvaBuilder::new();
-        render_frame(frame, &mut builder);
+        kanva_typst::render_frame(frame, &mut builder);
         kanva.0 = builder.build();
     }
 }
@@ -301,61 +301,69 @@ fn kanva_to_scene(
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
+
     let surface_clip = Rect::new(0.0, 0.0, w, h);
+
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
     kanva.render(&mut sink);
     let _ = sink.finish();
-    let mut vello = Scene::new();
-    vello.append(
+
+    let mut scene = Scene::new();
+    scene.append(
         &inner,
         Some(Affine::translate((
             -w * anchor.x as f64,
             -h * anchor.y as f64,
         ))),
     );
-    vello
+    scene
 }
 
 fn frame_to_scene(frame: &Frame, anchor: Vec2) -> Scene {
     let frame_size = frame.size();
     let w = frame_size.x.to_pt();
     let h = frame_size.y.to_pt();
+
     let surface_clip = Rect::new(0.0, 0.0, w, h);
+
     let mut inner = Scene::new();
     let mut sink = VelloSceneSink::new(&mut inner, surface_clip);
-    render_frame(frame, &mut sink);
+    typst_imaging::render_frame(frame, &mut sink);
     let _ = sink.finish();
-    let mut vello = Scene::new();
-    vello.append(
+
+    let mut scene = Scene::new();
+    scene.append(
         &inner,
         Some(Affine::translate((
             -w * anchor.x as f64,
             -h * anchor.y as f64,
         ))),
     );
-    vello
+    scene
 }
 
 /// The laid-out Typst frame, ready to be rendered.
 ///
-/// Add [`UiScene`] or [`WorldScene`] to control which coordinate space
-/// this entity renders in.
+/// Add [`UiScene`] or [`WorldScene`] to control which coordinate
+/// space this entity renders in.
 #[derive(Component, Default)]
 pub struct VelystFrame(pub Option<Frame>);
 
 /// Stores a [`Kanva`] built from the last laid-out Typst frame.
 ///
 /// Add this alongside [`UiScene`] or [`WorldScene`] to opt into kanva
-/// rendering. Mutate `path_mods` / `group_mods` each frame via their builder
-/// methods and mark this component changed to trigger a re-render without a
-/// Typst recompile.
+/// rendering. Mutate `path_mods` / `group_mods` each frame via their
+/// builder methods and mark this component changed to trigger a
+/// re-render without a Typst recompile.
 #[derive(Component, Default, Deref, DerefMut)]
 pub struct VelystKanva(pub Kanva);
 
-/// Marker: render this entity's [`VelystFrame`] in Bevy UI coordinates.
+/// Marker: render this entity's [`VelystFrame`] in Bevy UI
+/// coordinates.
 ///
-/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted automatically.
+/// Requires [`UiVelloScene`] and [`ContentSize`] which are inserted
+/// automatically.
 #[derive(Component, Default)]
 #[require(VelystFrame, UiVelloScene, ContentSize)]
 pub struct UiScene;

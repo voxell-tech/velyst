@@ -48,8 +48,8 @@ impl<'a> PathModEntry<'a> {
 
 /// Cursor returned by [`crate::Kanva::mod_group`].
 ///
-/// Holds a mutable reference to [`GroupMods`] and a fixed group index.
-/// Chain calls to set multiple field overrides at once.
+/// Holds a mutable reference to [`GroupMods`] and a fixed group
+/// index. Chain calls to set multiple field overrides at once.
 pub struct GroupModEntry<'a> {
     mods: &'a mut GroupMods,
     idx: usize,
@@ -80,7 +80,8 @@ impl<'a> GroupModEntry<'a> {
 /// Per-path field overrides, keyed by path index.
 ///
 /// Each field has its own map. Absent entry = keep stored value.
-/// For optional-target fields (`fill`, `stroke`), `None` clears the field.
+/// For optional-target fields (`fill`, `stroke`), `None` clears the
+/// field.
 ///
 /// Methods return `&mut Self` for chaining.
 #[derive(Default, Debug, Clone)]

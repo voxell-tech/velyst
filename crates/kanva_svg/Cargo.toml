@@ -1,0 +1,12 @@
+[package]
+name = "kanva_svg"
+description = "Native usvg → KanvaSink renderer."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+kanva.workspace = true
+usvg = { workspace = true }
+image = { workspace = true, features = ["gif", "jpeg", "png", "webp"] }

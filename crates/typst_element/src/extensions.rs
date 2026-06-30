@@ -46,7 +46,8 @@ impl UnitExt for Em {
     }
 }
 
-/// Implement [ScopeExt::get_value()] and [ScopeExt::get_value_unchecked()] function for given values.
+/// Implement [ScopeExt::get_value()] and
+/// [ScopeExt::get_value_unchecked()] function for given values.
 macro_rules! fn_get_value {
     ($(($fn_name:ident, $get_ty:ty),)+) => {
         $(

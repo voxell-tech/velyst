@@ -1,5 +1,8 @@
-use imaging::{ClipRef, ContextRef, GroupRef, PaintSink};
-use peniko::kurbo::{Affine, Vec2};
+use imaging::peniko::kurbo::{Affine, Vec2};
+use imaging::{
+    ClipRef, ContextKindRef, ContextRef, ContextValueRef, GroupRef,
+    PaintSink,
+};
 use typst_library::layout::{
     Frame, FrameItem, FrameKind, GroupItem, Point, Size, Transform,
 };
@@ -81,21 +84,26 @@ fn render_group(
 
     if let Some(label) = group.label {
         let resolved = label.resolve();
-        sink.push_context(ContextRef::new(&resolved, None));
+        sink.push_context(ContextRef::new(
+            ContextKindRef::Label,
+            ContextValueRef::Str(&resolved),
+            None,
+        ));
     }
 
-    let mut group_ref = GroupRef::new();
+    let has_clip = group.clip.is_some();
     if let Some(clip) = &group.clip {
         let clip_path = convert::convert_curve(clip);
-        group_ref = group_ref.with_clip(
+        sink.push_group(GroupRef::new().with_clip(
             ClipRef::fill(clip_path).with_transform(state.transform),
-        );
+        ));
     }
-    sink.push_group(group_ref);
 
     render_items(&group.frame, sink, state);
 
-    sink.pop_group();
+    if has_clip {
+        sink.pop_group();
+    }
     if group.label.is_some() {
         sink.pop_context();
     }
@@ -103,7 +111,7 @@ fn render_group(
 
 /// State threaded through the frame walk.
 #[derive(Copy, Clone)]
-pub(crate) struct RenderState {
+pub struct RenderState {
     /// Accumulated screen-space transform.
     pub transform: Affine,
     /// Transform at the most recent hard-frame boundary.
@@ -150,7 +158,7 @@ impl RenderState {
     }
 
     /// `transform` is applied before the current container transform.
-    fn pre_concat_container(self, transform: Affine) -> Self {
+    pub fn pre_concat_container(self, transform: Affine) -> Self {
         Self {
             container_transform: self.container_transform * transform,
             ..self

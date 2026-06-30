@@ -34,7 +34,8 @@ fn eval_source(
                     continue;
                 };
 
-                // Reset the file slots if this is the first compilation in this frame.
+                // Reset the file slots if this is the first
+                // compilation in this frame.
                 if !reset {
                     let mut file_slots =
                         world.file_slots.lock().unwrap();

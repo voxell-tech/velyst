@@ -1,0 +1,15 @@
+[package]
+name = "kanva_typst"
+description = "Typst frame renderer backed by KanvaSink."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+kanva.workspace = true
+kanva_svg.workspace = true
+typst_imaging = { workspace = true }
+typst-library = { workspace = true }
+hayro-svg = { workspace = true }
+usvg = { workspace = true }

@@ -2,3 +2,4 @@
 *.pdf
 *.svg
 **/typst_packages/
+.DS_Store
