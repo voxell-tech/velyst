@@ -29,15 +29,15 @@ imaging = { version = "0.0.1", default-features = false }
 svg_imaging = { version = "0.0.1", default-features = false }
 imaging_vello = { version = "0.0.1", default-features = false, features = ["vello-0-7"] }
 # Typst dependencies
-typst = "0.14.2"
-typst-library = "0.14.2"
-typst-eval = "0.14.2"
-typst-layout = "0.14.2"
-typst-assets = "0.14.2"
+typst = "0.15"
+typst-library = "0.15"
+typst-eval = "0.15"
+typst-layout = "0.15"
+typst-assets = "0.15"
 # In sync with Typst:
 unicode-math-class = "0.1"
 ttf-parser = "0.25"
-hayro-svg = "0.2"
+hayro-svg = "0.7"
 usvg = { version = "0.47.0", default-features = false, features = ["text"] }
 image = { version = "0.25", default-features = false }
 # Other

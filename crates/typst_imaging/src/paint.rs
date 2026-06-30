@@ -21,7 +21,7 @@ pub fn shape_paint(
     state: &RenderState,
 ) -> (Brush, Option<Affine>) {
     let shape_size =
-        shape.geometry.bbox_size().max(Size::splat(Abs::pt(1.0)));
+        shape.bbox(true).size().max(Size::splat(Abs::pt(1.0)));
 
     let brush_transform = match paint {
         viz::Paint::Gradient(gradient) => {
@@ -142,7 +142,10 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
                 .iter()
                 .map(|(color, ratio)| peniko::ColorStop {
                     offset: ratio.get() as f32,
-                    color: convert_color(color).into(),
+                    color: convert_color(&color.to_process_space(
+                        viz::ProcessColorSpace::Srgb,
+                    ))
+                    .into(),
                 })
                 .collect();
 

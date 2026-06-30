@@ -1,6 +1,6 @@
 use typst::diag::EcoString;
 use typst::foundations::{
-    self, Content, Derived, Label, OneOrMultiple, Packed,
+    self, BundlePath, Content, Derived, Label, OneOrMultiple, Packed,
 };
 use typst::loading::{DataSource, Loaded};
 use typst::syntax::Spanned;
@@ -179,7 +179,7 @@ fn_elem!(rotate, layout::RotateElem);
 fn_elem!(hide, layout::HideElem);
 
 // Model
-fn_elem_empty!(doc, model::DocumentElem);
+fn_elem!(doc, model::DocumentElem, path = BundlePath, body = Content);
 fn_elem!(reference, model::RefElem, Label);
 fn_elem!(
     link,
@@ -274,7 +274,7 @@ fn_elem!(
     visualize::PolygonElem,
     Vec<layout::Axes<layout::Rel<layout::Length>>>
 );
-fn_elem!(path, visualize::PathElem, Vec<visualize::PathVertex>);
+fn_elem!(path, visualize::CurveElem, Vec<visualize::CurveComponent>);
 
 /// [visualize::Paint::Solid]
 pub fn solid(color: impl Into<visualize::Color>) -> visualize::Paint {

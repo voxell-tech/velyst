@@ -12,7 +12,7 @@ use bevy::time::common_conditions::on_timer;
 use chrono::{DateTime, Datelike, Local, Timelike};
 use ecow::eco_format;
 use fonts::TypstFonts;
-use typst::comemo::{Constraint, Track};
+use typst::comemo::Track;
 use typst::diag::{
     FileError, FileResult, PackageError, Severity, SourceDiagnostic,
 };
@@ -20,13 +20,14 @@ use typst::engine::{Engine, Route, Sink, Traced};
 use typst::foundations::{
     Bytes, Content, Datetime, Module, StyleChain,
 };
-use typst::introspection::Introspector;
+use typst::introspection::EmptyIntrospector;
 use typst::layout::{Frame, Region};
 use typst::syntax::package::PackageSpec;
-use typst::syntax::{FileId, Source};
+use typst::syntax::{FileId, Source, VirtualRoot};
 use typst::text::{Font, FontBook};
-use typst::utils::LazyHash;
+use typst::utils::{LazyHash, Protected};
 use typst::{Library, LibraryExt};
+use typst_layout::layout_frame;
 
 pub mod fonts;
 
@@ -137,8 +138,8 @@ impl VelystWorld<'_> {
 
         // Try to evaluate the source file into a module.
         let module = typst_eval::eval(
-            &typst::ROUTINES,
             world.track(),
+            world.library(),
             Traced::default().track(),
             sink.track_mut(),
             Route::default().track(),
@@ -172,8 +173,7 @@ impl VelystWorld<'_> {
         let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
-        let introspector = Introspector::default();
-        let constraint = Constraint::default();
+        let introspector = EmptyIntrospector;
 
         let traced = Traced::default();
         let mut sink = Sink::new();
@@ -186,9 +186,9 @@ impl VelystWorld<'_> {
             sink.delayed();
 
             let mut engine = Engine {
-                routines: &typst::ROUTINES,
                 world: world.track(),
-                introspector: introspector.track_with(&constraint),
+                library: world.library(),
+                introspector: Protected::new(introspector.track()),
                 traced: traced.track(),
                 sink: sink.track_mut(),
                 route: Route::default(),
@@ -197,7 +197,7 @@ impl VelystWorld<'_> {
             let locator = typst::introspection::Locator::root();
 
             // Layout!
-            (typst::ROUTINES.layout_frame)(
+            layout_frame(
                 &mut engine,
                 content,
                 locator,
@@ -269,12 +269,17 @@ impl typst::World for VelystWorld<'_> {
         self.fonts.fonts[index].get()
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
+    fn today(
+        &self,
+        offset: Option<typst::foundations::Duration>,
+    ) -> Option<Datetime> {
         let naive = match offset {
             None => self.date_time.naive_local(),
-            Some(o) => {
+            Some(offset) => {
                 self.date_time.naive_utc()
-                    + chrono::Duration::hours(o)
+                    + chrono::Duration::seconds(
+                        offset.seconds() as i64
+                    )
             }
         };
 
@@ -419,7 +424,7 @@ fn system_path(
     id: FileId,
     download: &TypstPackageDownload,
 ) -> FileResult<PathBuf> {
-    let root = if let Some(spec) = id.package() {
+    let root = if let VirtualRoot::Package(spec) = id.root() {
         prepare_package(spec, download)?
     } else {
         project_root.to_path_buf()
@@ -427,7 +432,9 @@ fn system_path(
 
     // Join the path to the root. If it tries to escape, deny
     // access. Note: It can still escape via symlinks.
-    id.vpath().resolve(&root).ok_or(FileError::AccessDenied)
+    id.vpath()
+        .realize(&root)
+        .map_err(|_| FileError::AccessDenied)
 }
 
 /// Returns the local cache directory for a package, downloading it
@@ -532,8 +539,15 @@ fn log_diagnostic(diagnostic: SourceDiagnostic) {
     log_msg.push('\n');
     log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
     log_msg.push('\n');
-    log_msg
-        .push_str(&format!("Hints: {}", diagnostic.hints.join("\n")));
+    log_msg.push_str(&format!(
+        "Hints: {}",
+        diagnostic
+            .hints
+            .iter()
+            .map(|h| h.v.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    ));
 
     match diagnostic.severity {
         Severity::Error => error!("{log_msg}"),
