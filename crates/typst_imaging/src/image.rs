@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use hayro_svg::convert;
 use imaging::peniko::kurbo::{Affine, Rect};
 use imaging::peniko::{
     Blob, Brush, Fill, ImageAlphaType, ImageBrush, ImageData,
@@ -94,7 +93,12 @@ pub(crate) fn render_image(
                 return;
             }
 
-            let svg_str = convert(pdf.page(), &Default::default());
+            let svg_str = hayro_svg::convert(
+                pdf.page(),
+                &Default::default(),
+                &Default::default(),
+                &Default::default(),
+            );
 
             let Ok(doc) =
                 SvgDocument::from_str(&svg_str, &Default::default())

@@ -21,7 +21,7 @@ pub fn shape_paint(
     state: &RenderState,
 ) -> (Brush, Option<Affine>) {
     let shape_size =
-        shape.geometry.bbox_size().max(Size::splat(Abs::pt(1.0)));
+        shape.bbox(true).size().max(Size::splat(Abs::pt(1.0)));
 
     let brush_transform = match paint {
         viz::Paint::Gradient(gradient) => {

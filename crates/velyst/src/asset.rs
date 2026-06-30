@@ -3,7 +3,7 @@ use bevy::asset::{AssetLoader, AsyncReadExt, LoadContext};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use typst::foundations::Module;
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath};
 
 use crate::world::VelystWorld;
 
@@ -86,7 +86,15 @@ impl AssetLoader for VelystSourceLoader {
 
         let path = load_context.path().to_string();
         let source = Source::new(
-            FileId::new(None, VirtualPath::new(&path)),
+            FileId::new(RootedPath::new(
+                typst::syntax::VirtualRoot::Project,
+                VirtualPath::new(&path).map_err(|e| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        e,
+                    )
+                })?,
+            )),
             text,
         );
 

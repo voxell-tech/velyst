@@ -82,8 +82,12 @@ pub fn render_image(
             if w < f64::EPSILON || h < f64::EPSILON {
                 return;
             }
-            let svg_str =
-                hayro_svg::convert(pdf.page(), &Default::default());
+            let svg_str = hayro_svg::convert(
+                pdf.page(),
+                &Default::default(),
+                &Default::default(),
+                &Default::default(),
+            );
             let options = usvg::Options::default();
             let Ok(tree) = usvg::Tree::from_str(&svg_str, &options)
             else {
