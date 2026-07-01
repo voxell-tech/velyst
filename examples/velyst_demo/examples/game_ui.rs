@@ -3,6 +3,8 @@ use std::str::FromStr;
 use bevy::prelude::*;
 use bevy_vello::prelude::*;
 use velyst::prelude::*;
+use velyst::typst::model::HeadingElem;
+use velyst::typst::text::TextElem;
 
 fn main() {
     App::new()
@@ -155,7 +157,8 @@ typst_func!(
 impl LabelFunc {
     pub fn title(text: &str) -> Self {
         Self {
-            body: elem::heading(elem::text(text).pack()).pack(),
+            body: HeadingElem::new(TextElem::new(text.into()).pack())
+                .pack(),
             size: Some(Abs::pt(48.0)),
             ..default()
         }
@@ -179,7 +182,8 @@ typst_func!(
 impl ButtonFunc {
     pub fn text(text: &str) -> Self {
         Self {
-            body: elem::heading(elem::text(text).pack()).pack(),
+            body: HeadingElem::new(TextElem::new(text.into()).pack())
+                .pack(),
             ..default()
         }
     }

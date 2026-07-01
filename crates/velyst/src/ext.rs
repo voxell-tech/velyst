@@ -1,11 +1,13 @@
 use paste::paste;
 use typst::diag::HintedString;
-use typst::foundations::Symbol;
+use typst::foundations;
 use typst::foundations::{
     Args, Array, Bytes, Content, Datetime, Dict, Duration, FromValue,
-    Func, Label, Module, Scope, Smart, Str, Styles, Type, Version,
+    Func, Label, Module, Scope, Smart, Str, Styles, Symbol, Type,
+    Version,
 };
 use typst::layout::{Abs, Angle, Em, Fr, Length, Ratio, Rel, Sizing};
+use typst::syntax::Spanned;
 use typst::visualize::{Color, Gradient, Tiling};
 
 pub trait UnitExt: Sized {
@@ -157,5 +159,61 @@ impl std::fmt::Display for ScopeError {
                 hinted_string.hints().join("\n")
             ),
         }
+    }
+}
+
+/// [foundations::ContextElem]
+pub fn context(
+    func: foundations::Func,
+    args: &mut foundations::Args,
+) -> foundations::ContextElem {
+    foundations::ContextElem::new(func.with(args))
+}
+
+pub trait FuncCall {
+    fn call(
+        self,
+        positional_args: &[foundations::Value],
+    ) -> foundations::ContextElem;
+
+    fn call_with_named(
+        self,
+        positional_args: &[foundations::Value],
+        named_args: &[(&str, foundations::Value)],
+    ) -> foundations::ContextElem;
+}
+
+impl FuncCall for foundations::Func {
+    fn call(
+        self,
+        positional_args: &[foundations::Value],
+    ) -> foundations::ContextElem {
+        let mut args = foundations::Args::new(
+            self.span(),
+            positional_args.iter().cloned(),
+        );
+
+        context(self, &mut args)
+    }
+
+    fn call_with_named(
+        self,
+        positional_args: &[foundations::Value],
+        named_args: &[(&str, foundations::Value)],
+    ) -> foundations::ContextElem {
+        let mut args = foundations::Args::new(
+            self.span(),
+            positional_args.iter().cloned(),
+        );
+
+        for (name, value) in named_args {
+            args.items.push(foundations::Arg {
+                span: self.span(),
+                name: Some(foundations::Str::from(*name)),
+                value: Spanned::new(value.clone(), self.span()),
+            });
+        }
+
+        context(self, &mut args)
     }
 }

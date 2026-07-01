@@ -1,11 +1,10 @@
 use bevy::asset::AsAssetId;
 use bevy::prelude::*;
 use typst::foundations::{Content, IntoValue, NativeElement, Value};
-use typst_element::elem::FuncCall;
-use typst_element::prelude::ScopeExt;
 
 use crate::VelystSet;
 use crate::asset::{VelystModules, VelystSource};
+use crate::ext::{FuncCall, ScopeExt};
 use crate::renderer::VelystFrame;
 
 pub trait TypstFuncAppExt {

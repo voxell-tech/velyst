@@ -6727,15 +6727,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typst_element"
-version = "0.1.0"
-dependencies = [
- "paste",
- "typst",
- "unicode-math-class",
-]
-
-[[package]]
 name = "typst_imaging"
 version = "0.1.0"
 dependencies = [
@@ -7137,6 +7128,7 @@ dependencies = [
  "imaging_vello",
  "kanva",
  "kanva_typst",
+ "paste",
  "smallvec",
  "tar",
  "thiserror 1.0.69",
@@ -7144,7 +7136,6 @@ dependencies = [
  "typst-assets",
  "typst-eval",
  "typst-layout",
- "typst_element",
  "typst_imaging",
  "ureq",
 ]

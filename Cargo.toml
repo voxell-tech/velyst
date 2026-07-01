@@ -12,7 +12,6 @@ readme = "README.md"
 
 [workspace.dependencies]
 velyst = { path = "crates/velyst", version = "0.1.0" }
-typst_element = { path = "crates/typst_element", version = "0.1.0" }
 typst_imaging = { path = "crates/typst_imaging", version = "0.1.0" }
 kanva = { path = "crates/kanva", version = "0.1.0" }
 kanva_svg = { path = "crates/kanva_svg", version = "0.1.0" }
