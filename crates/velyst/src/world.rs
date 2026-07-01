@@ -26,7 +26,7 @@ use typst::syntax::package::PackageSpec;
 use typst::syntax::{FileId, Source, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::{LazyHash, Protected};
-use typst::{Library, LibraryExt};
+use typst::{Library, LibraryExt, World, WorldExt};
 use typst_layout::layout_frame;
 
 pub mod fonts;
@@ -149,7 +149,7 @@ impl VelystWorld<'_> {
         match module {
             Ok(module) => {
                 for warning in sink.warnings() {
-                    log_diagnostic(warning);
+                    log_diagnostic(self, warning);
                 }
 
                 Some(module)
@@ -157,7 +157,7 @@ impl VelystWorld<'_> {
             Err(errors) => {
                 error!("Evaluation failed for {:?}!", source.id());
                 for error in errors {
-                    log_diagnostic(error);
+                    log_diagnostic(self, error);
                 }
 
                 None
@@ -208,13 +208,13 @@ impl VelystWorld<'_> {
 
         // Log delayed errors.
         for delay in sink.delayed() {
-            log_diagnostic(delay);
+            log_diagnostic(self, delay);
         }
 
         match frame {
             Ok(frame) => {
                 for warning in sink.warnings() {
-                    log_diagnostic(warning);
+                    log_diagnostic(self, warning);
                 }
 
                 Some(frame)
@@ -222,7 +222,7 @@ impl VelystWorld<'_> {
             Err(errors) => {
                 error!("Layout failed!");
                 for error in errors {
-                    log_diagnostic(error);
+                    log_diagnostic(self, error);
                 }
 
                 None
@@ -530,12 +530,30 @@ fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
     )?)
 }
 
-fn log_diagnostic(diagnostic: SourceDiagnostic) {
+fn log_diagnostic(world: &VelystWorld, diagnostic: SourceDiagnostic) {
     let mut log_msg = String::new();
     log_msg.push('\n');
     log_msg.push_str(&diagnostic.message);
     log_msg.push('\n');
-    log_msg.push_str(&format!("In file: {:?}", diagnostic.span.id()));
+
+    let location = diagnostic.span.id().map(|id| {
+        let line_col = world
+            .source(id)
+            .ok()
+            .zip(world.range(diagnostic.span))
+            .and_then(|(source, range)| {
+                source.lines().byte_to_line_column(range.start)
+            });
+        match line_col {
+            Some((line, col)) => {
+                format!("In file: {:?}:{}:{}", id, line + 1, col + 1)
+            }
+            None => format!("In file: {:?}", id),
+        }
+    });
+    log_msg.push_str(
+        &location.unwrap_or_else(|| "In file: <unknown>".to_string()),
+    );
     log_msg.push('\n');
     log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
     log_msg.push('\n');
