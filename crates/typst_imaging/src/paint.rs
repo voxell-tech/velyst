@@ -1,7 +1,8 @@
 use std::f32::consts::TAU;
+use std::f64::consts::PI;
 
 use imaging::peniko::kurbo::Affine;
-use imaging::peniko::{Brush, Color, GradientKind};
+use imaging::peniko::{Brush, Color};
 use imaging::{kurbo, peniko};
 use typst_library::layout::{Abs, Quadrant, Size};
 use typst_library::visualize as viz;
@@ -25,45 +26,57 @@ pub fn shape_paint(
 
     let brush_transform = match paint {
         viz::Paint::Gradient(gradient) => {
-            let mut affine = match gradient.unwrap_relative(false) {
-                // Gradient maps unit square -> shape bbox size (pt).
+            let relative = gradient.unwrap_relative(false);
+            let is_conic =
+                matches!(gradient, viz::Gradient::Conic(_));
+
+            let (w, h) = match relative {
                 viz::RelativeTo::Self_ => {
-                    Some(Affine::scale_non_uniform(
-                        shape_size.x.to_pt(),
-                        shape_size.y.to_pt(),
-                    ))
+                    (shape_size.x.to_pt(), shape_size.y.to_pt())
                 }
-                // Gradient maps unit square -> container size (pt),
-                // then container transform moves it
-                // into canvas space. The inverse
-                // is passed as brush_transform so vello un-applies it
-                // during sampling.
+                viz::RelativeTo::Parent => (
+                    state.container_size.x.to_pt(),
+                    state.container_size.y.to_pt(),
+                ),
+            };
+            let base = match relative {
+                viz::RelativeTo::Self_ => Affine::IDENTITY,
+                // brush_transform = T⁻¹ · C · scale(w,h)
+                // so vello samples: scale(1/w,1/h) · C⁻¹ · (px,py)
+                // = container-local coords, normalized by (w,h).
                 viz::RelativeTo::Parent => {
-                    let inv = state.container_transform.inverse();
-                    Some(
-                        inv * Affine::scale_non_uniform(
-                            state.container_size.x.to_pt(),
-                            state.container_size.y.to_pt(),
-                        ),
-                    )
+                    state.transform.inverse()
+                        * state.container_transform
                 }
             };
 
-            // Rotate brush for conic angle, around the gradient
-            // center.
+            // Conic uses uniform scale(w, w) so angles stay circular
+            // in screen space. All other gradients use scale(w, h).
+            let mut affine = Some(if is_conic {
+                base * Affine::scale(w)
+            } else {
+                base * Affine::scale_non_uniform(w, h)
+            });
+
+            // Rotate conic brush around the (aspect-corrected)
+            // center. Typst's t=0 is at angle
+            // `conic.angle - PI` (LEFT when
+            // angle=0); peniko's sweep t=0 is at 0 (RIGHT), so we add
+            // PI to close the gap. The center y is divided by the
+            // aspect ratio because the gradient spec uses the
+            // independently-normalized space but we scale uniformly.
             if let viz::Gradient::Conic(conic) = gradient {
-                let rad = conic.angle.to_rad();
+                let ratio = w / h;
+                let rad = conic.angle.to_rad() + PI;
                 let center = kurbo::Vec2::new(
                     conic.center.x.get(),
-                    conic.center.y.get(),
+                    conic.center.y.get() / ratio,
                 );
                 let rotation = Affine::translate(center)
                     * Affine::rotate(rad)
                     * Affine::translate(-center);
-                if let Some(affine) = affine.as_mut() {
-                    *affine *= rotation;
-                } else {
-                    affine = Some(rotation);
+                if let Some(a) = affine.as_mut() {
+                    *a *= rotation;
                 }
             }
 
@@ -95,40 +108,50 @@ pub fn shape_paint(
     (build_brush(paint, brush_size), brush_transform)
 }
 
-/// Convert a typst [`viz::Paint`] to a [`peniko ::Brush`] for a
-/// text glyph run, baking the brush transform directly into gradient
-/// control points.
+/// Convert a typst [`viz::Paint`] to a [`Brush`] and brush transform
+/// for a text glyph run.
 pub fn text_paint(
     paint: &viz::Paint,
     state: &RenderState,
-    last_glyph_x: f64,
-) -> Brush {
-    let mut brush = build_brush(paint, state.container_size);
+) -> (Brush, Option<Affine>) {
+    let brush_transform = match paint {
+        viz::Paint::Gradient(gradient) => {
+            let w = state.container_size.x.to_pt();
+            let h = state.container_size.y.to_pt();
+            // Same formula as RelativeTo::Parent in shape_paint.
+            let base =
+                state.transform.inverse() * state.container_transform;
 
-    // TODO(nixon): Glyph runs does not support brush transform right
-    // now. So we have to apply the transform on our own.
-    if let Brush::Gradient(gradient) = &mut brush {
-        let w = state.container_size.x.to_pt();
-        let h = state.container_size.y.to_pt();
+            // Conic uses uniform scale(w, w); others use scale(w, h).
+            let mut affine = Some(
+                if matches!(gradient, viz::Gradient::Conic(_)) {
+                    base * Affine::scale(w)
+                } else {
+                    base * Affine::scale_non_uniform(w, h)
+                },
+            );
 
-        // The brush lives in the last glyph's actual transform space,
-        // which includes vello's internal Y-flip matrix [1, 0, 0,
-        // -1].
-        //
-        // Factor that in so the brush correctly maps gradient unit to
-        // container canvas space without needing glyph_transform to
-        // cancel the flip (which would make glyphs upside down).
-        let glyph_last_xform = state.transform
-            * Affine::new([1.0, 0.0, 0.0, -1.0, last_glyph_x, 0.0]);
-        let local_to_container =
-            glyph_last_xform.inverse() * state.container_transform;
-        let brush_transform =
-            local_to_container.pre_scale_non_uniform(w, h);
+            if let viz::Gradient::Conic(conic) = gradient {
+                let ratio = w / h;
+                let rad = conic.angle.to_rad() + PI;
+                let center = kurbo::Vec2::new(
+                    conic.center.x.get(),
+                    conic.center.y.get() / ratio,
+                );
+                let rotation = Affine::translate(center)
+                    * Affine::rotate(rad)
+                    * Affine::translate(-center);
+                if let Some(a) = affine.as_mut() {
+                    *a *= rotation;
+                }
+            }
 
-        apply_transform_to_text_gradient(gradient, brush_transform);
-    }
+            affine
+        }
+        _ => None,
+    };
 
-    brush
+    (build_brush(paint, state.container_size), brush_transform)
 }
 
 /// Build the base brush in normalized *unit square* gradient space.
@@ -195,17 +218,16 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
                     .with_stops(stops.as_slice())
                 }
                 viz::Gradient::Conic(conic) => {
-                    let center =
-                        (conic.center.x.get(), conic.center.y.get());
-
-                    // TODO: Will Typst support start + end angle?
-
-                    // Typst's conic gradient is always a full circle,
-                    // angle will be handled via brush transform.
-                    //
-                    // This means that angle will not be supported by
-                    // text yet since `imaging` does not support
-                    // glyph's brush transform yet.
+                    // The conic brush_transform uses uniform scale(w,
+                    // w) (not scale(w, h)) so
+                    // angles are circular in screen
+                    // space. To land at the correct screen position
+                    // after that uniform scale,
+                    // divide cy by the aspect ratio.
+                    let center = (
+                        conic.center.x.get(),
+                        conic.center.y.get() / ratio.get(),
+                    );
                     peniko::Gradient::new_sweep(center, 0.0, TAU)
                         .with_stops(stops.as_slice())
                 }
@@ -215,33 +237,6 @@ pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
         viz::Paint::Tiling(_) => {
             // TODO: tiling/pattern support
             Brush::Solid(Color::TRANSPARENT)
-        }
-    }
-}
-
-/// Bake an affine transform into a gradient control points.
-pub fn apply_transform_to_text_gradient(
-    gradient: &mut peniko::Gradient,
-    transform: Affine,
-) {
-    match &mut gradient.kind {
-        GradientKind::Linear(pos) => {
-            pos.start = transform * pos.start;
-            pos.end = transform * pos.end;
-        }
-        GradientKind::Radial(pos) => {
-            pos.start_center = transform * pos.start_center;
-            pos.end_center = transform * pos.end_center;
-            let [a, b, ..] = transform.as_coeffs();
-            let scale = a.hypot(b) as f32;
-            pos.start_radius *= scale;
-            pos.end_radius *= scale;
-        }
-        GradientKind::Sweep(pos) => {
-            pos.center = transform * pos.center;
-            // Compensate for inverted text glyph matrix.
-            pos.start_angle = TAU;
-            pos.end_angle = 0.0;
         }
     }
 }

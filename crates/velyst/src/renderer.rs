@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy::ui::ContentSize;
 use bevy_vello::prelude::*;
 use imaging_vello::VelloSceneSink;
+use imaging_vello::vello;
 use kanva::prelude::*;
 use typst::layout::{Abs, Axes, Frame, Region, Size};
 use vello::Scene;

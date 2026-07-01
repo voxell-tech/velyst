@@ -40,37 +40,14 @@ pub(crate) fn render_text(
             .collect()
     };
 
-    let Some(last_glyph) = glyphs.last() else {
-        // Skips if there are no glyphs at all.
+    if glyphs.is_empty() {
         return;
-    };
+    }
 
-    // TODO(nixon): Add debugging features.
-    // Debug: outline the container rect used for gradient sampling.
-    // #[cfg(debug_assertions)]
-    // {
-    //     let w = state.container_size.x.to_pt();
-    //     let h = state.container_size.y.to_pt();
-    //     let rect = peniko::kurbo::Rect::new(0.0, 0.0, w, h);
-    //     sink.stroke(StrokeRef {
-    //         transform: state.container_transform,
-    //         stroke: &Stroke::default(),
-    //         brush: (&Brush::Solid(Color::from_rgba8(
-    //             255, 0, 255, 220,
-    //         )))
-    //             .into(),
-    //         brush_transform: None,
-    //         shape: GeometryRef::Rect(rect),
-    //         composite: Composite::default(),
-    //     });
-    // }
-
-    let fill_brush =
-        text_paint(&text.fill, &state, last_glyph.x as f64);
+    let (fill_brush, fill_brush_transform) =
+        text_paint(&text.fill, &state);
 
     let fill_style = Style::Fill(Fill::NonZero);
-    // TODO(vello-0.9): pass actual brush_transform once vello
-    // supports it.
     sink.glyph_run(
         GlyphRunRef {
             font: &font_data,
@@ -82,21 +59,19 @@ pub(crate) fn render_text(
             normalized_coords: &[],
             style: &fill_style,
             brush: (&fill_brush).into(),
-            brush_transform: None,
+            brush_transform: fill_brush_transform,
             composite: Composite::default(),
         },
         &mut glyphs.iter().copied(),
     );
 
     if let Some(stroke) = &text.stroke {
-        let stroke_brush =
-            text_paint(&stroke.paint, &state, last_glyph.x as f64);
+        let (stroke_brush, stroke_brush_transform) =
+            text_paint(&stroke.paint, &state);
 
         let stroke_style =
             Style::Stroke(convert_fixed_stroke(stroke));
 
-        // TODO(vello-0.9): pass actual brush_transform once vello
-        // supports it.
         sink.glyph_run(
             GlyphRunRef {
                 font: &font_data,
@@ -108,7 +83,7 @@ pub(crate) fn render_text(
                 normalized_coords: &[],
                 style: &stroke_style,
                 brush: (&stroke_brush).into(),
-                brush_transform: None,
+                brush_transform: stroke_brush_transform,
                 composite: Composite::default(),
             },
             &mut glyphs.iter().copied(),
