@@ -26,7 +26,7 @@ use typst::syntax::package::PackageSpec;
 use typst::syntax::{FileId, Source, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::{LazyHash, Protected};
-use typst::{Library, LibraryExt, WorldExt, World};
+use typst::{Library, LibraryExt, World, WorldExt};
 use typst_layout::layout_frame;
 
 pub mod fonts;
@@ -541,13 +541,19 @@ fn log_diagnostic(world: &VelystWorld, diagnostic: SourceDiagnostic) {
             .source(id)
             .ok()
             .zip(world.range(diagnostic.span))
-            .and_then(|(source, range)| source.lines().byte_to_line_column(range.start));
+            .and_then(|(source, range)| {
+                source.lines().byte_to_line_column(range.start)
+            });
         match line_col {
-            Some((line, col)) => format!("In file: {:?}:{}:{}", id, line + 1, col + 1),
+            Some((line, col)) => {
+                format!("In file: {:?}:{}:{}", id, line + 1, col + 1)
+            }
             None => format!("In file: {:?}", id),
         }
     });
-    log_msg.push_str(&location.unwrap_or_else(|| "In file: <unknown>".to_string()));
+    log_msg.push_str(
+        &location.unwrap_or_else(|| "In file: <unknown>".to_string()),
+    );
     log_msg.push('\n');
     log_msg.push_str(&format!("Trace: {:?}", diagnostic.trace));
     log_msg.push('\n');
