@@ -172,7 +172,8 @@ impl VelystWorld<'_> {
         let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
-        let mut introspector = typst_layout::PagedIntrospector::new(&[]);
+        let mut introspector =
+            typst_layout::PagedIntrospector::new(&[]);
 
         let traced = Traced::default();
         let mut sink = Sink::new();
@@ -188,7 +189,9 @@ impl VelystWorld<'_> {
                 world: world.track(),
                 library: world.library(),
                 introspector: Protected::new(
-                    (&introspector as &dyn typst::introspection::Introspector).track(),
+                    (&introspector
+                        as &dyn typst::introspection::Introspector)
+                        .track(),
                 ),
                 traced: traced.track(),
                 sink: sink.track_mut(),
