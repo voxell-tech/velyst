@@ -8,7 +8,7 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-typst_element = { workspace = true }
+paste = { workspace = true }
 imaging = { workspace = true, features = ["std"] }
 imaging_vello = { workspace = true }
 typst_imaging = { workspace = true }
