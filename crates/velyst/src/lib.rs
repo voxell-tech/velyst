@@ -6,6 +6,7 @@ use bevy::ui::UiSystems;
 use renderer::VelystRendererPlugin;
 use world::VelystWorldPlugin;
 
+pub use bevy_vello;
 pub use imaging;
 pub use kanva;
 pub use typst;

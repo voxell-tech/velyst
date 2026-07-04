@@ -1,7 +1,7 @@
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_vello::prelude::*;
+use velyst::bevy_vello::prelude::*;
 use velyst::prelude::*;
 
 const ZOOM_LINE_RATE: f32 = 0.3;

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_vello::prelude::*;
+use velyst::bevy_vello::prelude::*;
 use velyst::imaging::kurbo::{BezPath, PathEl, Point};
 use velyst::prelude::*;
 

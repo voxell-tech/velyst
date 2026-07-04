@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use bevy::prelude::*;
-use bevy_vello::prelude::*;
+use velyst::bevy_vello::prelude::*;
 use velyst::prelude::*;
 use velyst::typst::model::HeadingElem;
 use velyst::typst::text::TextElem;
