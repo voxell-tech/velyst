@@ -20,7 +20,6 @@ use typst::engine::{Engine, Route, Sink, Traced};
 use typst::foundations::{
     Bytes, Content, Datetime, Module, StyleChain,
 };
-use typst::introspection::EmptyIntrospector;
 use typst::layout::{Frame, Region};
 use typst::syntax::package::PackageSpec;
 use typst::syntax::{FileId, Source, VirtualRoot};
@@ -173,22 +172,27 @@ impl VelystWorld<'_> {
         let world: &dyn typst::World = self;
         let styles = StyleChain::new(&world.library().styles);
 
-        let introspector = EmptyIntrospector;
+        let mut introspector =
+            typst_layout::PagedIntrospector::new(&[]);
 
         let traced = Traced::default();
         let mut sink = Sink::new();
 
         // Relayout until all introspections stabilize.
         // If that doesn't happen within five attempts, we give up.
-        // TODO: Implement the loop to support counter & states.
-        let frame = {
+        let mut frame = None;
+        for _ in 0..5 {
             // Clear delayed errors.
             sink.delayed();
 
             let mut engine = Engine {
                 world: world.track(),
                 library: world.library(),
-                introspector: Protected::new(introspector.track()),
+                introspector: Protected::new(
+                    (&introspector
+                        as &dyn typst::introspection::Introspector)
+                        .track(),
+                ),
                 traced: traced.track(),
                 sink: sink.track_mut(),
                 route: Route::default(),
@@ -197,36 +201,61 @@ impl VelystWorld<'_> {
             let locator = typst::introspection::Locator::root();
 
             // Layout!
-            layout_frame(
+            let current_frame = match layout_frame(
                 &mut engine,
                 content,
                 locator,
                 styles,
                 region,
-            )
-        };
+            ) {
+                Ok(f) => f,
+                Err(errors) => {
+                    error!("Layout failed!");
+                    for error in errors {
+                        log_diagnostic(self, error);
+                    }
+                    return None;
+                }
+            };
+
+            let page = typst_layout::Page {
+                frame: current_frame.clone(),
+                bleed: Default::default(),
+                fill: typst::foundations::Smart::Auto,
+                numbering: None,
+                supplement: Default::default(),
+                number: 1,
+            };
+
+            let next_introspector =
+                typst_layout::PagedIntrospector::new(&[page]);
+
+            let converged = frame.is_some()
+                && next_introspector
+                    .elements()
+                    .all()
+                    .eq(introspector.elements().all());
+
+            introspector = next_introspector;
+            frame = Some(current_frame);
+
+            if converged {
+                break;
+            }
+        }
 
         // Log delayed errors.
         for delay in sink.delayed() {
             log_diagnostic(self, delay);
         }
 
-        match frame {
-            Ok(frame) => {
-                for warning in sink.warnings() {
-                    log_diagnostic(self, warning);
-                }
-
-                Some(frame)
+        if let Some(frame) = frame {
+            for warning in sink.warnings() {
+                log_diagnostic(self, warning);
             }
-            Err(errors) => {
-                error!("Layout failed!");
-                for error in errors {
-                    log_diagnostic(self, error);
-                }
-
-                None
-            }
+            Some(frame)
+        } else {
+            None
         }
     }
 
