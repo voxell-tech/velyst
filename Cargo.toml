@@ -20,7 +20,7 @@ kanva_typst = { path = "crates/kanva_typst", version = "0.1.0" }
 # Bevy dependencies
 bevy = { version = "0.19", default-features = false }
 # bevy_vello = "0.13.1"
-bevy_vello = { git = "https://github.com/linebender/bevy_vello", branch = "nixon/bevy-0.19", default-features = false }
+bevy_vello = { git = "https://github.com/linebender/bevy_vello", branch = "main", default-features = false }
 # Imaging dependencies
 imaging = { version = "0.0.1", default-features = false }
 svg_imaging = { version = "0.0.1", default-features = false }
