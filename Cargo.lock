@@ -1669,8 +1669,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_vello"
-version = "0.13.1"
-source = "git+https://github.com/linebender/bevy_vello?branch=nixon%2Fbevy-0.19#6b6906f21da12a9ef4764ee0d3db10d1de80214e"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a17103dfbca1e0dd0a4e9131e3e666fc50adcdb806c324f9830c54362cc9b4d"
 dependencies = [
  "bevy",
  "thiserror 2.0.18",
@@ -6843,8 +6844,9 @@ dependencies = [
 
 [[package]]
 name = "vello_svg"
-version = "0.9.0"
-source = "git+https://github.com/linebender/vello_svg?branch=nixon%2Fvello-0.9#87bb969e9cb7ae9c13a78fc1c29f68522943e38c"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41e9fad114de34b1b0cc37fa63d2607899ab42771d831759ab37767de65f73b4"
 dependencies = [
  "image",
  "thiserror 2.0.18",
