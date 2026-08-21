@@ -23,6 +23,10 @@ pub fn shape_paint(
 ) -> (Brush, Option<Affine>) {
     let shape_size =
         shape.bbox(true).size().max(Size::splat(Abs::pt(1.0)));
+    // Guard against degenerate (zero-sized) containers, which would
+    // otherwise produce NaN aspect ratios and gradient centers.
+    let container_size =
+        state.container_size.max(Size::splat(Abs::pt(1.0)));
 
     let brush_transform = match paint {
         viz::Paint::Gradient(gradient) => {
@@ -35,8 +39,8 @@ pub fn shape_paint(
                     (shape_size.x.to_pt(), shape_size.y.to_pt())
                 }
                 viz::RelativeTo::Parent => (
-                    state.container_size.x.to_pt(),
-                    state.container_size.y.to_pt(),
+                    container_size.x.to_pt(),
+                    container_size.y.to_pt(),
                 ),
             };
             let base = match relative {
@@ -102,7 +106,7 @@ pub fn shape_paint(
         {
             shape_size
         }
-        _ => state.container_size,
+        _ => container_size,
     };
 
     (build_brush(paint, brush_size), brush_transform)
@@ -114,10 +118,15 @@ pub fn text_paint(
     paint: &viz::Paint,
     state: &RenderState,
 ) -> (Brush, Option<Affine>) {
+    // Guard against degenerate (zero-sized) containers, which would
+    // otherwise produce NaN aspect ratios and gradient centers.
+    let container_size =
+        state.container_size.max(Size::splat(Abs::pt(1.0)));
+
     let brush_transform = match paint {
         viz::Paint::Gradient(gradient) => {
-            let w = state.container_size.x.to_pt();
-            let h = state.container_size.y.to_pt();
+            let w = container_size.x.to_pt();
+            let h = container_size.y.to_pt();
             // Same formula as RelativeTo::Parent in shape_paint.
             let base =
                 state.transform.inverse() * state.container_transform;
@@ -151,11 +160,15 @@ pub fn text_paint(
         _ => None,
     };
 
-    (build_brush(paint, state.container_size), brush_transform)
+    (build_brush(paint, container_size), brush_transform)
 }
 
 /// Build the base brush in normalized *unit square* gradient space.
 pub fn build_brush(paint: &viz::Paint, size: Size) -> Brush {
+    // Guard against degenerate sizes, which would otherwise produce a
+    // non-finite aspect ratio (and thus NaN angles and centers).
+    let size = size.max(Size::splat(Abs::pt(1.0)));
+
     match paint {
         viz::Paint::Solid(c) => Brush::Solid(convert_color(c)),
         viz::Paint::Gradient(gradient) => {
