@@ -6,8 +6,9 @@ use crate::sink::{GlyphRun, KanvaSink};
 
 use crate::Kanva;
 use crate::node::{
-    Command, Group, GroupRange, KanvaFill, KanvaPath, KanvaStroke,
-    NodeIndex, PaintOrder,
+    Command, FillId, GeometryId, Group, GroupId, GroupRange,
+    KanvaFill, KanvaPath, KanvaStroke, NodeIndex, PaintOrder,
+    StrokeId,
 };
 
 /// Builds a [`Kanva`] by consuming a [`KanvaSink`] draw stream.
@@ -19,7 +20,7 @@ use crate::node::{
 /// [`Kanva::query`].
 pub struct KanvaBuilder {
     kanva: Kanva,
-    group_stack: Vec<usize>,
+    group_stack: Vec<GroupId>,
     pending_label: Option<Box<str>>,
 }
 
@@ -52,8 +53,65 @@ impl KanvaBuilder {
         idx
     }
 
+    fn push_geometry(&mut self, geometry: BezPath) -> GeometryId {
+        let idx = self.kanva.geometries.len();
+        self.kanva.geometries.push(geometry);
+        GeometryId::new(idx)
+    }
+
+    fn push_fill(&mut self, fill: KanvaFill) -> FillId {
+        let idx = self.kanva.fills.len();
+        self.kanva.fills.push(fill);
+        FillId::new(idx)
+    }
+
+    fn push_stroke(&mut self, stroke: KanvaStroke) -> StrokeId {
+        let idx = self.kanva.strokes.len();
+        self.kanva.strokes.push(stroke);
+        StrokeId::new(idx)
+    }
+
+    /// Outlines one glyph and pushes a fill-only or stroke-only path
+    /// for it. No-op if the glyph has no outline.
+    fn push_glyph(
+        &mut self,
+        face: &ttf_parser::Face<'_>,
+        glyph: Glyph,
+        base_transform: Affine,
+        scale_tf: Affine,
+        fill: Option<FillId>,
+        stroke: Option<StrokeId>,
+    ) {
+        let Some((path, glyph_tf)) =
+            outline_glyph(face, glyph, base_transform, scale_tf)
+        else {
+            return;
+        };
+        let geom_id = self.push_geometry(path);
+        self.push_glyph_path(geom_id, glyph_tf, fill, stroke);
+    }
+
+    /// Pushes a fill-only or stroke-only path referencing an
+    /// already-stored glyph geometry.
+    fn push_glyph_path(
+        &mut self,
+        geom_id: GeometryId,
+        transform: Affine,
+        fill: Option<FillId>,
+        stroke: Option<StrokeId>,
+    ) {
+        let path_idx = self.push_path(KanvaPath {
+            path: geom_id,
+            transform,
+            fill,
+            stroke,
+            paint_order: PaintOrder::default(),
+        });
+        self.kanva.commands.push(Command::DrawPath(path_idx));
+    }
+
     fn push_group_entry(&mut self, group: Group) {
-        let idx = self.kanva.groups.len();
+        let idx = GroupId::new(self.kanva.groups.len());
         if let Some(label) = self.pending_label.take() {
             self.kanva.index.insert(label, NodeIndex::Group(idx));
         }
@@ -69,7 +127,7 @@ impl KanvaBuilder {
 
     fn pop_group_entry(&mut self) {
         if let Some(idx) = self.group_stack.pop() {
-            self.kanva.group_cmds[idx].end =
+            self.kanva.group_cmds[idx.get()].end =
                 self.kanva.commands.len();
         }
         self.kanva.commands.push(Command::PopGroup);
@@ -107,18 +165,11 @@ impl KanvaSink for KanvaBuilder {
         stroke: Option<KanvaStroke>,
         paint_order: PaintOrder,
     ) {
-        let fill = fill.map(|f| {
-            let idx = self.kanva.fills.len();
-            self.kanva.fills.push(f);
-            idx
-        });
-        let stroke = stroke.map(|s| {
-            let idx = self.kanva.strokes.len();
-            self.kanva.strokes.push(s);
-            idx
-        });
+        let fill = fill.map(|f| self.push_fill(f));
+        let stroke = stroke.map(|s| self.push_stroke(s));
+        let geom_idx = self.push_geometry(path);
         let path_idx = self.push_path(KanvaPath {
-            path,
+            path: geom_idx,
             transform,
             fill,
             stroke,
@@ -147,11 +198,7 @@ impl KanvaSink for KanvaBuilder {
         let scale_tf = Affine::scale_non_uniform(scale, -scale);
 
         // One shared fill and stroke entry for the whole run.
-        let fill_idx = fill.map(|f| {
-            let idx = self.kanva.fills.len();
-            self.kanva.fills.push(f);
-            idx
-        });
+        let fill_idx = fill.map(|f| self.push_fill(f));
         // Glyph outlines shrink by `scale` (font units to font_size)
         // at render time; divide stroke lengths by it so requested
         // widths stay in world units.
@@ -161,55 +208,71 @@ impl KanvaSink for KanvaBuilder {
                 *dash /= scale;
             }
             s.stroke.dash_offset /= scale;
-            let idx = self.kanva.strokes.len();
-            self.kanva.strokes.push(s);
-            idx
+            self.push_stroke(s)
         });
 
         self.push_group_entry(Group::default());
 
-        // Two full passes over the run: every glyph's fill is drawn
-        // before any glyph's stroke, so an overlapping stroke never
-        // gets clipped by a neighbor's fill.
-        if fill_idx.is_some() {
-            for &glyph in glyphs {
-                let Some((path, glyph_tf)) = outline_glyph(
-                    &face,
-                    glyph,
-                    run.transform,
-                    scale_tf,
-                ) else {
-                    continue;
-                };
-                let path_idx = self.push_path(KanvaPath {
-                    path,
-                    transform: glyph_tf,
-                    fill: fill_idx,
-                    stroke: None,
-                    paint_order: PaintOrder::default(),
-                });
-                self.kanva.commands.push(Command::DrawPath(path_idx));
+        match (fill_idx, stroke_idx) {
+            (None, None) => {}
+            (Some(fill_idx), None) => {
+                for &glyph in glyphs {
+                    self.push_glyph(
+                        &face,
+                        glyph,
+                        run.transform,
+                        scale_tf,
+                        Some(fill_idx),
+                        None,
+                    );
+                }
             }
-        }
+            (None, Some(stroke_idx)) => {
+                for &glyph in glyphs {
+                    self.push_glyph(
+                        &face,
+                        glyph,
+                        run.transform,
+                        scale_tf,
+                        None,
+                        Some(stroke_idx),
+                    );
+                }
+            }
+            (Some(fill_idx), Some(stroke_idx)) => {
+                // Outline each glyph once and reuse the geometry for
+                // its fill-only and stroke-only entries below, so an
+                // overlapping stroke is never clipped by the next
+                // glyph's fill.
+                let entries = glyphs
+                    .iter()
+                    .filter_map(|&glyph| {
+                        let (path, glyph_tf) = outline_glyph(
+                            &face,
+                            glyph,
+                            run.transform,
+                            scale_tf,
+                        )?;
+                        Some((self.push_geometry(path), glyph_tf))
+                    })
+                    .collect::<Vec<_>>();
 
-        if stroke_idx.is_some() {
-            for &glyph in glyphs {
-                let Some((path, glyph_tf)) = outline_glyph(
-                    &face,
-                    glyph,
-                    run.transform,
-                    scale_tf,
-                ) else {
-                    continue;
-                };
-                let path_idx = self.push_path(KanvaPath {
-                    path,
-                    transform: glyph_tf,
-                    fill: None,
-                    stroke: stroke_idx,
-                    paint_order: PaintOrder::default(),
-                });
-                self.kanva.commands.push(Command::DrawPath(path_idx));
+                for &(geom_idx, glyph_tf) in &entries {
+                    self.push_glyph_path(
+                        geom_idx,
+                        glyph_tf,
+                        Some(fill_idx),
+                        None,
+                    );
+                }
+                for &(geom_idx, glyph_tf) in &entries {
+                    self.push_glyph_path(
+                        geom_idx,
+                        glyph_tf,
+                        None,
+                        Some(stroke_idx),
+                    );
+                }
             }
         }
 
@@ -429,8 +492,8 @@ mod tests {
         KanvaSink::push_group(&mut b, Group::default());
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert!(k.get_group(0).is_some());
-        assert!(k.get_group(1).is_none());
+        assert!(k.get_group(GroupId::new(0)).is_some());
+        assert!(k.get_group(GroupId::new(1)).is_none());
     }
 
     #[test]
@@ -442,7 +505,10 @@ mod tests {
         draw_fill(&mut b, &brush);
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(k.get_group_path_range(0).unwrap().len(), 2);
+        assert_eq!(
+            k.get_group_path_range(GroupId::new(0)).unwrap().len(),
+            2
+        );
     }
 
     #[test]
@@ -464,7 +530,10 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         KanvaSink::pop_context(&mut b);
         let k = b.build();
-        assert_eq!(k.query("bar"), Some(NodeIndex::Group(0)));
+        assert_eq!(
+            k.query("bar"),
+            Some(NodeIndex::Group(GroupId::new(0)))
+        );
     }
 
     #[test]

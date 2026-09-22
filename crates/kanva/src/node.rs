@@ -5,6 +5,66 @@ use imaging::{ClipRef, Composite};
 /// Tolerance used when flattening curves into [`BezPath`]s.
 pub(crate) const PATH_TOLERANCE: f64 = 0.1;
 
+/// Index into [`crate::Kanva`]'s geometry buffer; retrieve via
+/// [`crate::Kanva::get_geometry`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GeometryId(usize);
+
+impl GeometryId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// Index into [`crate::Kanva`]'s fill buffer; retrieve via
+/// [`crate::Kanva::get_fill`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FillId(usize);
+
+impl FillId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// Index into [`crate::Kanva`]'s stroke buffer; retrieve via
+/// [`crate::Kanva::get_stroke`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StrokeId(usize);
+
+impl StrokeId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
+
+/// Index into [`crate::Kanva`]'s group buffer; retrieve via
+/// [`crate::Kanva::get_group`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GroupId(usize);
+
+impl GroupId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
+
 /// A group in the [`Kanva`][crate::Kanva] scene graph.
 ///
 /// Groups carry a transform that is accumulated onto child path world
@@ -70,24 +130,19 @@ pub enum PaintOrder {
 /// indices.
 #[derive(Default, Debug, Clone)]
 pub struct KanvaPath {
-    pub path: BezPath,
+    pub path: GeometryId,
     /// Full world transform as received from [`imaging`].
     pub transform: Affine,
-    /// Index into the fills buffer; retrieve via
-    /// [`crate::Kanva::get_fill`].
-    pub fill: Option<usize>,
-    /// Index into the strokes buffer; retrieve via
-    /// [`crate::Kanva::get_stroke`].
-    pub stroke: Option<usize>,
+    pub fill: Option<FillId>,
+    pub stroke: Option<StrokeId>,
     pub paint_order: PaintOrder,
 }
 
 /// A draw command in the [`Kanva`][crate::Kanva] command buffer.
 #[derive(Debug, Clone, Copy)]
 pub enum Command {
-    /// Push a group onto the render stack (index into the groups
-    /// vec).
-    PushGroup(usize),
+    /// Push a group onto the render stack.
+    PushGroup(GroupId),
     /// Pop the current group from the render stack.
     PopGroup,
     /// Draw the path at the given index.
@@ -111,7 +166,7 @@ pub struct GroupRange {
 /// A reference to a node in the [`Kanva`][crate::Kanva] index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeIndex {
-    Group(usize),
+    Group(GroupId),
     Path(usize),
 }
 

@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use hashbrown::HashMap;
-use imaging::kurbo::Affine;
+use imaging::kurbo::{Affine, BezPath};
 use imaging::peniko::{BlendMode, Style};
 use imaging::{
     ClipRef, Composite, FillRef, GeometryRef, GroupRef, PaintSink,
@@ -25,8 +25,9 @@ pub mod prelude {
         GroupModEntry, GroupMods, PathModEntry, PathMods,
     };
     pub use crate::node::{
-        Command, Group, GroupRange, KanvaClip, KanvaFill, KanvaPath,
-        KanvaStroke, NodeIndex, PaintOrder,
+        Command, FillId, GeometryId, Group, GroupId, GroupRange,
+        KanvaClip, KanvaFill, KanvaPath, KanvaStroke, NodeIndex,
+        PaintOrder, StrokeId,
     };
     pub use crate::sink::{GlyphRun, KanvaSink};
 }
@@ -51,6 +52,10 @@ pub struct Kanva {
     /// each group.
     group_cmds: Vec<GroupRange>,
     paths: Vec<KanvaPath>,
+    /// Geometry buffer. A glyph run's fill-only and stroke-only
+    /// [`KanvaPath`]s share one entry here instead of duplicating
+    /// it.
+    geometries: Vec<BezPath>,
     fills: Vec<KanvaFill>,
     strokes: Vec<KanvaStroke>,
     index: HashMap<Box<str>, NodeIndex>,
@@ -78,11 +83,11 @@ impl Kanva {
         self.index.get(label).copied()
     }
 
-    /// Look up a labeled group and return its raw index directly.
+    /// Look up a labeled group and return its [`GroupId`] directly.
     ///
     /// Returns `None` if the label does not exist or resolves to a
     /// path.
-    pub fn query_group(&self, label: &str) -> Option<usize> {
+    pub fn query_group(&self, label: &str) -> Option<GroupId> {
         match self.index.get(label).copied()? {
             NodeIndex::Group(i) => Some(i),
             _ => None,
@@ -106,21 +111,25 @@ impl Kanva {
         self.paths.get(idx)
     }
 
-    /// Returns the [`KanvaFill`] at `idx`, or `None` if out of
-    /// bounds.
-    pub fn get_fill(&self, idx: usize) -> Option<&KanvaFill> {
-        self.fills.get(idx)
+    /// Returns the [`KanvaFill`] at `id`, or `None` if out of bounds.
+    pub fn get_fill(&self, id: FillId) -> Option<&KanvaFill> {
+        self.fills.get(id.get())
     }
 
-    /// Returns the [`KanvaStroke`] at `idx`, or `None` if out of
+    /// Returns the [`KanvaStroke`] at `id`, or `None` if out of
     /// bounds.
-    pub fn get_stroke(&self, idx: usize) -> Option<&KanvaStroke> {
-        self.strokes.get(idx)
+    pub fn get_stroke(&self, id: StrokeId) -> Option<&KanvaStroke> {
+        self.strokes.get(id.get())
     }
 
-    /// Returns the [`Group`] at `idx`, or `None` if out of bounds.
-    pub fn get_group(&self, idx: usize) -> Option<&Group> {
-        self.groups.get(idx)
+    /// Returns the geometry at `id`, or `None` if out of bounds.
+    pub fn get_geometry(&self, id: GeometryId) -> Option<&BezPath> {
+        self.geometries.get(id.get())
+    }
+
+    /// Returns the [`Group`] at `id`, or `None` if out of bounds.
+    pub fn get_group(&self, id: GroupId) -> Option<&Group> {
+        self.groups.get(id.get())
     }
 
     /// Returns all [`Group`]s.
@@ -149,6 +158,7 @@ impl Kanva {
     ///
     /// let mut builder = KanvaBuilder::new();
     /// let brush = Brush::default();
+    /// builder.push_context("group");
     /// builder.push_group(Group::default());
     /// builder.draw_path(
     ///     BezPath::new(),
@@ -175,13 +185,17 @@ impl Kanva {
     /// builder.pop_group();
     /// let kanva = builder.build();
     ///
-    /// assert_eq!(kanva.get_group_path_range(0).unwrap().len(), 2);
+    /// let group_id = kanva.query_group("group").unwrap();
+    /// assert_eq!(
+    ///     kanva.get_group_path_range(group_id).unwrap().len(),
+    ///     2
+    /// );
     /// ```
     pub fn get_group_path_range(
         &self,
-        group_idx: usize,
+        group_id: GroupId,
     ) -> Option<core::ops::Range<usize>> {
-        let range = self.group_cmds.get(group_idx)?;
+        let range = self.group_cmds.get(group_id.get())?;
         let cmds = &self.commands[range.start + 1..range.end];
         let first = cmds.iter().find_map(|c| {
             if let Command::DrawPath(i) = c {
@@ -207,11 +221,11 @@ impl Kanva {
     /// rather than inside a single labeled group.
     pub fn get_paths_between_groups(
         &self,
-        start_group: usize,
-        end_group: usize,
+        start_group: GroupId,
+        end_group: GroupId,
     ) -> Option<core::ops::Range<usize>> {
-        let start_end = self.group_cmds.get(start_group)?.end;
-        let end_start = self.group_cmds.get(end_group)?.start;
+        let start_end = self.group_cmds.get(start_group.get())?.end;
+        let end_start = self.group_cmds.get(end_group.get())?.start;
         let cmds = &self.commands[start_end + 1..end_start];
         let first = cmds.iter().find_map(|c| {
             if let Command::DrawPath(i) = c {
@@ -237,12 +251,12 @@ impl Kanva {
     }
 
     /// Return a cursor for setting per-group field overrides at
-    /// `group_idx`.
+    /// `group_id`.
     pub fn mod_group(
         &mut self,
-        group_idx: usize,
+        group_id: GroupId,
     ) -> GroupModEntry<'_> {
-        GroupModEntry::new(&mut self.group_mods, group_idx)
+        GroupModEntry::new(&mut self.group_mods, group_id)
     }
 
     /// Clear all active overrides in [`PathMods`] and [`GroupMods`].
@@ -264,7 +278,7 @@ impl Kanva {
         for cmd in &self.commands {
             match *cmd {
                 Command::PushGroup(idx) => {
-                    let group = &self.groups[idx];
+                    let group = &self.groups[idx.get()];
                     let parent_tf = *group_tf_stack.last().unwrap();
                     let group_tf = self
                         .group_mods
@@ -336,11 +350,10 @@ impl Kanva {
                     let path = &self.paths[idx];
                     let group_tf = *group_tf_stack.last().unwrap();
 
-                    let data = self
-                        .path_mods
-                        .shape
-                        .get(&idx)
-                        .unwrap_or(&path.path);
+                    let data =
+                        self.path_mods.shape.get(&idx).unwrap_or(
+                            &self.geometries[path.path.get()],
+                        );
                     let base_tf = self
                         .path_mods
                         .transform
@@ -374,14 +387,14 @@ impl Kanva {
                     {
                         fill_mod.as_ref()
                     } else {
-                        path.fill.map(|i| &self.fills[i])
+                        path.fill.map(|i| &self.fills[i.get()])
                     };
                     let stroke = if let Some(stroke_mod) =
                         self.path_mods.stroke.get(&idx)
                     {
                         stroke_mod.as_ref()
                     } else {
-                        path.stroke.map(|i| &self.strokes[i])
+                        path.stroke.map(|i| &self.strokes[i.get()])
                     };
 
                     let emit_fill = |sink: &mut dyn PaintSink| {
@@ -746,7 +759,7 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
         kanva.groups[0].transform = base_tf;
-        kanva.group_mods.transform(0, override_tf);
+        kanva.group_mods.transform(GroupId::new(0), override_tf);
 
         let mut scene = Scene::new();
         kanva.render(&mut scene);
@@ -785,7 +798,7 @@ mod tests {
         );
         KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
-        kanva.group_mods.composite(0, composite);
+        kanva.group_mods.composite(GroupId::new(0), composite);
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let Command::PushGroup(gid) = scene.commands()[0] else {

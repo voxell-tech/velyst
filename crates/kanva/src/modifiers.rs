@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 use imaging::Composite;
 use imaging::kurbo::{Affine, BezPath};
 
-use crate::node::{KanvaClip, KanvaFill, KanvaStroke};
+use crate::node::{GroupId, KanvaClip, KanvaFill, KanvaStroke};
 
 /// Cursor returned by [`crate::Kanva::mod_path`].
 ///
@@ -52,11 +52,11 @@ impl<'a> PathModEntry<'a> {
 /// index. Chain calls to set multiple field overrides at once.
 pub struct GroupModEntry<'a> {
     mods: &'a mut GroupMods,
-    idx: usize,
+    idx: GroupId,
 }
 
 impl<'a> GroupModEntry<'a> {
-    pub(crate) fn new(mods: &'a mut GroupMods, idx: usize) -> Self {
+    pub(crate) fn new(mods: &'a mut GroupMods, idx: GroupId) -> Self {
         Self { mods, idx }
     }
 
@@ -162,9 +162,9 @@ impl PathMods {
 /// Methods return `&mut Self` for chaining.
 #[derive(Default, Debug, Clone)]
 pub struct GroupMods {
-    pub(crate) transform: HashMap<usize, Affine>,
-    pub(crate) clip: HashMap<usize, Option<KanvaClip>>,
-    pub(crate) composite: HashMap<usize, Composite>,
+    pub(crate) transform: HashMap<GroupId, Affine>,
+    pub(crate) clip: HashMap<GroupId, Option<KanvaClip>>,
+    pub(crate) composite: HashMap<GroupId, Composite>,
 }
 
 impl GroupMods {
@@ -175,7 +175,7 @@ impl GroupMods {
     /// Override the transform of the group at `idx`.
     pub fn transform(
         &mut self,
-        idx: usize,
+        idx: GroupId,
         transform: Affine,
     ) -> &mut Self {
         self.transform.insert(idx, transform);
@@ -187,7 +187,7 @@ impl GroupMods {
     /// Pass `None` to clear the clip entirely.
     pub fn clip(
         &mut self,
-        idx: usize,
+        idx: GroupId,
         clip: Option<KanvaClip>,
     ) -> &mut Self {
         self.clip.insert(idx, clip);
@@ -197,7 +197,7 @@ impl GroupMods {
     /// Override the composite mode of the group at `idx`.
     pub fn composite(
         &mut self,
-        idx: usize,
+        idx: GroupId,
         composite: Composite,
     ) -> &mut Self {
         self.composite.insert(idx, composite);
