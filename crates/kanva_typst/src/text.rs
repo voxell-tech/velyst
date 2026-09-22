@@ -72,6 +72,6 @@ pub fn render_text(
         },
         fill,
         stroke,
-        &mut glyphs.iter().copied(),
+        &glyphs,
     );
 }
