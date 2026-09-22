@@ -6,8 +6,8 @@ use crate::sink::{GlyphRun, KanvaSink};
 
 use crate::Kanva;
 use crate::node::{
-    Command, Group, GroupRange, KanvaFill, KanvaPath, KanvaStroke,
-    NodeIndex, PaintOrder,
+    Command, GeometryId, Group, GroupRange, KanvaFill, KanvaPath,
+    KanvaStroke, NodeIndex, PaintOrder,
 };
 
 /// Builds a [`Kanva`] by consuming a [`KanvaSink`] draw stream.
@@ -52,10 +52,10 @@ impl KanvaBuilder {
         idx
     }
 
-    fn push_geometry(&mut self, geometry: BezPath) -> usize {
+    fn push_geometry(&mut self, geometry: BezPath) -> GeometryId {
         let idx = self.kanva.geometries.len();
         self.kanva.geometries.push(geometry);
-        idx
+        GeometryId(idx)
     }
 
     /// Outlines one glyph and pushes a fill-only or stroke-only path
@@ -74,21 +74,21 @@ impl KanvaBuilder {
         else {
             return;
         };
-        let geom_idx = self.push_geometry(path);
-        self.push_glyph_path(geom_idx, glyph_tf, fill, stroke);
+        let geom_id = self.push_geometry(path);
+        self.push_glyph_path(geom_id, glyph_tf, fill, stroke);
     }
 
     /// Pushes a fill-only or stroke-only path referencing an
     /// already-stored glyph geometry.
     fn push_glyph_path(
         &mut self,
-        geom_idx: usize,
+        geom_id: GeometryId,
         transform: Affine,
         fill: Option<usize>,
         stroke: Option<usize>,
     ) {
         let path_idx = self.push_path(KanvaPath {
-            path: geom_idx,
+            path: geom_id,
             transform,
             fill,
             stroke,

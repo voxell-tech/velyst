@@ -25,8 +25,8 @@ pub mod prelude {
         GroupModEntry, GroupMods, PathModEntry, PathMods,
     };
     pub use crate::node::{
-        Command, Group, GroupRange, KanvaClip, KanvaFill, KanvaPath,
-        KanvaStroke, NodeIndex, PaintOrder,
+        Command, GeometryId, Group, GroupRange, KanvaClip, KanvaFill,
+        KanvaPath, KanvaStroke, NodeIndex, PaintOrder,
     };
     pub use crate::sink::{GlyphRun, KanvaSink};
 }
@@ -121,9 +121,9 @@ impl Kanva {
         self.strokes.get(idx)
     }
 
-    /// Returns the geometry at `idx`, or `None` if out of bounds.
-    pub fn get_geometry(&self, idx: usize) -> Option<&BezPath> {
-        self.geometries.get(idx)
+    /// Returns the geometry at `id`, or `None` if out of bounds.
+    pub fn get_geometry(&self, id: GeometryId) -> Option<&BezPath> {
+        self.geometries.get(id.0)
     }
 
     /// Returns the [`Group`] at `idx`, or `None` if out of bounds.
@@ -348,7 +348,7 @@ impl Kanva {
                         .path_mods
                         .shape
                         .get(&idx)
-                        .unwrap_or(&self.geometries[path.path]);
+                        .unwrap_or(&self.geometries[path.path.0]);
                     let base_tf = self
                         .path_mods
                         .transform

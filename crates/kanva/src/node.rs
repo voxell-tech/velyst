@@ -5,6 +5,11 @@ use imaging::{ClipRef, Composite};
 /// Tolerance used when flattening curves into [`BezPath`]s.
 pub(crate) const PATH_TOLERANCE: f64 = 0.1;
 
+/// Index into [`crate::Kanva`]'s geometry buffer; retrieve via
+/// [`crate::Kanva::get_geometry`].
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GeometryId(pub(crate) usize);
+
 /// A group in the [`Kanva`][crate::Kanva] scene graph.
 ///
 /// Groups carry a transform that is accumulated onto child path world
@@ -70,10 +75,7 @@ pub enum PaintOrder {
 /// indices.
 #[derive(Default, Debug, Clone)]
 pub struct KanvaPath {
-    /// Index into the geometry buffer; retrieve via
-    /// [`crate::Kanva::get_geometry`]. Glyph runs share one geometry
-    /// entry between a fill-only and a stroke-only [`KanvaPath`].
-    pub path: usize,
+    pub path: GeometryId,
     /// Full world transform as received from [`imaging`].
     pub transform: Affine,
     /// Index into the fills buffer; retrieve via
