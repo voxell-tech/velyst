@@ -132,7 +132,7 @@ impl KanvaSink for KanvaBuilder {
         run: GlyphRun,
         fill: Option<KanvaFill>,
         stroke: Option<KanvaStroke>,
-        glyphs: &mut dyn Iterator<Item = Glyph>,
+        glyphs: &[Glyph],
     ) {
         let font_data = run.font.data.data();
         let Ok(face) =
@@ -141,10 +141,10 @@ impl KanvaSink for KanvaBuilder {
             return;
         };
 
-        let Some(scale_tf) = glyph_scale_tf(&face, run.font_size)
-        else {
+        let Some(scale) = glyph_scale(&face, run.font_size) else {
             return;
         };
+        let scale_tf = Affine::scale_non_uniform(scale, -scale);
 
         // One shared fill and stroke entry for the whole run.
         let fill_idx = fill.map(|f| {
@@ -152,7 +152,15 @@ impl KanvaSink for KanvaBuilder {
             self.kanva.fills.push(f);
             idx
         });
-        let stroke_idx = stroke.map(|s| {
+        // Glyph outlines shrink by `scale` (font units to font_size)
+        // at render time; divide stroke lengths by it so requested
+        // widths stay in world units.
+        let stroke_idx = stroke.map(|mut s| {
+            s.stroke.width /= scale;
+            for dash in s.stroke.dash_pattern.iter_mut() {
+                *dash /= scale;
+            }
+            s.stroke.dash_offset /= scale;
             let idx = self.kanva.strokes.len();
             self.kanva.strokes.push(s);
             idx
@@ -160,39 +168,68 @@ impl KanvaSink for KanvaBuilder {
 
         self.push_group_entry(Group::default());
 
-        for glyph in glyphs {
-            let Some((path, glyph_tf)) =
-                outline_glyph(&face, glyph, run.transform, scale_tf)
-            else {
-                continue;
-            };
+        // Two full passes over the run: every glyph's fill is drawn
+        // before any glyph's stroke, so an overlapping stroke never
+        // gets clipped by a neighbor's fill.
+        if fill_idx.is_some() {
+            for &glyph in glyphs {
+                let Some((path, glyph_tf)) = outline_glyph(
+                    &face,
+                    glyph,
+                    run.transform,
+                    scale_tf,
+                ) else {
+                    continue;
+                };
+                let path_idx = self.push_path(KanvaPath {
+                    path,
+                    transform: glyph_tf,
+                    fill: fill_idx,
+                    stroke: None,
+                    paint_order: PaintOrder::default(),
+                });
+                self.kanva.commands.push(Command::DrawPath(path_idx));
+            }
+        }
 
-            let path_idx = self.push_path(KanvaPath {
-                path,
-                transform: glyph_tf,
-                fill: fill_idx,
-                stroke: stroke_idx,
-                paint_order: PaintOrder::default(),
-            });
-            self.kanva.commands.push(Command::DrawPath(path_idx));
+        if stroke_idx.is_some() {
+            for &glyph in glyphs {
+                let Some((path, glyph_tf)) = outline_glyph(
+                    &face,
+                    glyph,
+                    run.transform,
+                    scale_tf,
+                ) else {
+                    continue;
+                };
+                let path_idx = self.push_path(KanvaPath {
+                    path,
+                    transform: glyph_tf,
+                    fill: None,
+                    stroke: stroke_idx,
+                    paint_order: PaintOrder::default(),
+                });
+                self.kanva.commands.push(Command::DrawPath(path_idx));
+            }
         }
 
         self.pop_group_entry();
     }
 }
 
-/// Returns the Y-flipped scale transform for a glyph run, or `None`
-/// if `units_per_em` is zero.
-fn glyph_scale_tf(
+/// Ratio from font design units to `font_size`, or `None` if
+/// `units_per_em` is zero or `font_size` doesn't yield a finite,
+/// positive scale.
+fn glyph_scale(
     face: &ttf_parser::Face<'_>,
     font_size: f32,
-) -> Option<Affine> {
+) -> Option<f64> {
     let units_per_em = face.units_per_em();
     if units_per_em == 0 {
         return None;
     }
     let scale = font_size as f64 / units_per_em as f64;
-    Some(Affine::scale_non_uniform(scale, -scale))
+    (scale.is_finite() && scale > 0.0).then_some(scale)
 }
 
 /// Outlines a single glyph and returns its path + world transform.

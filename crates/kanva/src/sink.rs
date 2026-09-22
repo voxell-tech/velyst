@@ -41,6 +41,6 @@ pub trait KanvaSink {
         run: GlyphRun,
         fill: Option<KanvaFill>,
         stroke: Option<KanvaStroke>,
-        glyphs: &mut dyn Iterator<Item = Glyph>,
+        glyphs: &[Glyph],
     );
 }
