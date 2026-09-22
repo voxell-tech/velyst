@@ -8,22 +8,62 @@ pub(crate) const PATH_TOLERANCE: f64 = 0.1;
 /// Index into [`crate::Kanva`]'s geometry buffer; retrieve via
 /// [`crate::Kanva::get_geometry`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GeometryId(pub(crate) usize);
+pub struct GeometryId(usize);
+
+impl GeometryId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
 
 /// Index into [`crate::Kanva`]'s fill buffer; retrieve via
 /// [`crate::Kanva::get_fill`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FillId(pub(crate) usize);
+pub struct FillId(usize);
+
+impl FillId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
 
 /// Index into [`crate::Kanva`]'s stroke buffer; retrieve via
 /// [`crate::Kanva::get_stroke`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StrokeId(pub(crate) usize);
+pub struct StrokeId(usize);
+
+impl StrokeId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
 
 /// Index into [`crate::Kanva`]'s group buffer; retrieve via
 /// [`crate::Kanva::get_group`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GroupId(pub(crate) usize);
+pub struct GroupId(usize);
+
+impl GroupId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn get(self) -> usize {
+        self.0
+    }
+}
 
 /// A group in the [`Kanva`][crate::Kanva] scene graph.
 ///

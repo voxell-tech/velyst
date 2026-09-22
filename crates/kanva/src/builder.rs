@@ -56,7 +56,19 @@ impl KanvaBuilder {
     fn push_geometry(&mut self, geometry: BezPath) -> GeometryId {
         let idx = self.kanva.geometries.len();
         self.kanva.geometries.push(geometry);
-        GeometryId(idx)
+        GeometryId::new(idx)
+    }
+
+    fn push_fill(&mut self, fill: KanvaFill) -> FillId {
+        let idx = self.kanva.fills.len();
+        self.kanva.fills.push(fill);
+        FillId::new(idx)
+    }
+
+    fn push_stroke(&mut self, stroke: KanvaStroke) -> StrokeId {
+        let idx = self.kanva.strokes.len();
+        self.kanva.strokes.push(stroke);
+        StrokeId::new(idx)
     }
 
     /// Outlines one glyph and pushes a fill-only or stroke-only path
@@ -99,7 +111,7 @@ impl KanvaBuilder {
     }
 
     fn push_group_entry(&mut self, group: Group) {
-        let idx = GroupId(self.kanva.groups.len());
+        let idx = GroupId::new(self.kanva.groups.len());
         if let Some(label) = self.pending_label.take() {
             self.kanva.index.insert(label, NodeIndex::Group(idx));
         }
@@ -115,7 +127,7 @@ impl KanvaBuilder {
 
     fn pop_group_entry(&mut self) {
         if let Some(idx) = self.group_stack.pop() {
-            self.kanva.group_cmds[idx.0].end =
+            self.kanva.group_cmds[idx.get()].end =
                 self.kanva.commands.len();
         }
         self.kanva.commands.push(Command::PopGroup);
@@ -153,16 +165,8 @@ impl KanvaSink for KanvaBuilder {
         stroke: Option<KanvaStroke>,
         paint_order: PaintOrder,
     ) {
-        let fill = fill.map(|f| {
-            let idx = FillId(self.kanva.fills.len());
-            self.kanva.fills.push(f);
-            idx
-        });
-        let stroke = stroke.map(|s| {
-            let idx = StrokeId(self.kanva.strokes.len());
-            self.kanva.strokes.push(s);
-            idx
-        });
+        let fill = fill.map(|f| self.push_fill(f));
+        let stroke = stroke.map(|s| self.push_stroke(s));
         let geom_idx = self.push_geometry(path);
         let path_idx = self.push_path(KanvaPath {
             path: geom_idx,
@@ -194,11 +198,7 @@ impl KanvaSink for KanvaBuilder {
         let scale_tf = Affine::scale_non_uniform(scale, -scale);
 
         // One shared fill and stroke entry for the whole run.
-        let fill_idx = fill.map(|f| {
-            let idx = FillId(self.kanva.fills.len());
-            self.kanva.fills.push(f);
-            idx
-        });
+        let fill_idx = fill.map(|f| self.push_fill(f));
         // Glyph outlines shrink by `scale` (font units to font_size)
         // at render time; divide stroke lengths by it so requested
         // widths stay in world units.
@@ -208,9 +208,7 @@ impl KanvaSink for KanvaBuilder {
                 *dash /= scale;
             }
             s.stroke.dash_offset /= scale;
-            let idx = StrokeId(self.kanva.strokes.len());
-            self.kanva.strokes.push(s);
-            idx
+            self.push_stroke(s)
         });
 
         self.push_group_entry(Group::default());
@@ -494,8 +492,8 @@ mod tests {
         KanvaSink::push_group(&mut b, Group::default());
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert!(k.get_group(GroupId(0)).is_some());
-        assert!(k.get_group(GroupId(1)).is_none());
+        assert!(k.get_group(GroupId::new(0)).is_some());
+        assert!(k.get_group(GroupId::new(1)).is_none());
     }
 
     #[test]
@@ -508,7 +506,7 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         let k = b.build();
         assert_eq!(
-            k.get_group_path_range(GroupId(0)).unwrap().len(),
+            k.get_group_path_range(GroupId::new(0)).unwrap().len(),
             2
         );
     }
@@ -534,7 +532,7 @@ mod tests {
         let k = b.build();
         assert_eq!(
             k.query("bar"),
-            Some(NodeIndex::Group(GroupId(0)))
+            Some(NodeIndex::Group(GroupId::new(0)))
         );
     }
 

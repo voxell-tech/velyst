@@ -113,23 +113,23 @@ impl Kanva {
 
     /// Returns the [`KanvaFill`] at `id`, or `None` if out of bounds.
     pub fn get_fill(&self, id: FillId) -> Option<&KanvaFill> {
-        self.fills.get(id.0)
+        self.fills.get(id.get())
     }
 
     /// Returns the [`KanvaStroke`] at `id`, or `None` if out of
     /// bounds.
     pub fn get_stroke(&self, id: StrokeId) -> Option<&KanvaStroke> {
-        self.strokes.get(id.0)
+        self.strokes.get(id.get())
     }
 
     /// Returns the geometry at `id`, or `None` if out of bounds.
     pub fn get_geometry(&self, id: GeometryId) -> Option<&BezPath> {
-        self.geometries.get(id.0)
+        self.geometries.get(id.get())
     }
 
     /// Returns the [`Group`] at `id`, or `None` if out of bounds.
     pub fn get_group(&self, id: GroupId) -> Option<&Group> {
-        self.groups.get(id.0)
+        self.groups.get(id.get())
     }
 
     /// Returns all [`Group`]s.
@@ -195,7 +195,7 @@ impl Kanva {
         &self,
         group_id: GroupId,
     ) -> Option<core::ops::Range<usize>> {
-        let range = self.group_cmds.get(group_id.0)?;
+        let range = self.group_cmds.get(group_id.get())?;
         let cmds = &self.commands[range.start + 1..range.end];
         let first = cmds.iter().find_map(|c| {
             if let Command::DrawPath(i) = c {
@@ -224,8 +224,8 @@ impl Kanva {
         start_group: GroupId,
         end_group: GroupId,
     ) -> Option<core::ops::Range<usize>> {
-        let start_end = self.group_cmds.get(start_group.0)?.end;
-        let end_start = self.group_cmds.get(end_group.0)?.start;
+        let start_end = self.group_cmds.get(start_group.get())?.end;
+        let end_start = self.group_cmds.get(end_group.get())?.start;
         let cmds = &self.commands[start_end + 1..end_start];
         let first = cmds.iter().find_map(|c| {
             if let Command::DrawPath(i) = c {
@@ -278,7 +278,7 @@ impl Kanva {
         for cmd in &self.commands {
             match *cmd {
                 Command::PushGroup(idx) => {
-                    let group = &self.groups[idx.0];
+                    let group = &self.groups[idx.get()];
                     let parent_tf = *group_tf_stack.last().unwrap();
                     let group_tf = self
                         .group_mods
@@ -350,11 +350,10 @@ impl Kanva {
                     let path = &self.paths[idx];
                     let group_tf = *group_tf_stack.last().unwrap();
 
-                    let data = self
-                        .path_mods
-                        .shape
-                        .get(&idx)
-                        .unwrap_or(&self.geometries[path.path.0]);
+                    let data =
+                        self.path_mods.shape.get(&idx).unwrap_or(
+                            &self.geometries[path.path.get()],
+                        );
                     let base_tf = self
                         .path_mods
                         .transform
@@ -388,14 +387,14 @@ impl Kanva {
                     {
                         fill_mod.as_ref()
                     } else {
-                        path.fill.map(|i| &self.fills[i.0])
+                        path.fill.map(|i| &self.fills[i.get()])
                     };
                     let stroke = if let Some(stroke_mod) =
                         self.path_mods.stroke.get(&idx)
                     {
                         stroke_mod.as_ref()
                     } else {
-                        path.stroke.map(|i| &self.strokes[i.0])
+                        path.stroke.map(|i| &self.strokes[i.get()])
                     };
 
                     let emit_fill = |sink: &mut dyn PaintSink| {
@@ -760,7 +759,7 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
         kanva.groups[0].transform = base_tf;
-        kanva.group_mods.transform(GroupId(0), override_tf);
+        kanva.group_mods.transform(GroupId::new(0), override_tf);
 
         let mut scene = Scene::new();
         kanva.render(&mut scene);
@@ -799,7 +798,7 @@ mod tests {
         );
         KanvaSink::pop_group(&mut b);
         let mut kanva = b.build();
-        kanva.group_mods.composite(GroupId(0), composite);
+        kanva.group_mods.composite(GroupId::new(0), composite);
         let mut scene = Scene::new();
         kanva.render(&mut scene);
         let Command::PushGroup(gid) = scene.commands()[0] else {
