@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use hashbrown::HashMap;
-use imaging::kurbo::Affine;
+use imaging::kurbo::{Affine, BezPath};
 use imaging::peniko::{BlendMode, Style};
 use imaging::{
     ClipRef, Composite, FillRef, GeometryRef, GroupRef, PaintSink,
@@ -51,6 +51,9 @@ pub struct Kanva {
     /// each group.
     group_cmds: Vec<GroupRange>,
     paths: Vec<KanvaPath>,
+    /// Geometry buffer. A glyph run's fill-only and stroke-only
+    /// [`KanvaPath`]s share one entry here instead of duplicating it.
+    geometries: Vec<BezPath>,
     fills: Vec<KanvaFill>,
     strokes: Vec<KanvaStroke>,
     index: HashMap<Box<str>, NodeIndex>,
@@ -116,6 +119,11 @@ impl Kanva {
     /// bounds.
     pub fn get_stroke(&self, idx: usize) -> Option<&KanvaStroke> {
         self.strokes.get(idx)
+    }
+
+    /// Returns the geometry at `idx`, or `None` if out of bounds.
+    pub fn get_geometry(&self, idx: usize) -> Option<&BezPath> {
+        self.geometries.get(idx)
     }
 
     /// Returns the [`Group`] at `idx`, or `None` if out of bounds.
@@ -340,7 +348,7 @@ impl Kanva {
                         .path_mods
                         .shape
                         .get(&idx)
-                        .unwrap_or(&path.path);
+                        .unwrap_or(&self.geometries[path.path]);
                     let base_tf = self
                         .path_mods
                         .transform

@@ -74,7 +74,10 @@ fn animate_connections(
             let Some(entry) = kanva.get_path(idx) else {
                 continue;
             };
-            let els = entry.path.elements().to_vec();
+            let Some(geometry) = kanva.get_geometry(entry.path) else {
+                continue;
+            };
+            let els = geometry.elements().to_vec();
             if let (
                 Some(PathEl::MoveTo(start)),
                 Some(PathEl::LineTo(end)),

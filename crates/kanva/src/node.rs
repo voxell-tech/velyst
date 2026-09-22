@@ -70,7 +70,10 @@ pub enum PaintOrder {
 /// indices.
 #[derive(Default, Debug, Clone)]
 pub struct KanvaPath {
-    pub path: BezPath,
+    /// Index into the geometry buffer; retrieve via
+    /// [`crate::Kanva::get_geometry`]. Glyph runs share one geometry
+    /// entry between a fill-only and a stroke-only [`KanvaPath`].
+    pub path: usize,
     /// Full world transform as received from [`imaging`].
     pub transform: Affine,
     /// Index into the fills buffer; retrieve via
