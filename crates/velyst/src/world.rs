@@ -502,11 +502,27 @@ fn download_package(
         )))
     })?;
 
+    // Extract into a temp sibling dir and rename into place, so an
+    // interrupted extraction never leaves a partial package at `dest`
+    // for `prepare_package`'s existence check to mistake for
+    // complete.
+    let tmp_dest = dest.with_file_name(format!(
+        ".{}.part",
+        dest.file_name().and_then(|n| n.to_str()).unwrap_or("pkg"),
+    ));
+    let _ = fs::remove_dir_all(&tmp_dest);
+
     let decoder = flate2::read::GzDecoder::new(body.as_slice());
-    tar::Archive::new(decoder).unpack(dest).map_err(|e| {
+    tar::Archive::new(decoder).unpack(&tmp_dest).map_err(|e| {
         FileError::Package(PackageError::MalformedArchive(Some(
             eco_format!("{e}"),
         )))
+    })?;
+
+    fs::rename(&tmp_dest, dest).map_err(|e| {
+        FileError::Package(PackageError::Other(Some(eco_format!(
+            "{e}"
+        ))))
     })?;
 
     Ok(dest.to_path_buf())

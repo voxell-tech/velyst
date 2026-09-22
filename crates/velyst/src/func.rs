@@ -105,7 +105,7 @@ fn compile_velyst_func<F: TypstFunc>(
 ///
 /// [`UiScene`]: crate::renderer::UiScene
 /// [`WorldScene`]: crate::renderer::WorldScene
-#[derive(Component)]
+#[derive(Component, Clone)]
 #[require(VelystContent)]
 pub struct VelystFunc<F: TypstFunc> {
     pub handle: Handle<VelystSource>,
