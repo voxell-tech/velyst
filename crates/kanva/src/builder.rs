@@ -6,8 +6,9 @@ use crate::sink::{GlyphRun, KanvaSink};
 
 use crate::Kanva;
 use crate::node::{
-    Command, GeometryId, Group, GroupRange, KanvaFill, KanvaPath,
-    KanvaStroke, NodeIndex, PaintOrder,
+    Command, FillId, GeometryId, Group, GroupId, GroupRange,
+    KanvaFill, KanvaPath, KanvaStroke, NodeIndex, PaintOrder,
+    StrokeId,
 };
 
 /// Builds a [`Kanva`] by consuming a [`KanvaSink`] draw stream.
@@ -19,7 +20,7 @@ use crate::node::{
 /// [`Kanva::query`].
 pub struct KanvaBuilder {
     kanva: Kanva,
-    group_stack: Vec<usize>,
+    group_stack: Vec<GroupId>,
     pending_label: Option<Box<str>>,
 }
 
@@ -66,8 +67,8 @@ impl KanvaBuilder {
         glyph: Glyph,
         base_transform: Affine,
         scale_tf: Affine,
-        fill: Option<usize>,
-        stroke: Option<usize>,
+        fill: Option<FillId>,
+        stroke: Option<StrokeId>,
     ) {
         let Some((path, glyph_tf)) =
             outline_glyph(face, glyph, base_transform, scale_tf)
@@ -84,8 +85,8 @@ impl KanvaBuilder {
         &mut self,
         geom_id: GeometryId,
         transform: Affine,
-        fill: Option<usize>,
-        stroke: Option<usize>,
+        fill: Option<FillId>,
+        stroke: Option<StrokeId>,
     ) {
         let path_idx = self.push_path(KanvaPath {
             path: geom_id,
@@ -98,7 +99,7 @@ impl KanvaBuilder {
     }
 
     fn push_group_entry(&mut self, group: Group) {
-        let idx = self.kanva.groups.len();
+        let idx = GroupId(self.kanva.groups.len());
         if let Some(label) = self.pending_label.take() {
             self.kanva.index.insert(label, NodeIndex::Group(idx));
         }
@@ -114,7 +115,7 @@ impl KanvaBuilder {
 
     fn pop_group_entry(&mut self) {
         if let Some(idx) = self.group_stack.pop() {
-            self.kanva.group_cmds[idx].end =
+            self.kanva.group_cmds[idx.0].end =
                 self.kanva.commands.len();
         }
         self.kanva.commands.push(Command::PopGroup);
@@ -153,12 +154,12 @@ impl KanvaSink for KanvaBuilder {
         paint_order: PaintOrder,
     ) {
         let fill = fill.map(|f| {
-            let idx = self.kanva.fills.len();
+            let idx = FillId(self.kanva.fills.len());
             self.kanva.fills.push(f);
             idx
         });
         let stroke = stroke.map(|s| {
-            let idx = self.kanva.strokes.len();
+            let idx = StrokeId(self.kanva.strokes.len());
             self.kanva.strokes.push(s);
             idx
         });
@@ -194,7 +195,7 @@ impl KanvaSink for KanvaBuilder {
 
         // One shared fill and stroke entry for the whole run.
         let fill_idx = fill.map(|f| {
-            let idx = self.kanva.fills.len();
+            let idx = FillId(self.kanva.fills.len());
             self.kanva.fills.push(f);
             idx
         });
@@ -207,7 +208,7 @@ impl KanvaSink for KanvaBuilder {
                 *dash /= scale;
             }
             s.stroke.dash_offset /= scale;
-            let idx = self.kanva.strokes.len();
+            let idx = StrokeId(self.kanva.strokes.len());
             self.kanva.strokes.push(s);
             idx
         });
@@ -493,8 +494,8 @@ mod tests {
         KanvaSink::push_group(&mut b, Group::default());
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert!(k.get_group(0).is_some());
-        assert!(k.get_group(1).is_none());
+        assert!(k.get_group(GroupId(0)).is_some());
+        assert!(k.get_group(GroupId(1)).is_none());
     }
 
     #[test]
@@ -506,7 +507,10 @@ mod tests {
         draw_fill(&mut b, &brush);
         KanvaSink::pop_group(&mut b);
         let k = b.build();
-        assert_eq!(k.get_group_path_range(0).unwrap().len(), 2);
+        assert_eq!(
+            k.get_group_path_range(GroupId(0)).unwrap().len(),
+            2
+        );
     }
 
     #[test]
@@ -528,7 +532,10 @@ mod tests {
         KanvaSink::pop_group(&mut b);
         KanvaSink::pop_context(&mut b);
         let k = b.build();
-        assert_eq!(k.query("bar"), Some(NodeIndex::Group(0)));
+        assert_eq!(
+            k.query("bar"),
+            Some(NodeIndex::Group(GroupId(0)))
+        );
     }
 
     #[test]
