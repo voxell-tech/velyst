@@ -212,7 +212,8 @@ impl KanvaSink for KanvaBuilder {
 }
 
 /// Ratio from font design units to `font_size`, or `None` if
-/// `units_per_em` is zero.
+/// `units_per_em` is zero or `font_size` doesn't yield a finite,
+/// positive scale.
 fn glyph_scale(
     face: &ttf_parser::Face<'_>,
     font_size: f32,
@@ -221,7 +222,8 @@ fn glyph_scale(
     if units_per_em == 0 {
         return None;
     }
-    Some(font_size as f64 / units_per_em as f64)
+    let scale = font_size as f64 / units_per_em as f64;
+    (scale.is_finite() && scale > 0.0).then_some(scale)
 }
 
 /// Outlines a single glyph and returns its path + world transform.
