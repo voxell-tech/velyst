@@ -173,9 +173,12 @@ impl KanvaSink for KanvaBuilder {
         // gets clipped by a neighbor's fill.
         if fill_idx.is_some() {
             for &glyph in glyphs {
-                let Some((path, glyph_tf)) =
-                    outline_glyph(&face, glyph, run.transform, scale_tf)
-                else {
+                let Some((path, glyph_tf)) = outline_glyph(
+                    &face,
+                    glyph,
+                    run.transform,
+                    scale_tf,
+                ) else {
                     continue;
                 };
                 let path_idx = self.push_path(KanvaPath {
@@ -191,9 +194,12 @@ impl KanvaSink for KanvaBuilder {
 
         if stroke_idx.is_some() {
             for &glyph in glyphs {
-                let Some((path, glyph_tf)) =
-                    outline_glyph(&face, glyph, run.transform, scale_tf)
-                else {
+                let Some((path, glyph_tf)) = outline_glyph(
+                    &face,
+                    glyph,
+                    run.transform,
+                    scale_tf,
+                ) else {
                     continue;
                 };
                 let path_idx = self.push_path(KanvaPath {
