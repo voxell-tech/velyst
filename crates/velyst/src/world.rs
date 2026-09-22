@@ -504,7 +504,8 @@ fn download_package(
 
     // Extract into a temp sibling dir and rename into place, so an
     // interrupted extraction never leaves a partial package at `dest`
-    // for `prepare_package`'s existence check to mistake for complete.
+    // for `prepare_package`'s existence check to mistake for
+    // complete.
     let tmp_dest = dest.with_file_name(format!(
         ".{}.part",
         dest.file_name().and_then(|n| n.to_str()).unwrap_or("pkg"),
