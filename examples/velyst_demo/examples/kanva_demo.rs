@@ -74,7 +74,8 @@ fn animate_connections(
             let Some(entry) = kanva.get_path(idx) else {
                 continue;
             };
-            let Some(geometry) = kanva.get_geometry(entry.path) else {
+            let Some(geometry) = kanva.get_geometry(entry.path)
+            else {
                 continue;
             };
             let els = geometry.elements().to_vec();

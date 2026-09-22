@@ -53,7 +53,8 @@ pub struct Kanva {
     group_cmds: Vec<GroupRange>,
     paths: Vec<KanvaPath>,
     /// Geometry buffer. A glyph run's fill-only and stroke-only
-    /// [`KanvaPath`]s share one entry here instead of duplicating it.
+    /// [`KanvaPath`]s share one entry here instead of duplicating
+    /// it.
     geometries: Vec<BezPath>,
     fills: Vec<KanvaFill>,
     strokes: Vec<KanvaStroke>,
@@ -185,7 +186,10 @@ impl Kanva {
     /// let kanva = builder.build();
     ///
     /// let group_id = kanva.query_group("group").unwrap();
-    /// assert_eq!(kanva.get_group_path_range(group_id).unwrap().len(), 2);
+    /// assert_eq!(
+    ///     kanva.get_group_path_range(group_id).unwrap().len(),
+    ///     2
+    /// );
     /// ```
     pub fn get_group_path_range(
         &self,
