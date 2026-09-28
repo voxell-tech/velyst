@@ -4,18 +4,18 @@ members = ["crates/*", "examples/*"]
 exclude = ["/.github/"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/voxell-tech/velyst"
 readme = "README.md"
 
 [workspace.dependencies]
-velyst = { path = "crates/velyst", version = "0.1.0" }
-typst_imaging = { path = "crates/typst_imaging", version = "0.1.0" }
-kanva = { path = "crates/kanva", version = "0.1.0" }
-kanva_svg = { path = "crates/kanva_svg", version = "0.1.0" }
-kanva_typst = { path = "crates/kanva_typst", version = "0.1.0" }
+velyst = { path = "crates/velyst", version = "0.0.1" }
+typst_imaging = { path = "crates/typst_imaging", version = "0.0.1" }
+kanva = { path = "crates/kanva", version = "0.0.1" }
+kanva_svg = { path = "crates/kanva_svg", version = "0.0.1" }
+kanva_typst = { path = "crates/kanva_typst", version = "0.0.1" }
 
 # Bevy dependencies
 bevy = { version = "0.19", default-features = false }
