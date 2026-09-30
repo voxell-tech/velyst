@@ -84,7 +84,7 @@ impl AssetLoader for VelystSourceLoader {
         let mut text = String::new();
         reader.read_to_string(&mut text).await?;
 
-        let path = load_context.path().to_string();
+        let path = load_context.path().to_string().replace('\\', "/");
         let source = Source::new(
             FileId::new(RootedPath::new(
                 typst::syntax::VirtualRoot::Project,
